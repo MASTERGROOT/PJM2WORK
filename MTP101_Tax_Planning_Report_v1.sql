@@ -1,11 +1,11 @@
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
  
 
--- DECLARE @p0 DATE = '2024-03-01'
--- DECLARE @p1 DATE = '2024-03-30'
--- DECLARE @p2 int  = '1'
--- DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
--- DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
+DECLARE @p0 DATE = '2024-03-01'
+DECLARE @p1 DATE = '2024-04-30'
+DECLARE @p2 int  = '1'
+DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
+DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
 
 
 DECLARE @startDate DATE = @p0
@@ -50,7 +50,7 @@ from
 	(select a.LocationId
 			,a.LocationCode
 			,a.LocationName
-			,FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
 			,a.Description
 			,a.Amount
 		from(select r.LocationId
@@ -89,7 +89,7 @@ from
 	(select a.LocationId
 			,a.LocationCode
 			,a.LocationName
-			,FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
 			,a.Description
 			,a.Amount
 		from(select r.LocationId
@@ -128,7 +128,7 @@ from
 	(select a.LocationId
 			,a.LocationCode
 			,a.LocationName
-			,FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
 			,a.Description
 			,a.Amount
 		from(select r.LocationId
@@ -167,7 +167,7 @@ from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
-			,FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 		from(select j.OrgId
@@ -211,7 +211,7 @@ from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
-			,FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0)[DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0)[CreAmount]
 		from(select j.OrgId
@@ -256,7 +256,7 @@ from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
-			,FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 		from(select j.OrgId
@@ -300,7 +300,7 @@ from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
-			,FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 	from(select j.OrgId
@@ -343,7 +343,7 @@ from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
-			,FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 		from(select j.OrgId
@@ -386,7 +386,7 @@ from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
-			,FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 from(select j.OrgId
@@ -429,7 +429,7 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 Into #Subcontract
 from(
 select	jv.Amount
-		,FORMAT(j.Date ,'yyyyMM')  [Date]
+		,j.[Date]--FORMAT(j.Date ,'yyyyMM')  [Date]
 		,j.OrgCode
 		,Case when i.SystemCategoryId in (123,129) then 'Vat'
 				else 'NoVat'
@@ -487,7 +487,7 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 Into #Material
 from(
 select jv.Amount
-		,FORMAT(j.Date ,'yyyyMM')  [Date]
+		,j.[Date]--FORMAT(j.Date ,'yyyyMM')  [Date]
 		,j.OrgCode
 		,Case when i.SystemCategoryId in (123,129) then 'Vat'
 				else 'NoVat'
@@ -557,7 +557,7 @@ select	'รายได้' [รายได้]
 Into #Accouctchart4Vat
 from(
 select DISTINCT s.Amount
-				,FORMAT(s.DocDate ,'yyyyMM')  [Date]
+				,s.DocDate [Date]--FORMAT(s.DocDate ,'yyyyMM')  [Date]
 				,s.OrgCode
 				,Case when i.SystemCategoryId in (123,129) then 'Vat'
 						else 'NoVat'
@@ -657,7 +657,7 @@ select	'รายได้' [รายได้]
 Into #Accouctchart4NoVat
 from(
 select DISTINCT s.Amount
-				,FORMAT(s.DocDate ,'yyyyMM')  [Date]
+				,s.DocDate [Date]--FORMAT(s.DocDate ,'yyyyMM')  [Date]
 				,s.OrgCode
 				,Case when i.SystemCategoryId in (123,129) then 'Vat'
 						else 'NoVat'
@@ -754,23 +754,26 @@ FROM
 		-- ,a.Sort [Sort2]
 		,a.GroupType
 		,a.Detail
-		,a.[Date]
-		,case when a.Date like '%01' then 'มกราคม'
-				when a.Date like '%02' then 'กุมภาพันธ์'
-				when a.Date like '%03' then 'มีนาคม'
-				when a.Date like '%04' then 'เมษายน'
-				when a.Date like '%05' then 'พฤษภาคม'
-				when a.Date like '%06' then 'มิถุนายน'
-				when a.Date like '%07' then 'กรกฏาคม'
-				when a.Date like '%08' then 'สิงหาคม'
-				when a.Date like '%09' then 'กันยายน'
-				when a.Date like '%10' then 'ตุลาคม'
-				when a.Date like '%11' then 'พฤษจิกายน'
-				when a.Date like '%12' then 'ธันวาคม'
-				end [Month]
-		,IIF(a.[รายได้] = 'รายได้',100,NULL) [RD]
-		,IIF(a.[รายได้] = 'รายได้',100,NULL) [MTP]
-		,NULL [Diff.1]
+		,FORMAT(a.[Date], 'yyyy-MM-dd','en') [DateDetail]
+		,CAST(YEAR(a.[Date]) AS nvarchar) + '0' + CAST(MONTH(a.[Date]) AS nvarchar) [yearMonth]
+		,FORMAT(a.[Date],'MMMM','th') [Month]
+		-- ,case when a.Date like '%01' then 'มกราคม'
+		-- 		when a.Date like '%02' then 'กุมภาพันธ์'
+		-- 		when a.Date like '%03' then 'มีนาคม'
+		-- 		when a.Date like '%04' then 'เมษายน'
+		-- 		when a.Date like '%05' then 'พฤษภาคม'
+		-- 		when a.Date like '%06' then 'มิถุนายน'
+		-- 		when a.Date like '%07' then 'กรกฏาคม'
+		-- 		when a.Date like '%08' then 'สิงหาคม'
+		-- 		when a.Date like '%09' then 'กันยายน'
+		-- 		when a.Date like '%10' then 'ตุลาคม'
+		-- 		when a.Date like '%11' then 'พฤษจิกายน'
+		-- 		when a.Date like '%12' then 'ธันวาคม'
+		-- 		end [Month]
+		
+		-- ,NULL [RD] --IIF(a.[รายได้] = 'รายได้',100,NULL)
+		-- ,NULL [MTP] --IIF(a.[รายได้] = 'รายได้',100,NULL)
+		-- ,NULL [Diff.1]
 		,IIF(a.GroupType = 'ประมาณการรายได้',a.Amount,NULL) [ประมาณการรายได้]
 		-- ,NULL [ผลต่าง+-]
 		,IIF(a.GroupType = 'ประมาณการต้นทุนที่ต้องใช้',a.Amount,NULL) [ประมาณการต้นทุนที่ต้องใช้]
@@ -886,51 +889,58 @@ from(
 						) mt on er.Detail = mt.Detail
 			left join #ManagementWithOutVat mn on er.Detail = mn.Detail
 
-			
-
 ) a		
--- Group by a.รายได้,a.GroupType,a.Detail,a.Sort,a.[Date],a.Amount
+Group by a.รายได้,a.GroupType,a.Detail,a.Sort,a.[Date],a.Amount
 ) a
 
 /******************** Temp #NetProfit********************/
-  IF OBJECT_ID(N'tempdb..#NetProfit', N'U') IS NOT NULL
-    BEGIN
-        DROP TABLE #NetProfit;
-    END;
+--   IF OBJECT_ID(N'tempdb..#NetProfit', N'U') IS NOT NULL
+--     BEGIN
+--         DROP TABLE #NetProfit;
+--     END;
 
-SELECT *
-INTO #NetProfit
-FROM (
+-- SELECT *
+-- INTO #NetProfit
+-- FROM (
 	
-	SELECT	'กำไรก่อนปรับปรุง' [No.],
-		CASE WHEN c.[No.] LIKE 'ค่าใช้จ่าย' THEN 'รวมค่าใช้จ่าย'
-			WHEN c.[No.] LIKE 'รายได้' THEN 'รวมรายได้'
-		END [Total],
-		c.Date,
-		c.Month,
-		-- SUM(c.[ประมาณการรายได้]) AS Sum_ประมาณการรายได้,
-        -- SUM(c.[ประมาณการต้นทุนที่ต้องใช้]) AS Sum_ประมาณการต้นทุนที่ต้องใช้,
-        -- SUM(c.[ประมาณการต้นทุนโครงการใหม่]) AS Sum_ประมาณการต้นทุนโครงการใหม่,
-        SUM(c.[Total budget]) AS Sum_Total_budget,
-        SUM(c.[Actual]) AS Sum_Actual
-        -- SUM(c.[Diff]) AS Sum_Diff
-	FROM #CombineTable c
-	GROUP BY c.[No.],c.Date, c.Month
-) c
+-- 	SELECT	'กำไรก่อนปรับปรุง' [No.],
+-- 		CASE WHEN c.[No.] LIKE 'ค่าใช้จ่าย' THEN 'รวมค่าใช้จ่าย'
+-- 			WHEN c.[No.] LIKE 'รายได้' THEN 'รวมรายได้'
+-- 		END [Total],
+-- 		c.[DateDetail],
+-- 		c.yearMonth,
+-- 		c.Month,
+-- 		-- SUM(c.[ประมาณการรายได้]) AS Sum_ประมาณการรายได้,
+--         -- SUM(c.[ประมาณการต้นทุนที่ต้องใช้]) AS Sum_ประมาณการต้นทุนที่ต้องใช้,
+--         -- SUM(c.[ประมาณการต้นทุนโครงการใหม่]) AS Sum_ประมาณการต้นทุนโครงการใหม่,
+--         SUM(c.[Total budget]) AS Sum_Total_budget,
+--         SUM(c.[Actual]) AS Sum_Actual
+--         -- SUM(c.[Diff]) AS Sum_Diff
+-- 	FROM #CombineTable c
+-- 	GROUP BY c.[No.],c.yearMonth, c.Month, c.[DateDetail]
+-- ) c
 
 /******************** Temp #Variant ********************/
 --   IF OBJECT_ID(N'tempdb..#Variant', N'U') IS NOT NULL
 --     BEGIN
 --         DROP TABLE #Variant;
 --     END;
--- SELECT CONVERT(date,[Date])
+-- SELECT *
 -- INTO #Variant
 -- FROM (
--- 	SELECT v.[Date]
--- 			,v.Diff
--- 	FROM #CombineTable v
--- ) v
+-- 	SELECT 
+-- 		c.[No.]
+-- 		,c.GroupType
+-- 		,c.Detail
+-- 		,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'yyyy-MM-dd','en') [NextDate]
+-- 		,CAST(YEAR(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar) + '0' + CAST(MONTH(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar)  [NextYearMonth]--FORMAT(DATEADD(MONTH,1,[Date]),'yyyy-MM-dd','en')
+-- 		,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'MMMM','th') [NextMonth]
+-- 		,IIF(c.GroupType = 'Diff',c.Diff,NULL) [ผลต่าง+-]
+-- 	FROM #CombineTable c
 
+-- ) c
+-- SELECT * FROM #Variant
+-- SELECT [No.], GroupType, Detail, [Date], yearMonth, [Month], Diff FROM #CombineTable
 -- /*********************************************************************/
 /********************Test Temp****************************************/
 -- select * from #Revenue
@@ -947,35 +957,43 @@ FROM (
 -- select * from #Accouctchart4Vat
 -- select * from #Accouctchart4NoVat
 /********************CORE ********************************************/
+
 SELECT a.[No.],
 		NULL Total,
 		a.GroupType,
 		a.Detail,
-		a.[Date],
+		-- a.[Date],
+		a.yearMonth [Date],
 		a.[Month],
 		a.[ประมาณการรายได้],
-		LAG([Diff], 1) OVER (PARTITION BY a.[No.], a.[Detail] ORDER BY a.Date) [ผลต่าง+-],
+		NULL [ผลต่าง+-],
 		a.[ประมาณการต้นทุนที่ต้องใช้],
 		a.[ประมาณการต้นทุนโครงการใหม่],
 		a.[Total budget],
 		a.Actual,
-		a.Diff
+		(ISNULL(a.Actual,0) - ISNULL(a.[Total budget],0)) AS [Diff]
 FROM #CombineTable a
-UNION ALL 
-SELECT a.[No.],
-		a.Total,
-		NULL GroupType,
-		NULL Detail,
-		a.[Date],
-		a.[Month],
-		NULL [ประมาณการรายได้],
-		NULL [ผลต่าง+-],
-		NULL [ประมาณการต้นทุนที่ต้องใช้],
-		NULL [ประมาณการต้นทุนโครงการใหม่],
-		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.Total = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.Total = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL) [Total budget],
-		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.Total = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.Total = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL) Actual,
-		NULL Diff		
-FROM #NetProfit a
+-- LEFT JOIN #Variant v ON v.[No.] = a.[No.] AND v.GroupType = a.GroupType AND v.Detail = a.Detail AND v.NextDate = a.[DateDetail]
+-- WHERE a.GroupType = 'Diff'
+-- UNION ALL 
+-- SELECT a.[No.],
+-- 		a.Total,
+-- 		NULL GroupType,
+-- 		NULL Detail,
+-- 		-- a.[Date],
+-- 		a.[yearMonth],
+-- 		a.[Month],
+-- 		NULL [ประมาณการรายได้],
+-- 		NULL [ผลต่าง+-],
+-- 		NULL [ประมาณการต้นทุนที่ต้องใช้],
+-- 		NULL [ประมาณการต้นทุนโครงการใหม่],
+-- 		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.Total = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.Total = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL) [Total budget],
+-- 		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.Total = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.Total = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL) Actual,
+-- 		NULL Diff		
+-- FROM #NetProfit a
+
+
+
 
 
 -- Union All
