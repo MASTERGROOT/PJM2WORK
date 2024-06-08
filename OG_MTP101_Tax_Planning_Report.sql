@@ -1037,7 +1037,7 @@ Group by a.รายได้,a.GroupType,a.Detail,a.Sort,a.[Date],a.Amount
 -- 			left join #ManagementWithOutVat mn on er.Detail = mn.Detail
 -- 			group by er.Detail,er.Date,ec.Detail,ec.Date
 -- ) a
-
+-- Group by a.รายได้,a.GroupType,a.Detail,a.Sort,a.[Date],a.Amount
 
 /************************************************************************************************************************************************************************/
 
