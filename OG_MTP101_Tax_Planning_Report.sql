@@ -9,7 +9,7 @@
 -- sp_helpindex InvoiceARLines;
 -- sp_helpindex InspectionSheets;
 -- sp_helpindex InterimPayments;
-SELECT * FROM JournalVouchers
+-- SELECT * FROM JournalVouchers
 
 -- OG 
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
