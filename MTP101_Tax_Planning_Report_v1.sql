@@ -1,11 +1,11 @@
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
  
 
-DECLARE @p0 DATE = '2024-03-01'
-DECLARE @p1 DATE = '2024-04-30'
-DECLARE @p2 int  = '1'
-DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
-DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
+-- DECLARE @p0 DATE = '2024-03-01'
+-- DECLARE @p1 DATE = '2024-04-30'
+-- DECLARE @p2 int  = '1'
+-- DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
+-- DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
 
 
 DECLARE @startDate DATE = @p0
@@ -833,61 +833,61 @@ from(
 			select * from #Accouctchart4Vat
 		union all
 			select * from #Accouctchart4NoVat
-		union all
-			select  'รายได้' [รายได้]
-					,'3' Sort
-					,'Diff' [GroupType]	
-					,r.Detail
-					,r.Date
-					,case when r.Detail = '1.01 ประมาณการรายได้' then isnull(r.Amount,0) - isnull(v.AmtMaterial,0) --[AmtMaterial]
-						  when r.Detail = '1.02 Vatขาย' then isnull(r.Amount,0) - isnull(nv.AmtMaterial,0)
-					 end [AmtMaterial]
-			from #Revenue r
-			left join #Accouctchart4Vat v on r.Detail = v.Detail and r.Date = v.Date
-			left join #Accouctchart4NoVat nv on r.Detail = nv.Detail and r.Date = nv.Date
+		-- union all
+		-- 	select  'รายได้' [รายได้]
+		-- 			,'3' Sort
+		-- 			,'Diff' [GroupType]	
+		-- 			,r.Detail
+		-- 			,r.Date
+		-- 			,case when r.Detail = '1.01 ประมาณการรายได้' then isnull(r.Amount,0) - isnull(v.AmtMaterial,0) --[AmtMaterial]
+		-- 				  when r.Detail = '1.02 Vatขาย' then isnull(r.Amount,0) - isnull(nv.AmtMaterial,0)
+		-- 			 end [AmtMaterial]
+		-- 	from #Revenue r
+		-- 	left join #Accouctchart4Vat v on r.Detail = v.Detail and r.Date = v.Date
+		-- 	left join #Accouctchart4NoVat nv on r.Detail = nv.Detail and r.Date = nv.Date
 
-			union all 
+			-- union all 
 
-			select 'ค่าใช้จ่าย' [ค่าใช้จ่าย]
-					,'3' Sort
-					,'Diff' [GroupType]
-					,isnull(er.Detail,ec.Detail) [Detail]
-					,isnull(er.Date,ec.Date) [Date]
-					,case when er.Detail = '2.01 ค่าของมี Vat' or ec.Detail = '2.01 ค่าของมี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(m.AmtMaterial,0) 
-						  when er.Detail = '2.02 ค่าของไม่มี Vat' or ec.Detail = '2.02 ค่าของไม่มี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(m.AmtMaterial,0)
-						  when er.Detail = '2.03 ค่าแรงมี Vat' or ec.Detail = '2.03 ค่าแรงมี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(s.AmtSubcontract,0)
-						  when er.Detail = '2.04 ค่าแรงไม่มี Vat' or ec.Detail = '2.04 ค่าแรงไม่มี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(s.AmtSubcontract,0)
-						  when er.Detail = '2.05 เงินเดือน ปันส่วน' or ec.Detail = '2.05 เงินเดือน ปันส่วน' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(sr.AmtSalaryRate,0)
-						  when er.Detail = '2.06 ค่าเสื่อมราคาหน้างาน' or ec.Detail = '2.06 ค่าเสื่อมราคาหน้างาน' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(od.AmtOnSiteDepreciation,0)
-						  when er.Detail = '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' or ec.Detail = '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(fr.AmtFareRate,0)
-						  when er.Detail = '2.08 ค่าโฆษณา Vat' or ec.Detail = '2.08 ค่าโฆษณา Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(av.AmtAdvertisingExpensesVat,0)
-						  when er.Detail = '2.09 บริหาร Vat' or ec.Detail = '2.09 บริหาร Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(mt.AmtManageVat,0)
-						  when er.Detail = '2.10 บริหารไม่มี Vat' or ec.Detail = '2.10 บริหารไม่มี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(mn.AmtManagementWithOutVat,0)
-					 end [Amount]
-			from #Estimatedcostsrequired er
-			full join #Estimatenewprojectcosts ec on  er.Detail = ec.Detail and er.Date = ec.Date
-			left join #Material m on er.Detail = m.Detail 
-			left join #Subcontract s on er.Detail = s.Detail 
-			left join #SalaryRate sr on er.Detail = sr.Detail
-			left join #OnSiteDepreciation od on er.Detail = od.Detail
-			left join #FareRate fr on er.Detail = fr.Detail
-			left join #AdvertisingExpensesVat av on er.Detail = av.Detail
-			left join (select mv.ค่าใช้จ่าย,mv.Sort,mv.GroupType,mv.Detail
-						,mv.Date
-						,isnull(mv.AmtManageVat,0) 
-							- (isnull(sr.AmtSalaryRate,0) 
-							+ isnull(fr.AmtFareRate,0) 
-							+ isnull(od.AmtOnSiteDepreciation,0) 
-							+ isnull(mov.AmtManagementWithOutVat,0) 
-							+ isnull(ae.AmtAdvertisingExpensesVat,0)) [AmtManageVat]
-						from #SalaryRate sr
-						left join #FareRate fr on sr.Date = fr.Date
-						left join #OnSiteDepreciation od on sr.Date = od.Date
-						left join #ManagementWithOutVat mov on sr.Date = mov.Date
-						left join #ManageVat mv on sr.Date = mv.Date
-						left join #AdvertisingExpensesVat ae on sr.Date = ae.Date
-						) mt on er.Detail = mt.Detail
-			left join #ManagementWithOutVat mn on er.Detail = mn.Detail
+			-- select 'ค่าใช้จ่าย' [ค่าใช้จ่าย]
+			-- 		,'3' Sort
+			-- 		,'Diff' [GroupType]
+			-- 		,isnull(er.Detail,ec.Detail) [Detail]
+			-- 		,isnull(er.Date,ec.Date) [Date]
+			-- 		,case when er.Detail = '2.01 ค่าของมี Vat' or ec.Detail = '2.01 ค่าของมี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(m.AmtMaterial,0) 
+			-- 			  when er.Detail = '2.02 ค่าของไม่มี Vat' or ec.Detail = '2.02 ค่าของไม่มี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(m.AmtMaterial,0)
+			-- 			  when er.Detail = '2.03 ค่าแรงมี Vat' or ec.Detail = '2.03 ค่าแรงมี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(s.AmtSubcontract,0)
+			-- 			  when er.Detail = '2.04 ค่าแรงไม่มี Vat' or ec.Detail = '2.04 ค่าแรงไม่มี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(s.AmtSubcontract,0)
+			-- 			  when er.Detail = '2.05 เงินเดือน ปันส่วน' or ec.Detail = '2.05 เงินเดือน ปันส่วน' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(sr.AmtSalaryRate,0)
+			-- 			  when er.Detail = '2.06 ค่าเสื่อมราคาหน้างาน' or ec.Detail = '2.06 ค่าเสื่อมราคาหน้างาน' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(od.AmtOnSiteDepreciation,0)
+			-- 			  when er.Detail = '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' or ec.Detail = '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(fr.AmtFareRate,0)
+			-- 			  when er.Detail = '2.08 ค่าโฆษณา Vat' or ec.Detail = '2.08 ค่าโฆษณา Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(av.AmtAdvertisingExpensesVat,0)
+			-- 			  when er.Detail = '2.09 บริหาร Vat' or ec.Detail = '2.09 บริหาร Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(mt.AmtManageVat,0)
+			-- 			  when er.Detail = '2.10 บริหารไม่มี Vat' or ec.Detail = '2.10 บริหารไม่มี Vat' then (isnull(er.Amount,0) + isnull(ec.Amount,0)) - isnull(mn.AmtManagementWithOutVat,0)
+			-- 		 end [Amount]
+			-- from #Estimatedcostsrequired er
+			-- full join #Estimatenewprojectcosts ec on  er.Detail = ec.Detail and er.Date = ec.Date
+			-- left join #Material m on er.Detail = m.Detail 
+			-- left join #Subcontract s on er.Detail = s.Detail 
+			-- left join #SalaryRate sr on er.Detail = sr.Detail
+			-- left join #OnSiteDepreciation od on er.Detail = od.Detail
+			-- left join #FareRate fr on er.Detail = fr.Detail
+			-- left join #AdvertisingExpensesVat av on er.Detail = av.Detail
+			-- left join (select mv.ค่าใช้จ่าย,mv.Sort,mv.GroupType,mv.Detail
+			-- 			,mv.Date
+			-- 			,isnull(mv.AmtManageVat,0) 
+			-- 				- (isnull(sr.AmtSalaryRate,0) 
+			-- 				+ isnull(fr.AmtFareRate,0) 
+			-- 				+ isnull(od.AmtOnSiteDepreciation,0) 
+			-- 				+ isnull(mov.AmtManagementWithOutVat,0) 
+			-- 				+ isnull(ae.AmtAdvertisingExpensesVat,0)) [AmtManageVat]
+			-- 			from #SalaryRate sr
+			-- 			left join #FareRate fr on sr.Date = fr.Date
+			-- 			left join #OnSiteDepreciation od on sr.Date = od.Date
+			-- 			left join #ManagementWithOutVat mov on sr.Date = mov.Date
+			-- 			left join #ManageVat mv on sr.Date = mv.Date
+			-- 			left join #AdvertisingExpensesVat ae on sr.Date = ae.Date
+			-- 			) mt on er.Detail = mt.Detail
+			-- left join #ManagementWithOutVat mn on er.Detail = mn.Detail
 
 ) a		
 Group by a.รายได้,a.GroupType,a.Detail,a.Sort,a.[Date],a.Amount
