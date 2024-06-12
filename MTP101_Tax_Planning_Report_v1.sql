@@ -2,7 +2,7 @@
  
 
 -- DECLARE @p0 DATE = '2024-01-01'
--- DECLARE @p1 DATE = '2024-02-28'
+-- DECLARE @p1 DATE = '2024-02-29'
 -- DECLARE @p2 int  = '1'
 -- DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
 -- DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
@@ -755,10 +755,10 @@ FROM
 		,a.GroupType
 		,a.Detail
 		,FORMAT(a.[Date], 'yyyy-MM-dd','en') [DateDetail]
-		,CAST(YEAR(a.[Date]) AS nvarchar) + '0' + CAST(MONTH(a.[Date]) AS nvarchar) [yearMonth]
+		,CAST(YEAR(a.[Date]) AS nvarchar) + '-0' + CAST(MONTH(a.[Date]) AS nvarchar) [yearMonth]
 		,FORMAT(a.[Date],'MMMM','th') [Month]
-		-- ,NULL [RD] --IIF(a.[รายได้] = 'รายได้',100,NULL)
-		-- ,NULL [MTP] --IIF(a.[รายได้] = 'รายได้',100,NULL)
+		,IIF(a.[รายได้] = 'รายได้',100,NULL) [RD]
+		,IIF(a.[รายได้] = 'รายได้',100,NULL) [MTP]
 		-- ,NULL [Diff.1]
 		,IIF(a.GroupType = 'ประมาณการรายได้',a.Amount,NULL) [ประมาณการรายได้]
 		-- ,NULL [ผลต่าง+-]
@@ -836,6 +836,8 @@ FROM (
 		END [Total],
 		c.yearMonth,
 		c.Month,
+		NULL [RD],
+		NULL [MTP],
 		-- SUM(c.[ประมาณการรายได้]) AS Sum_ประมาณการรายได้,
         -- SUM(c.[ประมาณการต้นทุนที่ต้องใช้]) AS Sum_ประมาณการต้นทุนที่ต้องใช้,
         -- SUM(c.[ประมาณการต้นทุนโครงการใหม่]) AS Sum_ประมาณการต้นทุนโครงการใหม่,
@@ -859,8 +861,10 @@ FROM (
 		,c.GroupType
 		,c.Detail
 		,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'yyyy-MM-dd','en') [NextDate]
-		,CAST(YEAR(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar) + '0' + CAST(MONTH(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar)  [NextYearMonth]--FORMAT(DATEADD(MONTH,1,[Date]),'yyyy-MM-dd','en')
+		,CAST(YEAR(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar) + '-0' + CAST(MONTH(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar)  [NextYearMonth]--FORMAT(DATEADD(MONTH,1,[Date]),'yyyy-MM-dd','en')
 		,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'MMMM','th') [NextMonth]
+		,IIF(c.[No.] = 'รายได้',100,NULL) [RD]
+		,IIF(c.[No.] = 'รายได้',100,NULL) [MTP]
 		,c.Diff [ผลต่าง+-]
 	FROM #CombineTable c
 
@@ -901,14 +905,6 @@ FROM (
 ) v 
 GROUP BY v.[No.], v.VATDetail, v.yearMonth, v.[Month]
 
--- SELECT a.[No.]
--- 		,a.VATDetail
--- 		,a.yearMonth
--- 		,a.[Month]
--- 		,a.[Total Budget]
--- 		,a.Actual
--- 		,CASE WHEN b.VATDetail = 'VAT ซื้อ' THEN b.[Total Budget] else 0 END [try]
-
 -- /*********************************************************************/
 /********************Test Temp****************************************/
 -- select * from #Revenue
@@ -933,6 +929,8 @@ SELECT a.[No.],
 		a.Detail,
 		a.yearMonth [Date],
 		a.[Month],
+		a.RD,
+		a.MTP,
 		a.[ประมาณการรายได้],
 		v.[ผลต่าง+-],
 		a.[ประมาณการต้นทุนที่ต้องใช้],
@@ -947,31 +945,19 @@ SELECT a.[No.],
 		a.Total,
 		NULL GroupType,
 		NULL Detail,
-		a.[yearMonth],
+		a.[yearMonth] [Date],
 		a.[Month],
+		a.RD,
+		a.MTP,
 		NULL [ประมาณการรายได้],
 		NULL [ผลต่าง+-],
 		NULL [ประมาณการต้นทุนที่ต้องใช้],
 		NULL [ประมาณการต้นทุนโครงการใหม่],
-		 IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.Total = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.Total = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL) [Total budget],
+		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.Total = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.Total = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL) [Total budget],
 		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.Total = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.Total = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL) [Actual],
 		NULL Diff		
 FROM #NetProfit a
-UNION ALL
-SELECT va.[No.]
-		,NULL Total
-		,NULL GroupType
-		,va.VATDetail [Detail]
-		,va.yearMonth
-		,va.[Month]
-		,NULL [ประมาณการรายได้]
-		,NULL [ผลต่าง+-]
-		,NULL [ประมาณการต้นทุนที่ต้องใช้]
-		,NULL [ประมาณการต้นทุนโครงการใหม่]
-		,va.[Total Budget]
-		,va.Actual
-		,(ISNULL(va.[Total budget],0) - ISNULL(va.Actual,0)) Diff	
-	FROM #VATprice va
+
 
 /************************************************************************************************************************************************************************/
 
@@ -983,23 +969,68 @@ select  CONCAT('Date : ', FORMAT(@startDate, 'dd/MM/yyyy'), ' To ', FORMAT(@endD
 --/************************************************************************************************************************************************************************/
 
 /*3-Company*/
-select * from fn_CompanyInfoTable(@ProjectId)
+select * from fn_CompanyInfoTable(@ProjectId);
 
 /*VAT*/
--- SELECT va.[No.]
--- 		,NULL Total
--- 		,NULL GroupType
--- 		,va.VATDetail [Detail]
--- 		,va.yearMonth
--- 		,va.[Month]
--- 		,NULL [ประมาณการรายได้]
--- 		,NULL [ผลต่าง+-]
--- 		,NULL [ประมาณการต้นทุนที่ต้องใช้]
--- 		,NULL [ประมาณการต้นทุนโครงการใหม่]
--- 		,va.[Total Budget]
--- 		,va.Actual
--- 		,(ISNULL(va.[Total budget],0) - ISNULL(va.Actual,0)) Diff	
--- 	FROM #VATprice va
+WITH SellVat AS (
+	SELECT va.[No.]
+		,va.VATDetail [Detail]
+		,va.yearMonth
+		,va.[Month]
+		,va.[Total Budget]
+		,va.Actual
+	FROM #VATprice va
+	WHERE va.VATDetail = 'VAT ขาย'
+), BuyVat AS (
+	SELECT va.[No.]
+		,va.VATDetail [Detail]
+		,va.yearMonth
+		,va.[Month]
+		,va.[Total Budget]
+		,va.Actual
+	FROM #VATprice va
+	WHERE va.VATDetail = 'VAT ซื้อ'
+), VatTotal AS (
+	SELECT a.[No.]
+		,a.yearMonth
+		,a.[Month]
+		,'จ่ายภาษีมูลค่าเพิ่ม' [addDetail]
+		,ISNULL(a.[Total Budget],0) - ISNULL(b.[Total Budget],0) [addTotal]
+		,ISNULL(a.Actual,0) - ISNULL(b.Actual,0) [addActual]
+FROM SellVat a
+INNER JOIN BuyVat b
+ON a.yearMonth = b.yearMonth
+)
+SELECT va.[No.]
+		,NULL Total
+		,NULL GroupType
+		,va.VATDetail [Detail]
+		,va.yearMonth [Date]
+		,va.[Month]
+		,NULL [ประมาณการรายได้]
+		,NULL [ผลต่าง+-]
+		,NULL [ประมาณการต้นทุนที่ต้องใช้]
+		,NULL [ประมาณการต้นทุนโครงการใหม่]
+		,va.[Total Budget]
+		,va.Actual
+		,(ISNULL(va.[Total budget],0) - ISNULL(va.Actual,0)) Diff	
+FROM #VATprice va
+UNION ALL
+SELECT v.[No.]
+		,NULL Total
+		,NULL GroupType
+		,v.addDetail [Detail]
+		,v.yearMonth [Date]
+		,v.[Month]
+		,NULL [ประมาณการรายได้]
+		,NULL [ผลต่าง+-]
+		,NULL [ประมาณการต้นทุนที่ต้องใช้]
+		,NULL [ประมาณการต้นทุนโครงการใหม่]
+		,v.addTotal [Total Budget]
+		,v.addActual [Actual]
+		,(ISNULL(v.addTotal,0) - ISNULL(v.addActual,0)) Diff
+FROM VatTotal v
+
 
 /*Drop Temp*/
  IF OBJECT_ID(N'tempdb..#temporg', N'U') IS NOT NULL
