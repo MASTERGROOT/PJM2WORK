@@ -1,16 +1,16 @@
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
  
 
--- DECLARE @p0 DATE = '2024-01-01'
--- DECLARE @p1 DATE = '2024-02-29'
--- DECLARE @p2 int  = '1'
--- DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
--- DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
+DECLARE @p0 DATE = '2024-01-01'
+DECLARE @p1 DATE = '2024-05-30'
+DECLARE @p2 NVARCHAR(MAX)  = '191,116' 
+DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
+DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
 
 
 DECLARE @startDate DATE = @p0
 DECLARE @endDate DATE = @p1
-DECLARE @ProjectId int = @p2
+DECLARE @ProjectId NVARCHAR(MAX) = @p2
 DECLARE @SalaryRate NVARCHAR(10) = @p3
 DECLARE @FareRate NVARCHAR(10)  = @p4
 
@@ -1024,10 +1024,11 @@ SELECT a.[No.],
 		a.[type] [Total],
 		a.GroupType,
 		a.Detail,
+		v.Detail [var_detail],
 		a.yearMonth [Date],
 		a.[Month],
-		NULL [RD],
-		NULL [MTP],
+		NULL [RD (%)],
+		NULL [MTP (%)],
 		NULL [Diff (MTP - RD)],
 		a.[ประมาณการรายได้],
 		IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL) [ผลต่าง+-],
@@ -1043,10 +1044,11 @@ SELECT t.[No.]
 		,t.[type] [Total]
 		,'Total' [GroupType]
 		,t.Detail
+		,NULL [var_detail]
 		,t.TotalDate [Date]
 		,t.TotalMonth [Month]
-		,t.RD
-		,t.MTP
+		,t.RD [RD (%)]
+		,t.MTP [MTP (%)]
 		,t.[Diff (MTP - RD)] [Diff (MTP - RD)]
 		,t.[ประมาณการรายได้]
 		,NULL [ผลต่าง+-]
@@ -1061,10 +1063,11 @@ SELECT a.[No.],
 		NULL Total,
 		a.GroupType,
 		NULL Detail,
+		NULL [var_detail],
 		a.[Date],
 		a.[Month],
-		a.SumRD [RD],
-		a.SumMTP [MTP],
+		a.SumRD [RD (%)],
+		a.SumMTP [MTP (%)],
 		a.[Sum MTP - RD] [Diff (MTP - RD)],
 		NULL [ประมาณการรายได้],
 		NULL [ผลต่าง+-],
@@ -1142,8 +1145,8 @@ SELECT vt.[No.]
 		,vt.Detail
 		,vt.[Date]
 		,vt.[Month]
-		,NULL [RD]
-		,NULL [MTP]
+		,NULL [RD (%)]
+		,NULL [MTP (%)]
 		,NULL [Diff (MTP - RD)]
 		,NULL [ประมาณการรายได้]
 		,NULL [ผลต่าง+-]
@@ -1160,8 +1163,8 @@ SELECT vt.[No.]
 		,vt.Detail
 		,'01' [Date]
 		,'Total' [Month]
-		,NULL [RD]
-		,NULL [MTP]
+		,NULL [RD (%)]
+		,NULL [MTP (%)]
 		,NULL [Diff (MTP - RD)]
 		,NULL [ประมาณการรายได้]
 		,NULL [ผลต่าง+-]
