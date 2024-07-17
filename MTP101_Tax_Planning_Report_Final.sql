@@ -3,7 +3,7 @@
 
 DECLARE @p0 DATE = '2024-01-01'
 DECLARE @p1 DATE = '2024-05-30'
-DECLARE @p2 NVARCHAR(MAX)  = '191,116' 
+DECLARE @p2 NVARCHAR(MAX)  = '1' 
 DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
 DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
 
@@ -43,7 +43,19 @@ SET ANSI_WARNINGS OFF
 select	'รายได้' [รายได้]
 		,'2' Sort
 		,'ประมาณการรายได้' [GroupType]
-		,a.Description [Detail]
+		,CASE WHEN a.Description LIKE 'ประมาณการรายได้' THEN '1.01 ประมาณการรายได้' 
+            WHEN a.Description LIKE 'Vatขาย' THEN '1.02 Vatขาย' 
+            WHEN a.Description LIKE 'ค่าของมี Vat' THEN '2.01 ค่าของมี Vat' 
+            WHEN a.Description LIKE 'ค่าของไม่มี Vat' THEN '2.02 ค่าของไม่มี Vat' 
+            WHEN a.Description LIKE 'ค่าแรงมี Vat' THEN '2.03 ค่าแรงมี Vat' 
+            WHEN a.Description LIKE 'ค่าแรงไม่มี Vat' THEN '2.04 ค่าแรงไม่มี Vat' 
+            WHEN a.Description LIKE 'เงินเดือน ปันส่วน' THEN '2.05 เงินเดือน ปันส่วน' 
+            WHEN a.Description LIKE 'ค่าเสื่อมราคาหน้างาน' THEN '2.06 ค่าเสื่อมราคาหน้างาน' 
+            WHEN a.Description LIKE 'ค่าเดินทาง+น้ำมัน ปันส่วน Vat' THEN '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' 
+            WHEN a.Description LIKE 'ค่าโฆษณา Vat' THEN '2.08 ค่าโฆษณา Vat' 
+            WHEN a.Description LIKE 'บริหาร Vat' THEN '2.09 บริหาร Vat' 
+            WHEN a.Description LIKE 'บริหารไม่มี Vat' THEN '2.10 บริหารไม่มี Vat' 
+        END [Detail]
 		,a.Date
 		,a.Amount
 Into #Revenue
@@ -82,7 +94,19 @@ from
 select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,'3' Sort
 		,'ประมาณการต้นทุนที่ต้องใช้' [GroupType]
-		,a.Description [Detail]
+		,CASE WHEN a.Description LIKE 'ประมาณการรายได้' THEN '1.01 ประมาณการรายได้' 
+            WHEN a.Description LIKE 'Vatขาย' THEN '1.02 Vatขาย' 
+            WHEN a.Description LIKE 'ค่าของมี Vat' THEN '2.01 ค่าของมี Vat' 
+            WHEN a.Description LIKE 'ค่าของไม่มี Vat' THEN '2.02 ค่าของไม่มี Vat' 
+            WHEN a.Description LIKE 'ค่าแรงมี Vat' THEN '2.03 ค่าแรงมี Vat' 
+            WHEN a.Description LIKE 'ค่าแรงไม่มี Vat' THEN '2.04 ค่าแรงไม่มี Vat' 
+            WHEN a.Description LIKE 'เงินเดือน ปันส่วน' THEN '2.05 เงินเดือน ปันส่วน' 
+            WHEN a.Description LIKE 'ค่าเสื่อมราคาหน้างาน' THEN '2.06 ค่าเสื่อมราคาหน้างาน' 
+            WHEN a.Description LIKE 'ค่าเดินทาง+น้ำมัน ปันส่วน Vat' THEN '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' 
+            WHEN a.Description LIKE 'ค่าโฆษณา Vat' THEN '2.08 ค่าโฆษณา Vat' 
+            WHEN a.Description LIKE 'บริหาร Vat' THEN '2.09 บริหาร Vat' 
+            WHEN a.Description LIKE 'บริหารไม่มี Vat' THEN '2.10 บริหารไม่มี Vat' 
+        END [Detail]
 		,a.Date
 		,a.Amount
 Into #Estimatedcostsrequired
@@ -107,7 +131,7 @@ from
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2028,2029,2030,2031,2032,2033,2034,2035,2036,2037)
+					and rl.ItemMetaId in (2017,2018,2019,2020,2021,2022,2023,2024,2025,2028,2029,2030,2031,2032,2033,2034,2035,2036,2037)
 				)a 
 		)a 
 
@@ -121,7 +145,19 @@ from
 select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,'3' Sort
 		,'ประมาณการต้นทุนโครงการใหม่' [GroupType]
-		,a.Description [Detail]
+		,CASE WHEN a.Description LIKE 'ประมาณการรายได้' THEN '1.01 ประมาณการรายได้' 
+            WHEN a.Description LIKE 'Vatขาย' THEN '1.02 Vatขาย' 
+            WHEN a.Description LIKE 'ค่าของมี Vat' THEN '2.01 ค่าของมี Vat' 
+            WHEN a.Description LIKE 'ค่าของไม่มี Vat' THEN '2.02 ค่าของไม่มี Vat' 
+            WHEN a.Description LIKE 'ค่าแรงมี Vat' THEN '2.03 ค่าแรงมี Vat' 
+            WHEN a.Description LIKE 'ค่าแรงไม่มี Vat' THEN '2.04 ค่าแรงไม่มี Vat' 
+            WHEN a.Description LIKE 'เงินเดือน ปันส่วน' THEN '2.05 เงินเดือน ปันส่วน' 
+            WHEN a.Description LIKE 'ค่าเสื่อมราคาหน้างาน' THEN '2.06 ค่าเสื่อมราคาหน้างาน' 
+            WHEN a.Description LIKE 'ค่าเดินทาง+น้ำมัน ปันส่วน Vat' THEN '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' 
+            WHEN a.Description LIKE 'ค่าโฆษณา Vat' THEN '2.08 ค่าโฆษณา Vat' 
+            WHEN a.Description LIKE 'บริหาร Vat' THEN '2.09 บริหาร Vat' 
+            WHEN a.Description LIKE 'บริหารไม่มี Vat' THEN '2.10 บริหารไม่มี Vat' 
+        END [Detail]
 		,a.Date
 		,a.Amount
 Into #Estimatenewprojectcosts
@@ -146,7 +182,7 @@ from
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2028,2029,2030,2031,2032,2033,2034,2035,2036,2037)
+					and rl.ItemMetaId in (2017,2018,2019,2020,2021,2022,2023,2024,2025,2028,2029,2030,2031,2032,2033,2034,2035,2036,2037)
 				)a 
 		)a 
 
