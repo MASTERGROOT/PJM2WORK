@@ -1,11 +1,11 @@
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
  
 
-DECLARE @p0 DATE = '2024-07-01'
-DECLARE @p1 DATE = '2024-07-17'
-DECLARE @p2 NVARCHAR(MAX)  = '1' 
-DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
-DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
+-- DECLARE @p0 DATE = '2024-07-01'
+-- DECLARE @p1 DATE = '2024-07-17'
+-- DECLARE @p2 NVARCHAR(MAX)  = '1' 
+-- DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
+-- DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
 
 
 DECLARE @startDate DATE = @p0
@@ -799,6 +799,12 @@ FROM
 		WHEN a.Detail IN ('2.05 เงินเดือน ปันส่วน', '2.06 ค่าเสื่อมราคาหน้างาน', '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat') THEN 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง'
 		ELSE RIGHT(a.Detail,LEN(a.Detail) - 5)
 		END [type]
+		,CASE WHEN a.Detail IN ('2.01 ค่าของมี Vat', '2.02 ค่าของไม่มี Vat') THEN 1
+		WHEN a.Detail IN ('2.03 ค่าแรงมี Vat', '2.04 ค่าแรงไม่มี Vat') THEN 2
+		WHEN a.Detail IN ('2.08 ค่าโฆษณา Vat', '2.09 บริหาร Vat', '2.10 บริหารไม่มี Vat') THEN 4
+		WHEN a.Detail IN ('2.05 เงินเดือน ปันส่วน', '2.06 ค่าเสื่อมราคาหน้างาน', '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat') THEN 3
+		ELSE 0
+		END [SortType]
 		,a.GroupType
 		,a.Detail
 		,FORMAT(a.[Date], 'yyyy-MM-dd','en') [DateDetail]
@@ -937,6 +943,7 @@ DECLARE @ManagementActual DEC(10, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable
     END;
 SELECT c.[No.]
 		,c.[type]
+        ,c.SortType
 		,c.Detail
 		,c.TotalDate
 		,c.TotalMonth
@@ -953,6 +960,7 @@ INTO #TotalCol
 FROM (
 	SELECT c.[No.]
 			,c.[type]
+            ,c.SortType
 			,c.Detail
 			-- ,c.DateDetail
 			,'01' [TotalDate]
@@ -978,7 +986,7 @@ FROM (
 			,SUM(c.Actual) [Actual]
 			,SUM(c.Diff) [Diff]
 	FROM #CombineTable c
-	GROUP BY c.[No.], c.Detail, c.[type]--, c.yearMonth, c.DateDetail
+	GROUP BY c.[No.], c.Detail, c.[type],c.SortType--, c.yearMonth, c.DateDetail
 ) c
 
 
@@ -1058,6 +1066,7 @@ FROM (
 
 SELECT a.[No.],
 		a.[type] [Total],
+		a.SortType,
 		a.GroupType,
 		a.Detail,
 		v.Detail [var_detail],
@@ -1078,6 +1087,7 @@ LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AN
 UNION ALL 
 SELECT t.[No.]
 		,t.[type] [Total]
+        ,t.SortType
 		,'Total' [GroupType]
 		,t.Detail
 		,NULL [var_detail]
@@ -1097,6 +1107,7 @@ FROM #TotalCol t
 UNION ALL 
 SELECT a.[No.],
 		NULL Total,
+        99 SortType,
 		a.GroupType,
 		NULL Detail,
 		NULL [var_detail],
