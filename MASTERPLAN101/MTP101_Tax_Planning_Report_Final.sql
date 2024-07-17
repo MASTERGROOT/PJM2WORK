@@ -1,11 +1,11 @@
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
  
 
--- DECLARE @p0 DATE = '2024-07-01'
--- DECLARE @p1 DATE = '2024-07-17'
--- DECLARE @p2 NVARCHAR(MAX)  = '1' 
--- DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
--- DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
+DECLARE @p0 DATE = '2024-01-01'
+DECLARE @p1 DATE = '2024-07-17'
+DECLARE @p2 NVARCHAR(MAX)  = '1' 
+DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
+DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
 
 
 DECLARE @startDate DATE = @p0
@@ -965,18 +965,18 @@ FROM (
 			-- ,c.DateDetail
 			,'01' [TotalDate]
 			,'Total' [TotalMonth]
-			,CASE WHEN (c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้') THEN CAST('100.00' AS DEC(10, 2))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN CAST('50.00' AS DEC(10, 2))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.03 ค่าแรงมี Vat') THEN CAST('34.00' AS DEC(10, 2))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.05 เงินเดือน ปันส่วน') THEN CAST('5.50' AS DEC(10, 2))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.08 ค่าโฆษณา Vat') THEN CAST('7.50' AS DEC(10, 2))
+			,CASE WHEN (c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้') THEN CAST('1' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN CAST('0.5' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.03 ค่าแรงมี Vat') THEN CAST('0.34' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.05 เงินเดือน ปันส่วน') THEN CAST('0.055' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.08 ค่าโฆษณา Vat') THEN CAST('0.075' AS DEC(10, 4))
 				ELSE NULL
 			END [RD]
-			,CASE WHEN (c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้') THEN '100'
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN (@ProductActual / @profit)
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.03 ค่าแรงมี Vat') THEN (@WorkerActual / @profit)
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.05 เงินเดือน ปันส่วน') THEN (@OtherActual / @profit)
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.08 ค่าโฆษณา Vat') THEN (@ManagementActual / @profit)
+			,CASE WHEN (c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้') THEN '1'
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN (@ProductActual * 0.01 / @profit) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.03 ค่าแรงมี Vat') THEN (@WorkerActual * 0.01 / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.05 เงินเดือน ปันส่วน') THEN (@OtherActual * 0.01 / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.08 ค่าโฆษณา Vat') THEN (@ManagementActual * 0.01 / @profit)
 			ELSE NULL
 			END [MTP]
 			,SUM(c.[ประมาณการรายได้]) [ประมาณการรายได้]
@@ -1006,8 +1006,8 @@ FROM (
 		END [GroupType],
 		c.[Date],
 		c.Month,
-		100 - IIF(c.[No.] = 'ค่าใช้จ่าย', SUM(c.RD), NULL) [SumRD],
-		100 - IIF(c.[No.] = 'ค่าใช้จ่าย', SUM(c.MTP), NULL) [SumMTP],
+		1 - IIF(c.[No.] = 'ค่าใช้จ่าย', SUM(c.RD), NULL) [SumRD],
+		1 - IIF(c.[No.] = 'ค่าใช้จ่าย', SUM(c.MTP), NULL) [SumMTP],
 		IIF(c.[No.] = 'ค่าใช้จ่าย',SUM(c.[Diff (MTP - RD)]),NULL) [Sum MTP - RD],
 		-- -- SUM(c.[ประมาณการรายได้]) AS Sum_ประมาณการรายได้,
         -- -- SUM(c.[ประมาณการต้นทุนที่ต้องใช้]) AS Sum_ประมาณการต้นทุนที่ต้องใช้,
