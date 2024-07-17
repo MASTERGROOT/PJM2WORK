@@ -1,0 +1,4 @@
+เป็น Query Update RunNumber + AutorunPattern เอาไว้ใช้หลังจากเรา Import Items เข้าระบบแล้ว จะได้ไม่ได้มา Update ที่ละหมวดๆ นะครับ
+ก่อน Update ให้ Select ที่เราจะทำการ Update มาก่อนเพื่อเช็คความถูกต้องของลำดับ + รายการ
+วิธี Update ให้เปลี่ยน SubDocTypeId = xx , SucDocTypeName = xx ตามที่ Base นั้นๆ สร้างแล้วได้ Id มา
+

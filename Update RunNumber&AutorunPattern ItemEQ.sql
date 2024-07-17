@@ -1,0 +1,27 @@
+﻿--UPDATE ITC
+--SET  ITC.RunNumber = RN.RunNumber
+--  ,ITC.AutoRunPattern = (SELECT Code FROM ItemCategories WHERE Id = ITC.Parent) + '.##'--CONVERT(NVARCHAR, ITC.Parent) + '.###'
+--  ,SubDocTypeId = 4,SubDocTypeName = 'เพิ่มหมวดเครื่องมือ-เครื่องใช้ [Running]'
+--FROM ItemCategories ITC
+--RIGHT JOIN 
+--(
+--  SELECT  ROW_NUMBER() OVER(PARTITION BY Parent ORDER BY Id ASC) AS RunNumber, Id
+--  FROM  ItemCategories  
+--  WHERE  SystemCategoryId = 100 AND Level > 1
+--)RN
+--ON ITC.Id = RN.Id
+
+
+
+--UPDATE ITM
+--SET  ITM.RunNumber = RN.RunNumber
+--  ,ITM.AutoRunPattern = (SELECT Code FROM ItemCategories WHERE Id = ITM.ItemCategoryId) + '.###'--CONVERT(NVARCHAR, ITC.Parent) + '.###'
+--  ,SubDocTypeId = 8,SubDocTypeName = 'เพิ่มรหัสเครื่องมือ-เครื่องใช้ [Runing]'
+--FROM ItemMetas ITM
+--RIGHT JOIN 
+--(
+--  SELECT  ROW_NUMBER() OVER(PARTITION BY ItemCategoryId ORDER BY Id ASC) AS RunNumber, Id,ItemCategoryId
+--  FROM  ItemMetas ITM
+--  WHERE  SystemCategoryId = 100
+--)RN
+--ON ITM.Id = RN.Id
