@@ -1,8 +1,8 @@
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
  
 
-DECLARE @p0 DATE = '2024-01-01'
-DECLARE @p1 DATE = '2024-05-30'
+DECLARE @p0 DATE = '2024-07-01'
+DECLARE @p1 DATE = '2024-07-17'
 DECLARE @p2 NVARCHAR(MAX)  = '1' 
 DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
 DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
@@ -80,7 +80,7 @@ from
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2026,2027)
+					and rl.ItemMetaId in (2017,2018)
 				)a 
 		)a 
 
@@ -126,12 +126,12 @@ from
 					,rl.SystemCategoryId
 			from Requests r
 			left join RequestLines rl on r.Id = rl.RequestId
-			where r.SubDocTypeId in (646,647)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
+			where r.SubDocTypeId in (646)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
 					and (r.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2017,2018,2019,2020,2021,2022,2023,2024,2025,2028,2029,2030,2031,2032,2033,2034,2035,2036,2037)
+					and rl.ItemMetaId in (2019,2020,2021,2022,2023,2024,2025,2026,2027,2028)
 				)a 
 		)a 
 
@@ -177,12 +177,12 @@ from
 					,rl.SystemCategoryId
 			from Requests r
 			left join RequestLines rl on r.Id = rl.RequestId
-			where r.SubDocTypeId in (648,649)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
+			where r.SubDocTypeId in (647)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
 					and (r.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2017,2018,2019,2020,2021,2022,2023,2024,2025,2028,2029,2030,2031,2032,2033,2034,2035,2036,2037)
+					and rl.ItemMetaId in (2019,2020,2021,2022,2023,2024,2025,2026,2027,2028)
 				)a 
 		)a 
 
