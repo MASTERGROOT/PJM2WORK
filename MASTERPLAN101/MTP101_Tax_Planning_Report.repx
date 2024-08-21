@@ -207,49 +207,49 @@ namespace XtraReportSerialization {
             // 
             this.pivotGrid1.Appearance.Cell.BackColor = System.Drawing.Color.Transparent;
             this.pivotGrid1.Appearance.Cell.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid1.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid1.Appearance.Cell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid1.Appearance.Cell.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid1.Appearance.Cell.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid1.Appearance.CustomTotalCell.BackColor = System.Drawing.Color.Transparent;
             this.pivotGrid1.Appearance.CustomTotalCell.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid1.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 7.8F);
+            this.pivotGrid1.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid1.Appearance.CustomTotalCell.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid1.Appearance.CustomTotalCell.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid1.Appearance.FieldHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(8)))), ((int)(((byte)(29)))), ((int)(((byte)(52)))));
             this.pivotGrid1.Appearance.FieldHeader.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid1.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid1.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid1.Appearance.FieldHeader.ForeColor = System.Drawing.Color.White;
             this.pivotGrid1.Appearance.FieldHeader.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Center;
             this.pivotGrid1.Appearance.FieldValue.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(136)))), ((int)(((byte)(205)))), ((int)(((byte)(246)))));
             this.pivotGrid1.Appearance.FieldValue.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid1.Appearance.FieldValue.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid1.Appearance.FieldValue.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid1.Appearance.FieldValue.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid1.Appearance.FieldValue.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Center;
             this.pivotGrid1.Appearance.FieldValue.WordWrap = true;
             this.pivotGrid1.Appearance.FieldValueGrandTotal.BackColor = System.Drawing.Color.DimGray;
             this.pivotGrid1.Appearance.FieldValueGrandTotal.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid1.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid1.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid1.Appearance.FieldValueGrandTotal.ForeColor = System.Drawing.Color.White;
             this.pivotGrid1.Appearance.FieldValueGrandTotal.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Near;
             this.pivotGrid1.Appearance.FieldValueGrandTotal.TextVerticalAlignment = DevExpress.Utils.VertAlignment.Center;
             this.pivotGrid1.Appearance.FieldValueTotal.BackColor = System.Drawing.Color.LightPink;
             this.pivotGrid1.Appearance.FieldValueTotal.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid1.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid1.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid1.Appearance.FieldValueTotal.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid1.Appearance.FieldValueTotal.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid1.Appearance.GrandTotalCell.BackColor = System.Drawing.Color.DimGray;
             this.pivotGrid1.Appearance.GrandTotalCell.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid1.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid1.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid1.Appearance.GrandTotalCell.ForeColor = System.Drawing.Color.White;
             this.pivotGrid1.Appearance.GrandTotalCell.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid1.Appearance.Lines.BackColor = System.Drawing.Color.Transparent;
             this.pivotGrid1.Appearance.Lines.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid1.Appearance.Lines.Font = new System.Drawing.Font("Arial Unicode MS", 7.8F);
+            this.pivotGrid1.Appearance.Lines.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid1.Appearance.Lines.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid1.Appearance.Lines.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Near;
             this.pivotGrid1.Appearance.TotalCell.BackColor = System.Drawing.Color.LightPink;
             this.pivotGrid1.Appearance.TotalCell.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid1.Appearance.TotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid1.Appearance.TotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid1.Appearance.TotalCell.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid1.Appearance.TotalCell.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid1.DataMember = "1-Core";
@@ -294,48 +294,49 @@ namespace XtraReportSerialization {
             // 
             this.pivotGrid3.Appearance.Cell.BackColor = System.Drawing.Color.Transparent;
             this.pivotGrid3.Appearance.Cell.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid3.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid3.Appearance.Cell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid3.Appearance.Cell.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid3.Appearance.Cell.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid3.Appearance.CustomTotalCell.BackColor = System.Drawing.Color.Transparent;
             this.pivotGrid3.Appearance.CustomTotalCell.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid3.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 7.8F);
+            this.pivotGrid3.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid3.Appearance.CustomTotalCell.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid3.Appearance.CustomTotalCell.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid3.Appearance.FieldHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(8)))), ((int)(((byte)(29)))), ((int)(((byte)(52)))));
             this.pivotGrid3.Appearance.FieldHeader.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid3.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid3.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid3.Appearance.FieldHeader.ForeColor = System.Drawing.Color.White;
             this.pivotGrid3.Appearance.FieldHeader.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Center;
             this.pivotGrid3.Appearance.FieldValue.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(136)))), ((int)(((byte)(205)))), ((int)(((byte)(246)))));
             this.pivotGrid3.Appearance.FieldValue.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid3.Appearance.FieldValue.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid3.Appearance.FieldValue.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid3.Appearance.FieldValue.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid3.Appearance.FieldValue.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Center;
+            this.pivotGrid3.Appearance.FieldValue.WordWrap = true;
             this.pivotGrid3.Appearance.FieldValueGrandTotal.BackColor = System.Drawing.Color.DimGray;
             this.pivotGrid3.Appearance.FieldValueGrandTotal.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid3.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid3.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid3.Appearance.FieldValueGrandTotal.ForeColor = System.Drawing.Color.White;
             this.pivotGrid3.Appearance.FieldValueGrandTotal.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Near;
             this.pivotGrid3.Appearance.FieldValueGrandTotal.TextVerticalAlignment = DevExpress.Utils.VertAlignment.Center;
             this.pivotGrid3.Appearance.FieldValueTotal.BackColor = System.Drawing.Color.Transparent;
             this.pivotGrid3.Appearance.FieldValueTotal.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid3.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Arial Unicode MS", 7.8F);
+            this.pivotGrid3.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid3.Appearance.FieldValueTotal.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid3.Appearance.FieldValueTotal.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid3.Appearance.GrandTotalCell.BackColor = System.Drawing.Color.DimGray;
             this.pivotGrid3.Appearance.GrandTotalCell.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid3.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGrid3.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid3.Appearance.GrandTotalCell.ForeColor = System.Drawing.Color.White;
             this.pivotGrid3.Appearance.GrandTotalCell.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid3.Appearance.Lines.BackColor = System.Drawing.Color.Transparent;
             this.pivotGrid3.Appearance.Lines.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid3.Appearance.Lines.Font = new System.Drawing.Font("Arial Unicode MS", 7.8F);
+            this.pivotGrid3.Appearance.Lines.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid3.Appearance.Lines.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid3.Appearance.Lines.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Near;
             this.pivotGrid3.Appearance.TotalCell.BackColor = System.Drawing.Color.Transparent;
             this.pivotGrid3.Appearance.TotalCell.BorderColor = System.Drawing.Color.DimGray;
-            this.pivotGrid3.Appearance.TotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 7.8F);
+            this.pivotGrid3.Appearance.TotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGrid3.Appearance.TotalCell.ForeColor = System.Drawing.Color.Black;
             this.pivotGrid3.Appearance.TotalCell.TextHorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
             this.pivotGrid3.DataMember = "Table3";
@@ -421,13 +422,13 @@ namespace XtraReportSerialization {
             // 
             // pivotGridField2
             // 
-            this.pivotGridField2.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField2.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField2.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField2.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField2.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField2.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField2.Appearance.TotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField2.Appearance.Cell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField2.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField2.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField2.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField2.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField2.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField2.Appearance.TotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGridField2.Area = DevExpress.XtraPivotGrid.PivotArea.RowArea;
             this.pivotGridField2.AreaIndex = 2;
             this.pivotGridField2.FieldName = "Detail";
@@ -587,9 +588,10 @@ namespace XtraReportSerialization {
             // pivotGridField9
             // 
             this.pivotGridField9.Appearance.Cell.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
-            this.pivotGridField9.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField9.Appearance.Cell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGridField9.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField9.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField9.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField9.Appearance.FieldHeader.WordWrap = true;
             this.pivotGridField9.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField9.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField9.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
@@ -622,7 +624,8 @@ namespace XtraReportSerialization {
             this.pivotGridField10.Appearance.Cell.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.pivotGridField10.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField10.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField10.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField10.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField10.Appearance.FieldHeader.WordWrap = true;
             this.pivotGridField10.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField10.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField10.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
@@ -713,13 +716,13 @@ namespace XtraReportSerialization {
             // 
             // pivotGridField14
             // 
-            this.pivotGridField14.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField14.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField14.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField14.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField14.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField14.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField14.Appearance.TotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField14.Appearance.Cell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField14.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField14.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField14.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField14.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField14.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField14.Appearance.TotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGridField14.Area = DevExpress.XtraPivotGrid.PivotArea.RowArea;
             this.pivotGridField14.AreaIndex = 0;
             this.pivotGridField14.FieldName = "No.";
@@ -728,13 +731,13 @@ namespace XtraReportSerialization {
             // 
             // pivotGridField15
             // 
-            this.pivotGridField15.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField15.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField15.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField15.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField15.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField15.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField15.Appearance.TotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField15.Appearance.Cell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField15.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField15.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField15.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField15.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField15.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField15.Appearance.TotalCell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGridField15.Area = DevExpress.XtraPivotGrid.PivotArea.RowArea;
             this.pivotGridField15.AreaIndex = 1;
             this.pivotGridField15.FieldName = "Total";
@@ -871,9 +874,10 @@ namespace XtraReportSerialization {
             // pivotGridField19
             // 
             this.pivotGridField19.Appearance.Cell.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
-            this.pivotGridField19.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField19.Appearance.Cell.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.pivotGridField19.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField19.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField19.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField19.Appearance.FieldHeader.WordWrap = true;
             this.pivotGridField19.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField19.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField19.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
@@ -936,7 +940,8 @@ namespace XtraReportSerialization {
             this.pivotGridField21.Appearance.Cell.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.pivotGridField21.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField21.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField21.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField21.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField21.Appearance.FieldHeader.WordWrap = true;
             this.pivotGridField21.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField21.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField21.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
@@ -969,7 +974,8 @@ namespace XtraReportSerialization {
             this.pivotGridField22.Appearance.Cell.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.pivotGridField22.Appearance.Cell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField22.Appearance.CustomTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);
-            this.pivotGridField22.Appearance.FieldHeader.Font = new System.Drawing.Font("Times New Roman", 9.75F);
+            this.pivotGridField22.Appearance.FieldHeader.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
+            this.pivotGridField22.Appearance.FieldHeader.WordWrap = true;
             this.pivotGridField22.Appearance.FieldValueGrandTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField22.Appearance.FieldValueTotal.Font = new System.Drawing.Font("Times New Roman", 9.75F);
             this.pivotGridField22.Appearance.GrandTotalCell.Font = new System.Drawing.Font("Times New Roman", 9.75F);

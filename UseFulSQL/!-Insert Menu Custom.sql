@@ -37,3 +37,13 @@
 
 --Update CompanyMenuConfigs Set Path = 'PROJECT/THS REPORT' where id = 1
 
+-- INSERT INTO ItemAccounts (GeneralAccount, GeneralAccountCode, GeneralAccountName, AccountCode, AccountName, AccountId, [Status],ItemMetaId)
+-- SELECT 403 GeneralAccount
+--         ,'SaleRev' GeneralAccountCode
+--         ,'SaleRev' GeneralAccountName
+--         ,411201 AccountCode
+--         ,'รายได้จากการขาย' AccountName
+--         ,186 AccountId
+--         ,1 [Status]
+--         ,i.id ItemMetaId
+-- from ItemMetas i 
