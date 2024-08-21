@@ -80,7 +80,7 @@ from
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2017,2018)
+					and rl.ItemMetaId in (2017,2018)  --check in each site
 				)a 
 		)a 
 
@@ -182,7 +182,7 @@ from
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2019,2020,2021,2022,2023,2024,2025,2026,2027,2028)
+					and rl.ItemMetaId in (2019,2020,2021,2022,2023,2024,2025,2026,2027,2028)  --check in each site
 				)a 
 		)a 
 
@@ -800,9 +800,9 @@ FROM
 		ELSE RIGHT(a.Detail,LEN(a.Detail) - 5)
 		END [type]
 		,CASE 
-		WHEN a.Detail IN ('1.01 ประมาณการรายได้') THEN 0
+  		WHEN a.Detail IN ('1.01 ประมาณการรายได้') THEN 0
 		WHEN a.Detail IN ('1.02 Vatขาย') THEN 0.5
-		WHEN a.Detail IN ('2.01 ค่าของมี Vat', '2.02 ค่าของไม่มี Vat') THEN 1
+  		WHEN a.Detail IN ('2.01 ค่าของมี Vat', '2.02 ค่าของไม่มี Vat') THEN 1
 		WHEN a.Detail IN ('2.03 ค่าแรงมี Vat', '2.04 ค่าแรงไม่มี Vat') THEN 2
 		WHEN a.Detail IN ('2.08 ค่าโฆษณา Vat', '2.09 บริหาร Vat', '2.10 บริหารไม่มี Vat') THEN 4
 		WHEN a.Detail IN ('2.05 เงินเดือน ปันส่วน', '2.06 ค่าเสื่อมราคาหน้างาน', '2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat') THEN 3
@@ -1156,8 +1156,8 @@ WITH SellVat AS (
 		,va.VATDetail [Detail]
 		,va.yearMonth
 		,va.[Month]
-		,va.[Total Budget]
-		,va.Actual
+		,va.[Total Budget] * 0.07 [Total Budget]
+		,va.Actual * 0.07 [Actual]
 	FROM #VATprice va
 	WHERE va.VATDetail = 'VAT ซื้อ'
 ), PreVat AS (
