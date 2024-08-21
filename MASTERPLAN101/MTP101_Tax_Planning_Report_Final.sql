@@ -1,8 +1,8 @@
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
  
 
-DECLARE @p0 DATE = '2024-01-01'
-DECLARE @p1 DATE = '2024-07-17'
+DECLARE @p0 DATE = '2024-06-01'
+DECLARE @p1 DATE = '2024-08-21'
 DECLARE @p2 NVARCHAR(MAX)  = '1' 
 DECLARE @p3 NVARCHAR(10) = '0.51' /*0.51*/
 DECLARE @p4 NVARCHAR(10)  = '0.80' /*0.80*/
@@ -808,7 +808,7 @@ FROM
 		,a.GroupType
 		,a.Detail
 		,FORMAT(a.[Date], 'yyyy-MM-dd','en') [DateDetail]
-		,CAST(YEAR(a.[Date]) AS nvarchar) + '-0' + CAST(MONTH(a.[Date]) AS nvarchar) [yearMonth]
+		,FORMAT(a.[Date], 'yyyy-MM','en') [yearMonth]
 		,FORMAT(a.[Date],'MMMM','th') [Month]
 		-- ,NULL [Diff.1]
 		,IIF(a.GroupType = 'ประมาณการรายได้',a.Amount,NULL) [ประมาณการรายได้]
@@ -885,7 +885,7 @@ FROM (
 	SELECT 
 		c.Detail
 		-- ,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'yyyy-MM-dd','en') [NextDate]
-		,CAST(YEAR(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar) + '-0' + CAST(MONTH(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar)  [NextYearMonth]--FORMAT(DATEADD(MONTH,1,[Date]),'yyyy-MM-dd','en')
+		,FORMAT(DATEADD(MONTH,1,c.[DateDetail]), 'yyyy-MM','en') [NextYearMonth]--FORMAT(DATEADD(MONTH,1,[Date]),'yyyy-MM-dd','en')
 		,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'MMMM','th') [NextMonth]
 		,SUM(c.[Total budget]) tb
 		,SUM(c.Actual) a
