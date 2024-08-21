@@ -1273,7 +1273,7 @@ namespace XtraReportSerialization {
             this.Margins = new System.Drawing.Printing.Margins(66, 38, 66, 13);
             this.Name = "MTP101_Tax_Planning_Report";
             this.PageHeight = 4200;
-            this.PageWidth = 100000;
+            this.PageWidth = 50000;
             this.PaperKind = System.Drawing.Printing.PaperKind.Custom;
             this.PaperName = "PURCHASEORDER";
             this.ReportUnit = DevExpress.XtraReports.UI.ReportUnit.TenthsOfAMillimeter;
