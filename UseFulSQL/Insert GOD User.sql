@@ -1,0 +1,21 @@
+--INSERT INTO dbo.Workers
+--        ( Code ,
+--          Name ,
+--          UserName ,
+--          WorkStatus ,
+--          isEmployee ,
+--          WorkerTypeId ,
+--          WorkerType ,
+--          guId 
+--        )
+--VALUES  ( 'GOD' , 
+--          'Pojjaman' ,
+--          'pojjaman' , 
+--          1 , 
+--          0 ,
+--			2 ,
+--          'User And Employee' , 
+--          'Pojjaman' 
+--        )
+
+Select * From Workers
