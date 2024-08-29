@@ -2,7 +2,7 @@
  
 
 DECLARE @p0 DATE = '2024-01-01'
-DECLARE @p1 DATE = '2024-01-31'
+DECLARE @p1 DATE = '2024-03-31'
 DECLARE @p2 NVARCHAR(MAX)  = '1' 
 DECLARE @p3 NVARCHAR(10) = '1' /*0.51*/
 DECLARE @p4 NVARCHAR(10)  = '1' /*0.80*/
@@ -1066,8 +1066,25 @@ FROM (
 -- select * from #Accouctchart4Vat
 -- select * from #Accouctchart4NoVat
 /********************CORE ********************************************/
-
-SELECT a.[No.],
+SELECT  a.[No.],
+		a.[Total],
+		a.SortType,
+		a.GroupType,
+		a.Detail,
+		a.[var_detail],
+		a.[Date],
+		a.[Month],
+		a.[RD (%)],
+		a.[MTP (%)],
+		a.[Diff (MTP - RD)],
+		a.[ประมาณการรายได้],
+		a.[ผลต่าง+-], 
+		a.[ประมาณการต้นทุนที่ต้องใช้],
+		a.[ประมาณการต้นทุนโครงการใหม่],
+		ISNULL(a.[Total budget],0) + ISNULL(a.[ผลต่าง+-],0) [Total budget], --เอาอันนี้รวมกับใน total budget
+		a.Actual,
+		a.Diff
+FROM (SELECT a.[No.],
 		a.[type] [Total],
 		a.SortType,
 		a.GroupType,
@@ -1079,14 +1096,14 @@ SELECT a.[No.],
 		NULL [MTP (%)],
 		NULL [Diff (MTP - RD)],
 		a.[ประมาณการรายได้],
-		IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL) [ผลต่าง+-],
+		IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL) [ผลต่าง+-], --เอาอันนี้รวมกับใน total budget
 		a.[ประมาณการต้นทุนที่ต้องใช้],
 		a.[ประมาณการต้นทุนโครงการใหม่],
 		a.[Total budget],
 		a.Actual,
 		a.Diff
 FROM #CombineTable a 
-LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AND v.NextMonth = a.[Month]
+LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AND v.NextMonth = a.[Month]) a
 UNION ALL 
 SELECT t.[No.]
 		,t.[type] [Total]
