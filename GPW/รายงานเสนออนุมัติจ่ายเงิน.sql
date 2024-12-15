@@ -22,7 +22,7 @@
 /* 2022-06-13 : Edit By แบงค์เอง : MS-24406 เคสที่เอกสารเป็น MultiVat แล้วทำให้รายการในรายงานแสดงเบิ้ล */
 
 
-declare @p0  int				= 2
+declare @p0  int				= 1
 DECLARE @p1  date				= '2024-10-01';
 DECLARE @p2  date				= '2024-10-30';
 
@@ -142,8 +142,8 @@ END;
 						, da.DocCurrency,da.DocCurrencyRate
 						into #cte_JV
 				from  dbo.JournalVouchers j WITH (NOLOCK)
-						inner join dbo.Journals jn WITH (NOLOCK) on jn.Id = j.JournalId and jn.JournalTypeId IN (1,8) and j.MadeByTypeId <> 140
-						CROSS APPLY ( 							   
+						inner join dbo.Journals jn WITH (NOLOCK) on jn.Id = j.JournalId and jn.JournalTypeId IN (1,7,8) and j.MadeByTypeId <> 140
+CROSS APPLY ( 							   
 									  SELECT  a1.LocationId, a1.LocationCode, a1.LocationName
 											  , ISNULL(NULLIF(a1.InvoiceAPCode,''),a1.TaxInvoiceAPCode) InvoiceAPCode
 											  , ISNULL(NULLIF(a1.InvoiceAPDate,''),a1.TaxInvoiceAPDate) InvoiceAPDate
@@ -201,6 +201,24 @@ END;
 											  ) vt ON vt.AdjustInvoiceId = a3.Id
 									  WHERE	  a3.Id = j.MadeByDocId
 											  AND j.MadeByTypeId IN (39,40)
+                        
+                        UNION ALL 
+                                    SELECT a4.OrgId [LocationId], a4.OrgCode [LocationCode], a4.OrgName [LocationName],
+                                            NULL InvoiceAPCode, NULL InvoiceAPdate
+                                            ,NULL FiscalDueDate /* ดึงมาจาก custom note */
+                                            ,ISNULL(a4.PayCurrency,'THB') DocCurrency
+                                            ,ISNULL(a4.PayCurrencyRate,1) DocCurrencyRate
+                                            , ISNULL(vt.SystemCategoryId,0) SystemCategoryId, ISNULL(vt.TaxAmount,0)TaxAmount 
+                                    FROM dbo.WorkerExpenses a4 WITH (NOLOCK)
+                                            LEFT JOIN dbo.WorkerExpenseLines du WITH (NOLOCK) ON a4.Id = du.WorkerExpenseId
+                                            LEFT JOIN (
+                                                SELECT SystemCategoryId, WorkerExpenseId, SUM(ISNULL(TaxAmount,0)) [TaxAmount]
+                                                FROM dbo.WorkerExpenseLines
+                                                WHERE SystemCategoryId IN (123,129,199,207) 
+                                                GROUP BY SystemCategoryId,WorkerExpenseId
+                                            ) vt ON vt.WorkerExpenseId = a4.Id
+                                    WHERE a4.Id = j.MadeByDocId
+                                            AND j.MadeByTypeId = 97
 
 											  ) da
 						
@@ -252,7 +270,7 @@ END;
 /*
 )
 */
-
+-- select * from #cte_JV
 select *
 from
 (
