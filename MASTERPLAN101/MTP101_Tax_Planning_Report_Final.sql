@@ -1,8 +1,8 @@
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
  
 
-DECLARE @p0 DATE = '2024-07-01'
-DECLARE @p1 DATE = '2024-08-31'
+DECLARE @p0 DATE = '2024-01-01'
+DECLARE @p1 DATE = '2024-12-14'
 DECLARE @p2 NVARCHAR(MAX)  = '1' 
 DECLARE @p3 NVARCHAR(10) = '1' /*0.51*/
 DECLARE @p4 NVARCHAR(10)  = '1' /*0.80*/
@@ -44,21 +44,21 @@ select	'รายได้' [รายได้]
 		,'2' Sort
 		,'ประมาณการรายได้' [GroupType]
 		,CASE WHEN a.Description LIKE 'ประมาณการรายได้' THEN '1.01 ประมาณการรายได้' 
-            WHEN a.Description LIKE 'Vatขาย' THEN '1.02 Vatขาย' 
-            WHEN a.Description LIKE 'ค่าของมี Vat' THEN '2.01 ค่าของมี Vat' 
-            WHEN a.Description LIKE 'ค่าของไม่มี Vat' THEN '2.02 ค่าของไม่มี Vat' 
-            WHEN a.Description LIKE 'ค่าของโครงการใหม่ มี Vat' THEN '2.03 ค่าของโครงการใหม่ มี Vat' 
-            WHEN a.Description LIKE 'ค่าของโครงการใหม่ ไม่มี Vat' THEN '2.04 ค่าของโครงการใหม่ ไม่มี Vat' 
-            WHEN a.Description LIKE 'ค่าแรงมี Vat' THEN '2.05 ค่าแรงมี Vat' 
-            WHEN a.Description LIKE 'ค่าแรงไม่มี Vat' THEN '2.06 ค่าแรงไม่มี Vat' 
-            WHEN a.Description LIKE 'ค่าแรงโครงการใหม่ มี Vat' THEN '2.07 ค่าแรงโครงการใหม่ มี Vat' 
-            WHEN a.Description LIKE 'ค่าแรงโครงการใหม่ ไม่มี Vat' THEN '2.08 ค่าแรงโครงการใหม่ ไม่มี Vat' 
-            WHEN a.Description LIKE 'เงินเดือน ปันส่วน' THEN '2.09 เงินเดือน ปันส่วน' 
-            WHEN a.Description LIKE 'ค่าเสื่อมราคาหน้างาน' THEN '2.10 ค่าเสื่อมราคาหน้างาน' 
-            WHEN a.Description LIKE 'ค่าเดินทาง+น้ำมัน ปันส่วน Vat' THEN '2.11 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' 
-            WHEN a.Description LIKE 'ค่าโฆษณา Vat' THEN '2.12 ค่าโฆษณา Vat' 
-            WHEN a.Description LIKE 'บริหาร Vat' THEN '2.13 บริหาร Vat' 
-            WHEN a.Description LIKE 'บริหารไม่มี Vat' THEN '2.14 บริหารไม่มี Vat' 
+            WHEN a.Description LIKE 'Vat' THEN '1.02 Vatขาย' 
+            -- WHEN a.Description LIKE 'ค่าของมี Vat' THEN '2.01 ค่าของมี Vat' 
+            -- WHEN a.Description LIKE 'ค่าของไม่มี Vat' THEN '2.02 ค่าของไม่มี Vat' 
+            -- WHEN a.Description LIKE 'ค่าของโครงการใหม่ มี Vat' THEN '2.03 ค่าของโครงการใหม่ มี Vat' 
+            -- WHEN a.Description LIKE 'ค่าของโครงการใหม่ ไม่มี Vat' THEN '2.04 ค่าของโครงการใหม่ ไม่มี Vat' 
+            -- WHEN a.Description LIKE 'ค่าแรงมี Vat' THEN '2.05 ค่าแรงมี Vat' 
+            -- WHEN a.Description LIKE 'ค่าแรงไม่มี Vat' THEN '2.06 ค่าแรงไม่มี Vat' 
+            -- WHEN a.Description LIKE 'ค่าแรงโครงการใหม่ มี Vat' THEN '2.07 ค่าแรงโครงการใหม่ มี Vat' 
+            -- WHEN a.Description LIKE 'ค่าแรงโครงการใหม่ ไม่มี Vat' THEN '2.08 ค่าแรงโครงการใหม่ ไม่มี Vat' 
+            -- WHEN a.Description LIKE 'เงินเดือน ปันส่วน' THEN '2.09 เงินเดือน ปันส่วน' 
+            -- WHEN a.Description LIKE 'ค่าเสื่อมราคาหน้างาน' THEN '2.10 ค่าเสื่อมราคาหน้างาน' 
+            -- WHEN a.Description LIKE 'ค่าเดินทาง+น้ำมัน ปันส่วน Vat' THEN '2.11 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' 
+            -- WHEN a.Description LIKE 'ค่าโฆษณา Vat' THEN '2.12 ค่าโฆษณา Vat' 
+            -- WHEN a.Description LIKE 'บริหาร Vat' THEN '2.13 บริหาร Vat' 
+            -- WHEN a.Description LIKE 'บริหารไม่มี Vat' THEN '2.14 บริหารไม่มี Vat' 
         END [Detail]
 		,a.Date
 		,a.Amount
@@ -79,14 +79,32 @@ from
 					,rl.SystemCategoryId
 			from Requests r
 			left join RequestLines rl on r.Id = rl.RequestId
-			where r.SubDocTypeId = '645'  /*ขึ้นตัวจริงต้องเช็คอีกที*/
+			where r.SubDocTypeId = '645'  /*ขึ้นตัวจริงต้องเช็คอีกที PRX1 ใบประมาณการรายได้*/
 					and (r.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2017,2018)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
+					and rl.ItemMetaId in (2017)  /*ขึ้นตัวจริงต้องเช็คอีกที ZZ-0001	ประมาณการรายได้*/
+			UNION ALL
+			select r.LocationId
+					,r.LocationCode
+					,r.LocationName
+					,r.Date
+					,rl.Description
+					,rl.Amount
+					,rl.SystemCategoryId
+			from Requests r
+			left join RequestLines rl on r.Id = rl.RequestId
+			where r.SubDocTypeId = '645'  /*ขึ้นตัวจริงต้องเช็คอีกที*/
+					and (r.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
+					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
+					and r.DocStatus not in (-1)
+					and rl.SystemCategoryId = 123
+					
 				)a 
+
 		)a 
+
 
 /******************** Temp #Estimatedcostsrequired ประมาณการต้นทุนที่ต้องใช้ ********************/
   IF OBJECT_ID(N'tempdb..#Estimatedcostsrequired', N'U') IS NOT NULL
@@ -134,7 +152,7 @@ from
 					,rl.SystemCategoryId
 			from Requests r
 			left join RequestLines rl on r.Id = rl.RequestId
-			where r.SubDocTypeId in (646)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
+			where r.SubDocTypeId in (646)  /*ขึ้นตัวจริงต้องเช็คอีกที PRX2 ประมาณการต้นทุนที่ต้องใช้*/
 					and (r.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
@@ -779,9 +797,9 @@ inner join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
 						) iv on il.DocCode = iv.Code
 			where  i.DocStatus not in (-1) 
 			) i on  s.DocCode = i.Code
-where s.AccountCode IN (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
+where s.AccountCode IN (Select Code FROM ChartOfAccounts WHERE GeneralAccount = 2)/* (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
 						,41000601,41000102,41000202,41000302,41000402,41000502,41000602,41000700
-						,41000701,41000702,41000703,41000704,41000705,41000707,41000708)
+						,41000701,41000702,41000703,41000704,41000705,41000707,41000708) */
 		and s.isDebit = 0
 		and (s.DocDate BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 		and (s.OrgId in (select Id from #temporg) or @ProjectId is NULL)
@@ -944,13 +962,13 @@ FROM (
 
 ) v 
 GROUP BY v.[No.], v.VATDetail, v.yearMonth, v.[Month]
--- SELECT * FROM #VATprice
+
 /******************** Temp #TotalCol ********************/
-DECLARE @profit DEC(10, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้')
-DECLARE @ProductActual DEC(10, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ')
-DECLARE @WorkerActual DEC(10, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง')
-DECLARE @OtherActual DEC(10, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง')
-DECLARE @ManagementActual DEC(10, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร')
+DECLARE @profit DEC(12, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้')
+DECLARE @ProductActual DEC(12, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ')
+DECLARE @WorkerActual DEC(12, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง')
+DECLARE @OtherActual DEC(12, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง')
+DECLARE @ManagementActual DEC(12, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร')
 
   IF OBJECT_ID(N'tempdb..#TotalCol', N'U') IS NOT NULL
     BEGIN
@@ -1003,7 +1021,7 @@ FROM (
 	FROM #CombineTable c
 	GROUP BY c.[No.], c.Detail, c.[type],c.SortType--, c.yearMonth, c.DateDetail
 ) c
-
+SELECT * from #TotalCol
 
 /******************** Temp #NetProfit********************/
   IF OBJECT_ID(N'tempdb..#NetProfit', N'U') IS NOT NULL
@@ -1160,108 +1178,123 @@ FROM (
 
 -- /************************************************************************************************************************************************************************/
 
--- /*2-Filter*/
--- select  CONCAT('Date : ', FORMAT(@startDate, 'dd/MM/yyyy'), ' To ', FORMAT(@endDate, 'dd/MM/yyyy')) Date
--- 		,(SELECT dbo.GROUP_CONCAT(Name)  FROM dbo.Organizations WHERE Id in (SELECT ncode FROM dbo.fn_listCode(@ProjectId))) Project
--- 		,@SalaryRate [SalaryRate]
--- 		,@FareRate [FareRate]
+/*2-Filter*/
+select  CONCAT('Date : ', FORMAT(@startDate, 'dd/MM/yyyy'), ' To ', FORMAT(@endDate, 'dd/MM/yyyy')) Date
+		,(SELECT dbo.GROUP_CONCAT(Name)  FROM dbo.Organizations WHERE Id in (SELECT ncode FROM dbo.fn_listCode(@ProjectId))) Project
+		,@SalaryRate [SalaryRate]
+		,@FareRate [FareRate]
 -- --/************************************************************************************************************************************************************************/
 
-/*3-Company*/
-select * from fn_CompanyInfoTable(@ProjectId);
+-- /*3-Company*/
+-- select * from fn_CompanyInfoTable(@ProjectId);
 
-/*VAT*/
-WITH SellVat AS (
-	SELECT va.[No.]
-		,va.VATDetail [Detail]
-		,va.yearMonth
-		,va.[Month]
-		,va.[Total Budget]
-		,va.Actual
-	FROM #VATprice va
-	WHERE va.VATDetail = 'VAT ขาย'
-), BuyVat AS (
-	SELECT va.[No.]
-		,va.VATDetail [Detail]
-		,va.yearMonth
-		,va.[Month]
-		,IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07) [Total Budget]
-		,va.Actual [Actual]
-	FROM #VATprice va
-	WHERE va.VATDetail IN ('VAT ซื้อ', 'Vat ซื้อ โครงการใหม่')
-), PreVat AS (
-	SELECT a.[No.]
-		,a.yearMonth
-		,a.[Month]
-		,'จ่ายภาษีมูลค่าเพิ่ม' [addDetail]
-		,ISNULL(a.[Total Budget],0) - ISNULL(b.[Total Budget],0) [addTotal]
-		,ISNULL(a.Actual,0) - ISNULL(b.Actual,0) [addActual]
-FROM SellVat a
-INNER JOIN BuyVat b
-ON a.yearMonth = b.yearMonth
-WHERE a.Detail = 'VAT ขาย' OR b.Detail = 'VAT ซื้อ'
-), VatTotal AS (
-	SELECT va.[No.]
-		,va.VATDetail [Detail]
-		,va.yearMonth [Date]
-		,va.[Month]
-		,IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07) [Total Budget]
-		,va.Actual
-		,(ISNULL(va.[Total budget],0) - ISNULL(va.Actual,0)) Diff	
-FROM #VATprice va
-UNION ALL
-SELECT v.[No.]
-		,v.addDetail [Detail]
-		,v.yearMonth [Date]
-		,v.[Month]
-		,v.addTotal [Total Budget]
-		,v.addActual [Actual]
-		,(ISNULL(v.addTotal,0) - ISNULL(v.addActual,0)) Diff
-FROM PreVat v
-)
+-- /*VAT*/
+-- WITH SellVat AS (
+-- 	SELECT va.[No.]
+-- 		,va.VATDetail [Detail]
+-- 		,va.yearMonth
+-- 		,va.[Month]
+-- 		,va.[Total Budget]
+-- 		,va.Actual
+-- 	FROM #VATprice va
+-- 	WHERE va.VATDetail = 'VAT ขาย'
+-- ), BuyVat AS (
+-- 	SELECT va.[No.]
+-- 		,va.VATDetail [Detail]
+-- 		,va.yearMonth
+-- 		,va.[Month]
+-- 		,IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07) [Total Budget]
+-- 		,va.Actual [Actual]
+-- 	FROM #VATprice va
+-- 	WHERE va.VATDetail IN ('VAT ซื้อ', 'Vat ซื้อ โครงการใหม่')
+-- ), PreVat AS (
+-- 	SELECT a.[No.]
+-- 		,a.yearMonth
+-- 		,a.[Month]
+-- 		,'จ่ายภาษีมูลค่าเพิ่ม' [addDetail]
+-- 		,ISNULL(a.[Total Budget],0) - ISNULL(b.[Total Budget],0) [addTotal]
+-- 		,ISNULL(a.Actual,0) - ISNULL(b.Actual,0) [addActual]
+-- FROM SellVat a
+-- INNER JOIN BuyVat b
+-- ON a.yearMonth = b.yearMonth
+-- WHERE a.Detail = 'VAT ขาย' OR b.Detail = 'VAT ซื้อ'
+-- ), VatTotal AS (
+-- 	SELECT va.[No.]
+-- 		,va.VATDetail [Detail]
+-- 		,va.yearMonth [Date]
+-- 		,va.[Month]
+-- 		,IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07) [Total Budget]
+-- 		,va.Actual
+-- 		,(ISNULL(va.[Total budget],0) - ISNULL(va.Actual,0)) Diff	
+-- FROM #VATprice va
+-- UNION ALL
+-- SELECT v.[No.]
+-- 		,v.addDetail [Detail]
+-- 		,v.yearMonth [Date]
+-- 		,v.[Month]
+-- 		,v.addTotal [Total Budget]
+-- 		,v.addActual [Actual]
+-- 		,(ISNULL(v.addTotal,0) - ISNULL(v.addActual,0)) Diff
+-- FROM PreVat v
+-- )
 
-SELECT vt.[No.]
-		,NULL Total
-		,NULL GroupType
-		,vt.Detail
-		,vt.[Date]
-		,vt.[Month]
-		,NULL [RD (%)]
-		,NULL [MTP (%)]
-		,NULL [Diff (MTP - RD)]
-		,NULL [ประมาณการรายได้]
-		,NULL [ผลต่าง+-]
-		,NULL [ประมาณการต้นทุนที่ต้องใช้]
-		,NULL [ประมาณการต้นทุนโครงการใหม่]
-		,vt.[Total Budget]
-		,vt.Actual
-		,vt.Diff
-		-- ,IIF(vt.Detail = 'VAT ขาย', vt.[Total Budget],vt.[Total Budget] * 0.07) [Total Budget]
-		-- ,IIF(vt.Detail = 'VAT ขาย', vt.Actual,vt.Actual * 0.07) [Actual]
-		-- ,IIF(vt.Detail = 'VAT ขาย', vt.Diff,vt.Diff * 0.07) [Diff]
-FROM VatTotal vt
-UNION ALL
-SELECT vt.[No.]
-		,NULL Total
-		,NULL GroupType
-		,vt.Detail
-		,'01' [Date]
-		,'Total' [Month]
-		,NULL [RD (%)]
-		,NULL [MTP (%)]
-		,NULL [Diff (MTP - RD)]
-		,NULL [ประมาณการรายได้]
-		,NULL [ผลต่าง+-]
-		,NULL [ประมาณการต้นทุนที่ต้องใช้]
-		,NULL [ประมาณการต้นทุนโครงการใหม่]
-		,SUM(vt.[Total Budget]) [Total Budget]
-		,SUM(vt.Actual) Actual
-		,SUM(vt.Diff) Diff
-		-- ,IIF(vt.Detail = 'VAT ขาย', SUM(vt.[Total Budget]),SUM(vt.[Total Budget]) * 0.07) [Total Budget] 
-		-- ,IIF(vt.Detail = 'VAT ขาย', SUM(vt.Actual),SUM(vt.Actual) * 0.07) [Actual]
-		-- ,IIF(vt.Detail = 'VAT ขาย', SUM(vt.Diff),SUM(vt.Diff) * 0.07) [Diff]
-FROM VatTotal vt
-GROUP BY vt.[No.], vt.Detail
+-- SELECT *
+-- FROM (
+-- 	SELECT vt.[No.]
+-- 		,NULL Total
+-- 		,NULL GroupType
+-- 		,CASE WHEN vt.Detail LIKE 'VAT ซื้อ' THEN 1
+-- 				WHEN vt.Detail LIKE 'VAT ขาย' THEN 2
+-- 				WHEN vt.Detail LIKE 'จ่ายภาษีมูลค่าเพิ่ม' THEN 3
+-- 				WHEN vt.Detail LIKE 'VAT ซื้อ โครงการใหม่' THEN 4
+-- 		END Sort
+-- 		,vt.Detail
+-- 		,vt.[Date]
+-- 		,vt.[Month]
+-- 		,NULL [RD (%)]
+-- 		,NULL [MTP (%)]
+-- 		,NULL [Diff (MTP - RD)]
+-- 		,NULL [ประมาณการรายได้]
+-- 		,NULL [ผลต่าง+-]
+-- 		,NULL [ประมาณการต้นทุนที่ต้องใช้]
+-- 		,NULL [ประมาณการต้นทุนโครงการใหม่]
+-- 		,vt.[Total Budget]
+-- 		,vt.Actual
+-- 		,vt.Diff
+-- 		-- ,IIF(vt.Detail = 'VAT ขาย', vt.[Total Budget],vt.[Total Budget] * 0.07) [Total Budget]
+-- 		-- ,IIF(vt.Detail = 'VAT ขาย', vt.Actual,vt.Actual * 0.07) [Actual]
+-- 		-- ,IIF(vt.Detail = 'VAT ขาย', vt.Diff,vt.Diff * 0.07) [Diff]
+-- FROM VatTotal vt
+-- UNION ALL
+-- SELECT vt.[No.]
+-- 		,NULL Total
+-- 		,NULL GroupType
+-- 		,CASE WHEN vt.Detail LIKE 'VAT ซื้อ' THEN 1
+-- 				WHEN vt.Detail LIKE 'VAT ขาย' THEN 2
+-- 				WHEN vt.Detail LIKE 'จ่ายภาษีมูลค่าเพิ่ม' THEN 3
+-- 				WHEN vt.Detail LIKE 'VAT ซื้อ โครงการใหม่' THEN 4
+-- 		END Sort
+-- 		,vt.Detail
+-- 		,'01' [Date]
+-- 		,'Total' [Month]
+-- 		,NULL [RD (%)]
+-- 		,NULL [MTP (%)]
+-- 		,NULL [Diff (MTP - RD)]
+-- 		,NULL [ประมาณการรายได้]
+-- 		,NULL [ผลต่าง+-]
+-- 		,NULL [ประมาณการต้นทุนที่ต้องใช้]
+-- 		,NULL [ประมาณการต้นทุนโครงการใหม่]
+-- 		,SUM(vt.[Total Budget]) [Total Budget]
+-- 		,SUM(vt.Actual) Actual
+-- 		,SUM(vt.Diff) Diff
+-- 		-- ,IIF(vt.Detail = 'VAT ขาย', SUM(vt.[Total Budget]),SUM(vt.[Total Budget]) * 0.07) [Total Budget] 
+-- 		-- ,IIF(vt.Detail = 'VAT ขาย', SUM(vt.Actual),SUM(vt.Actual) * 0.07) [Actual]
+-- 		-- ,IIF(vt.Detail = 'VAT ขาย', SUM(vt.Diff),SUM(vt.Diff) * 0.07) [Diff]
+-- FROM VatTotal vt
+-- GROUP BY vt.[No.], vt.Detail
+-- ) VAT 
+-- ORDER BY Sort
+
 
 -- SELECT 'ภาษีมูลค่าเพิ่ม' [No.],
 -- 		'Vat ซื้อ โครงการใหม่' Detail,
