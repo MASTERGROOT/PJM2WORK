@@ -1,4 +1,4 @@
-Declare @AccCode nVarchar(MAX) = '240405'
+Declare @AccCode nVarchar(MAX) = '112000'
 Declare @Code nVarchar(MAX) = 'TH-20'
 
 
