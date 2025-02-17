@@ -20,16 +20,16 @@
 /*2023-08-21 : Pichet : MS-29439 มีการทำรับเงินแล้ว มาดูในรายงานยอด Receipt กับไม่แสดง*/
 /*2023-08-09 : Pichet : MS-29233 รายงาน Project Summary คอลัมน์ Current Budget แก้ให้ใช้ Baseline เมื่อไม่พบ Revise ตาม Filter*/
 
--- DECLARE @p0 DATETIME = '2024-06-06'
--- declare @p1 nvarchar(500) = NULL--'119'--'1931'--'1107,1152' --''--
--- DECLARE @p2 BIT = 1
--- DECLARE @p3 DATETIME = ''
--- DECLARE @p4 DATETIME = ''
+ --DECLARE @p0 DATETIME = '2024-12-18'
+ --declare @p1 nvarchar(500) = '4'--'1931'--'1107,1152' --''--
+ --DECLARE @p2 BIT = 1
+ --DECLARE @p3 DATETIME = ''
+ --DECLARE @p4 DATETIME = ''
 
--- DECLARE @p5  nvarchar(500) = null
--- DECLARE @p6 nvarchar(500) = null
--- DECLARE @p7 nvarchar(500) = null
--- DECLARE @p8 nvarchar(100) = null
+ --DECLARE @p5  nvarchar(500) = null
+ --DECLARE @p6 nvarchar(500) = null
+ --DECLARE @p7 nvarchar(500) = null
+ --DECLARE @p8 nvarchar(100) = null
 
 DECLARE @Todate DATETIME = @p0
 declare @projectCode nvarchar(500) = @p1
@@ -439,6 +439,20 @@ outer apply /*MS-28644*/
 				SELECT 1 FROM dbo.InterimPaymentLines ipl WHERE  SystemCategoryId != 55
 				AND rcl.InterimPaymentLineId = ipl.Id
 			)
+		union all 
+		-- ***** Receipt From Quotation/Invoice AR ***** ยอดใบเสร็จรับเงินจากใบเสนอราคา ไม่ผ่าน Interim
+		select 
+			isnull(sum((ISNULL(rcl.TaxBase, 0) + isnull(rcl.SubtractDeposit, 0)) * r.DocCurrencyRate), 0) [Receipt]
+		from ReceiptLines rcl
+		LEFT JOIN dbo.Receipts r ON rcl.ReceiptId = r.Id
+		where rcl.SystemCategoryId in (99)
+			and exists (
+				select 1 from Receipts rc
+				where rc.DocTypeId = 151
+					and rc.DocStatus != -1
+					and rc.LocationId = o.Id
+					and rc.Id = rcl.ReceiptId
+			)
 		 union all
 		 -- ***** Receipt From Quotation/OtherReceive ***** ยอดใบเสร็จรับเงินจากใบเสนอราคา ไม่ผ่าน Interim
 		
@@ -547,7 +561,7 @@ begin
 		 where tb.path like concat('%|' , tg.Id , '|%')
 	 )tp
 	 left join Organizations orgGroup on tg.Id = orgGroup.Id
-     LEFT JOIN Persons p ON tb.Id = p.OrgId
+     LEFT JOIN (Select OrgId,dbo.GROUP_CONCAT_D(Name,' ,') Name From Persons Group By OrgId) p ON tb.Id = p.OrgId
      LEFt JOIN Organizations_ProjectConstruction op ON tb.Id = op.Id
      LEFT JOIN CodeDescriptions cd ON op.ContractStatus = cd.[Value] WHERE cd.Name = 'ContractStatus'
 
@@ -572,7 +586,7 @@ begin
 	)t on t.Name1 = tb.Name1 and t.Code1 = tb.Code1
 	left join Organizations o on o.id = tb.id
 	left join Organizations h on o.UnderTaxEntityId = h.id
-     LEFT JOIN Persons p ON tb.Id = p.OrgId
+     LEFT JOIN (Select OrgId,dbo.GROUP_CONCAT_D(Name,' ,') Name From Persons Group By OrgId) p ON tb.Id = p.OrgId
      LEFt JOIN Organizations_ProjectConstruction op ON tb.Id = op.Id
      LEFT JOIN CodeDescriptions cd ON op.ContractStatus = cd.[Value] WHERE cd.Name = 'ContractStatus'
 
