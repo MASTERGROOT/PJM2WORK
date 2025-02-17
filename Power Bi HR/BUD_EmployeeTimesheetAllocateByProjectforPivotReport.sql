@@ -2,8 +2,8 @@
  
 --=================================================== Variable ============================================================================
 
-DECLARE	@p0	DATE			= DATEADD(Month,-1,GETDATE())--'2024-10-01';
-DECLARE @p1	DATE			= GETDATE();
+DECLARE	@p0	DATE			= DATEADD(DAY, 1, EOMONTH(GETDATE(), -2))--'2024-10-01';
+DECLARE @p1	DATE			= EOMONTH(GETDATE());
 
 
 DECLARE @FromDate  DATE = @p0;
@@ -36,14 +36,10 @@ DECLARE @Minute INT = 60;
 	BEGIN
 			DROP TABLE #Original
 	END
-	IF OBJECT_ID('tempDB..#WorkerSumHour', 'U') IS NOT NULL
-	BEGIN
-			DROP TABLE #WorkerSumHour
-	END
 
-	IF OBJECT_ID('tempDB..#BUSumHour', 'U') IS NOT NULL
+	IF OBJECT_ID('tempDB..#SumHour', 'U') IS NOT NULL
 	BEGIN
-			DROP TABLE #BUSumHour
+			DROP TABLE #SumHour
 	END
 --=========================== Core ==========================
  SELECT 
@@ -70,7 +66,7 @@ DECLARE @Minute INT = 60;
            tsl.ProjectId,
            tsl_par.ParentName,
            tsl_par.ParentCode,
-		   /* IIF(MAX(tsl.SystemCategoryId) = 266,tsl.DocNo,null) */tsl.DocNo TimeSheetDoc,tsl.SystemCategory,
+		   ts.TimesheetId,tsl.DocNo TimeSheetDoc,tsl.SystemCategory,
 
 		   --Rate
 		   cast(max(tsl.OTType) AS DECIMAL(5,2)) [OTType],
@@ -88,6 +84,7 @@ DECLARE @Minute INT = 60;
 			into #ProjectInfoFromTask
     FROM TaskLists tsl
 	left join Absences absen on tsl.AbsenceId = absen.Id 
+	INNER JOIN TimeSheetLines ts ON ts.RefTaskId = tsl.Id
 	left join (SELECT 
 					org.Code,
 					org_par.Code [ParentCode],
@@ -95,14 +92,14 @@ DECLARE @Minute INT = 60;
 				FROM Organizations org
 				LEFT JOIN Organizations org_par on org.Parent = org_par.Id) tsl_par on tsl.ProjectCode = tsl_par.Code
 	where  CONVERT(DATE,tsl.Date) between @FromDate and @ToDate	AND tsl.SystemCategoryId IN (266,265)
-	group by tsl.Id, tsl.ProjectName ,tsl.ProjectId,tsl.EmployeeId, tsl.ProjectCode,absen.LeaveWithOutPay, tsl_par.ParentName, tsl_par.ParentCode,tsl.DocNo,tsl.SystemCategory
+	group by tsl.Id, tsl.ProjectName ,tsl.ProjectId,tsl.EmployeeId, tsl.ProjectCode,absen.LeaveWithOutPay, tsl_par.ParentName, tsl_par.ParentCode,tsl.DocNo,tsl.SystemCategory,ts.TimesheetId
 
--- SELECT * from #ProjectInfoFromTask WHERE EmployeeId = 1334 AND [task Month] = 12
+-- SELECT * from #ProjectInfoFromTask WHERE 
 
 -- Approved
 
 	select 
-             tkl.Id taskId,ts.Code,ts.[Date] TimeSheetDate
+             tkl.Id taskId,ts.Code,ts.[Date] TimeSheetDate,MONTH(ts.[Date]) n_Month
 			,tkl.EmployeeId
 			,tkl.createBy 
 			,tkl.ProjectCode
@@ -122,7 +119,7 @@ DECLARE @Minute INT = 60;
 			,IIF(tsl.SystemCategoryId = 265 AND absen.LeaveWithOutPay = 1 AND ts.Docstatus = 4,FORMAT(CAST(REPLACE(tkl.Hour, ':', '.') AS DECIMAL(10,2)),'N2'),null) [Approve LeaveWithoutPay]
 			
 			--,IIF(tsl.SystemCategoryId = 266,tkl.OT,null) [Approve OT]
-			,ts.DocStatus,IIF(MONTH(ts.Date) = MONTH(GETDATE()),'This Month','Last Month') [Month Category]
+			,ts.DocStatus
 
 
 	
@@ -160,15 +157,20 @@ DECLARE @Minute INT = 60;
 			 GROUP BY 
 					  wkc.HourWork,
 					  wkc.Code, wkc.Id,wh.[Month]) tw
+-- SELECT * from #DataWorkers WHERE Code LIKE 'BOG66009'
 -- SELECT * from #WorkingCalendarData
-
+-- SELECT * from #ProjectInfoFromTask WHERE EmployeeId = 1259
+-- SELECT * from #TimeSheetInfo WHERE EmployeeId = 1259
 
 		
-SELECT *,a.[Total Working_M100] - SUM(a.WorkHour_M100) OVER (PARTITION BY a.Code, a.[Month Category]) - SUM(a.Absence_M100) OVER (PARTITION BY a.Code,a.[Month Category]) [RemainHour_M100]
-/* ,CASE WHEN a.[Total Working_M100] <> 0 THEN CAST(ROUND((ISNULL(a.RemainHour_M100,0.00)/a.[Total Working_M100])*100,2) AS DECIMAL(10,2))   
-	        ELSE CAST(ROUND((ISNULL(a.RemainHour_M100,0.00)/1)*100,2) AS DECIMAL(10,2))   
-			END [Percent_Remain_Hour] */
-		-- ,CASE WHEN 
+SELECT */* ,a.[Total Working_M100] - SUM(a.WorkHour_M100) OVER (PARTITION BY a.Code, a.[Month Category]) - SUM(a.Absence_M100) OVER (PARTITION BY a.Code,a.[Month Category]) [RemainHour_M100]
+			,a.[Total Working_M100] - SUM(a.WorkHour_M100) OVER (PARTITION BY a.Code, a.[Month Category]) - SUM(a.Absence_M100) OVER (PARTITION BY a.Code,a.[Month Category]) / a.[Total Working_M100] * 100 [Percent_Remain_Hour] */
+		,1-ROUND(CAST((a.RemainHour_M100 / a.[Total Working_M100]) AS DECIMAL(10,2)),2) [Percent_RemainHour]
+		,CASE WHEN a.RemainHour_M100 > 0 THEN 'Only Remain Hour'
+				WHEN a.Saved_Timesheet_Hour_M100 > 0 THEN 'Only Save Timesheet'
+			ELSE 'ALL' 
+			END [FilterOnly]
+		,dbo.SitePath(263,a.RefTSId) [TSLink]
 		
 INTO #Original
 From(
@@ -200,15 +202,15 @@ From(
 	   REPLACE(ISNULL(pI.WorkHour,0.00),'.',':') [WorkHour],
 	   ISNULL(pI.Workhour_Rate,0.00) [WorkHour_M100],
 
-       CASE WHEN wc.total_work <> 0 THEN CAST(ROUND((ISNULL(pI.WorkHour,0.00)/cast(wc.total_work AS DECIMAL(6,2)))*100,2) AS DECIMAL(10,2)) 	   
-	        ELSE CAST(ROUND((ISNULL(pI.WorkHour,0.00)/1.00)*100,2) AS DECIMAL(10,2))
+       CASE WHEN wc.total_work <> 0 THEN CAST(ROUND((ISNULL(pI.WorkHour,0.00)/cast(wc.total_work AS DECIMAL(6,2))),2) AS DECIMAL(10,2)) 	   
+	        ELSE CAST(ROUND((ISNULL(pI.WorkHour,0.00)/1.00),2) AS DECIMAL(10,2))
 	   END AS [Percent_Workhour],
 
 	   REPLACE(ISNULL(tsi.[Approve Workhour],0.00),'.',':') [Approve WorkHour],
 	   ISNULL(tsi.[Approve Workhour_Rate],0.00) [Approve WorkHour_M100],	  
 	   
-       CASE WHEN wc.total_work <> 0 THEN CAST(ROUND((ISNULL(tsi.[Approve Workhour],0.00)/cast(wc.total_work AS DECIMAL(6,2)))*100,2) AS DECIMAL(10,2))	   
-	        ELSE CAST(ROUND((ISNULL(tsi.[Approve Workhour],0.00)/1.00)*100,2) AS DECIMAL(10,2))
+       CASE WHEN wc.total_work <> 0 THEN CAST(ROUND((ISNULL(tsi.[Approve Workhour],0.00)/cast(wc.total_work AS DECIMAL(6,2))),2) AS DECIMAL(10,2))	   
+	        ELSE CAST(ROUND((ISNULL(tsi.[Approve Workhour],0.00)/1.00),2) AS DECIMAL(10,2))
 	   END AS [Percent_Approve_Workhour],
 
 	   REPLACE(ISNULL(PI.OT,0.00),'.',':') [OT],
@@ -219,15 +221,15 @@ From(
 	   REPLACE(ISNULL(pI.Absence,0.00),'.',':') [Absence],
 	   ISNULL(pI.Absence_Rate,0.00) [Absence_M100],	   
 
-	   CASE WHEN wc.total_work <> 0 THEN CAST(ROUND((ISNULL(pI.Absence,0.00)/cast(wc.total_work AS DECIMAL(6,2)))*100,2) AS DECIMAL(10,2))
-	        ELSE CAST(ROUND((ISNULL(pI.Absence,0.00)/1.00)*100,2) AS DECIMAL(10,2))
+	   CASE WHEN wc.total_work <> 0 THEN CAST(ROUND((ISNULL(pI.Absence,0.00)/cast(wc.total_work AS DECIMAL(6,2))),2) AS DECIMAL(10,2))
+	        ELSE CAST(ROUND((ISNULL(pI.Absence,0.00)/1.00),2) AS DECIMAL(10,2))
        END AS [Percent_Absence],
 
 	   REPLACE(ISNULL(tsi.[Approve Absence],0.00),'.',':') [Approve Absence],
 	   ISNULL(tsi.[Approve Absence_Rate],0.00) [Approve Absence_M100],
 
-	   CASE WHEN wc.total_work <> 0 THEN CAST(ROUND((ISNULL(tsi.[Approve Absence],0.00)/cast(wc.total_work AS DECIMAL(6,2)))*100,2) AS DECIMAL(10,2))
-	        ELSE CAST(ROUND((ISNULL(tsi.[Approve Absence],0.00)/1.00)*100,2) AS DECIMAL(10,2))
+	   CASE WHEN wc.total_work <> 0 THEN CAST(ROUND((ISNULL(tsi.[Approve Absence],0.00)/cast(wc.total_work AS DECIMAL(6,2))),2) AS DECIMAL(10,2))
+	        ELSE CAST(ROUND((ISNULL(tsi.[Approve Absence],0.00)/1.00),2) AS DECIMAL(10,2))
        END AS [Percent_Approve_Absence],
 
 	   replace(CAST(FLOOR((ISNULL((pI.LeaveWithOutPay),0)) / 60.0) + ((ISNULL((pI.LeaveWithOutPay),0)) % 60.0) / 100 AS DECIMAL(10,2)),'.',':') [LeavWithoutPay],
@@ -235,18 +237,19 @@ From(
 	  
 	   REPLACE(ISNULL(tsi.[Approve LeaveWithoutPay],0.00),'.',':') [Approve_LeaveWithoutPay],
 	   ISNULL(tsi.[Approve LeaveWithoutPay_Rate],0.00) [Approve_LeaveWithoutPay_M100],
-	--    pI.[task Date],
+	   pI.[task Date],pI.[task Month],
 	   tsi.TimeSheetDate,
-       tsi.[Month Category],
+	   IIF(PI.[task Month] = MONTH(GETDATE()),'This Month','Last Month') [Month Category],
 	   ol.OrgCodeLv1,
 	   ol.OrgCodeLv2,	 
+	   pI.TimeSheetId RefTSId,
 	   pI.TimeSheetDoc RefTimesheetDoc,
 	   tsi.DocStatus TimesheetStatus
-	--    ,(wc.total_work - ISNULL(pI.LeaveWithOutPay_Rate,0.00)) 
-	--    - SUM(ISNULL(pI.Workhour_Rate,0.00)) OVER (PARTITION BY work.Code, tsi.[Month Category])
-	--    - SUM(ISNULL(pI.Absence_Rate,0.00)) OVER (PARTITION BY work.Code, tsi.[Month Category]) [RemainHour_M100]
+	   ,(wc.total_work - ISNULL(pI.LeaveWithOutPay_Rate,0.00)) 
+	   - SUM(ISNULL(pI.Workhour_Rate,0.00)) OVER (PARTITION BY work.Code, IIF(PI.[task Month] = MONTH(GETDATE()),'This Month','Last Month'))
+	   - SUM(ISNULL(pI.Absence_Rate,0.00)) OVER (PARTITION BY work.Code, IIF(PI.[task Month] = MONTH(GETDATE()),'This Month','Last Month')) [RemainHour_M100]
 	   ,IIF(pI.TimeSheetDoc IS NULL, ISNULL(pI.Workhour_Rate,0.00),0.00) [Saved_Task_Hour_M100]
-	   ,IIF(pI.TimeSheetDoc IS NOT NULL AND tsi.DocStatus = 1,ISNULL(pI.Workhour_Rate,0.00),0.00) [Saved_Timesheet_Hour_M100]
+	   ,IIF(pI.TimeSheetDoc IS NOT NULL AND tsi.DocStatus = 1,ISNULL(pI.Workhour_Rate,0.00),0.00) [Saved_Timesheet_Hour_M100],wc.WorkingCalendarCode,wc.[Month]
 	   
 	   
 FROM #DataWorkers work 
@@ -274,35 +277,52 @@ where pI.ProjectName is not null --AND (tsi.DocStatus IN (1,4) OR tsi.DocStatus 
 --AND pI.Id = 17
 ) a
 ORDER BY a.Code ASC
+OPTION (RECOMPILE)
 
--- SELECT * from #Original WHERE Code LIKE 'BOG67009'--[Team Code] LIKE 'PJM-T1'
+SELECT [Total Working_M100],Name,Code,[Team Code],[TEAM],Branch,[Task Org Code],[Task Org Name],[Parent Code],[Parent Name],WorkHour_M100
+		,Percent_Workhour,[Approve WorkHour_M100],Percent_Approve_Workhour,OT_M100,OTType,[Approve OT_M100]
+		,Absence_M100,Percent_Absence,[Approve Absence_M100],Percent_Approve_Absence,LeaveWithOutPay_M100,Approve_LeaveWithoutPay_M100
+		,[task Date],[task Month],TimeSheetDate,[Month Category],RefTSId,RefTimesheetDoc,TSLink,TimesheetStatus,Saved_Task_Hour_M100,Saved_Timesheet_Hour_M100,FilterOnly
+from #Original WHERE Code LIKE 'BOG66009'
+-- SELECT [Month Category],SUM(WorkHour_M100) s_wh,SUM(Saved_Task_Hour_M100) s_task, SUM(Saved_Timesheet_Hour_M100) s_ts from #Original WHERE Code LIKE 'BOG67009' GROUP BY [Month Category]
 -- select * from #WorkingCalendarData
--- SELECT MONTH([task Date]) FROM #ProjectInfoFromTask
--- SELECT [Month Category],SUM(Absence_M100) absence, SUM([WorkHour_M100]) work_hr FROM #Original WHERE Code LIKE 'BOG67009' GROUP BY [Month Category]
 
-SELECT Name,Code, [Team Code],RemainHour_M100, [Month Category], SUM(Saved_Task_Hour_M100)Saved_Task_Hour_M100, SUM(Saved_Timesheet_Hour_M100)Saved_Timesheet_Hour_M100
-INTO #WorkerSumHour
-FROM #Original
-GROUP BY Name,Code, [Team Code], [Month Category], RemainHour_M100
 
--- SELECT * from #WorkerSumHour --WHERE Code LIKE 'BOG67009'
+SELECT a.[No] Og_Id,a.Name,a.Code,a.TEAM,a.Branch,a.[Team Code],a.[Month Category]
+		-- ,/* (COUNT(Code) OVER (PARTITION BY [Team Code]))/2  */MAX(emp.n_emp) [Number Of Emp]
+		,a.[Total Working_M100] 
+		,SumH.[s_wh]  [Sum_Work_Hour]
+		,a.RemainHour_M100
+		,a.Percent_RemainHour
+		,SumH.s_task Sum_Save_Task
+		,SumH.s_ts Sum_Save_Timesheet
 
-SELECT TEAM,Branch
-		,COUNT(Code) OVER (PARTITION BY [Team Code]) [Number of Emp]
-		-- ,SUM([Total Working_M100]) OVER (PARTITION BY [Team Code]) [Sum Total]
-		-- ,SUM(WorkHour_M100) OVER (PARTITION BY [Team Code]) [Sum Work Hour]
-		-- ,SUM(RemainHour_M100) OVER (PARTITION BY [Team Code]) [Sum Remain Hour]
 		
-INTO #BUSumHour
-FROM #Original
-GROUP BY TEAM, Branch, [Team Code],Code
+INTO #SumHour
+FROM #Original a
+-- CROSS APPLY (
+-- 		select ROW_NUMBER() OVER (PARTITION by b.[Team Code] ORDER BY b.Code) [n_emp],b.Name,b.[Team Code],b.Code 
+-- 		From #Original b 
+-- 		WHERE a.[Team Code] = b.[Team Code]
+-- 		GROUP by Name, [Team Code], Code
+-- ) emp
+CROSS APPLY (
+	SELECT Name,Code, [Team Code], [Month Category],SUM(WorkHour_M100) s_wh, SUM(Saved_Task_Hour_M100) s_task, SUM(Saved_Timesheet_Hour_M100) s_ts
+	FROM #Original c
+	WHERE c.Code = a.Code AND a.[Team Code] = c.[Team Code] AND a.[Month Category] = c.[Month Category]
+	GROUP BY Name,Code, [Team Code], [Month Category]
+) SumH
+GROUP BY a.[No],a.[Team Code],a.TEAM,a.Branch,a.Code,a.[Total Working_M100],a.Name,a.RemainHour_M100
+,a.[Month Category],a.Percent_RemainHour,SumH.s_task,SumH.s_ts,SumH.s_wh
 
--- SELECT Name FROM #Original WHERE [Team Code] LIKE 'PJM-T1' GROUP BY Name
-SELECT * FROM #BUSumHour
+-- SELECT *, COUNT(Name) OVER (PARTITION BY Name) FROM #SumHour WHERE Code LIKE 'BOG66009'
+
+-- SELECT Name,Code,[Total Working_M100], RemainHour_M100 FROM #Original WHERE Code LIKE 'BOG66009'
+
 /*=========================== Filter ===========================*/
 
-SELECT 
-	CONCAT('Period From  ',FORMAT(@FromDate,'dd/MM/yyyy'),'  To ',FORMAT(@ToDate,'dd/MM/yyyy')) [FilterDate]
+-- SELECT 
+-- 	CONCAT('Period From  ',FORMAT(@FromDate,'dd/MM/yyyy'),'  To ',FORMAT(@ToDate,'dd/MM/yyyy')) [FilterDate]
 
 	--check #temp again
 	IF  OBJECT_ID(N'tempdb..#DataWorkers') IS NOT NULL	
@@ -326,13 +346,9 @@ SELECT
 	BEGIN
 			DROP TABLE #Original
 	END
-	IF OBJECT_ID('tempDB..#WorkerSumHour', 'U') IS NOT NULL
-	BEGIN
-			DROP TABLE #WorkerSumHour
-	END
 
 	IF OBJECT_ID('tempDB..#WorkerSumHour', 'U') IS NOT NULL
 	BEGIN
-			DROP TABLE #BUSumHour
+			DROP TABLE #SumHour
 	END
 

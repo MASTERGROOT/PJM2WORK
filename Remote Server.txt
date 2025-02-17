@@ -9,6 +9,12 @@ Pass : Yc5!u9voqcxpnTD57t78H
 *Winserver1.on.lk
 User : BA
 Pass : Nvs6^CEnoN31jpj1Z0S^l
+
+Remote prototype
+PJM-PT-Cust.priv
+User : Ba
+Pass : StgWt!Ty^FjZADvbP7@pW
+
 *bakserver.on.lk
 User : BA
 Pass : hVmkf4Gpc@^xXDedslVpY

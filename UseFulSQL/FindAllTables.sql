@@ -9,7 +9,7 @@ DECLARE
 @sql_string     VARCHAR(2000),
 @sql_update     VARCHAR(2000)
 
-SET @search_string = 'พีรยา  ทำเลดี'    -- CHANGE SEARCH VALUE HERE
+SET @search_string = 'TNP-IVAP-2409-0006'    -- CHANGE SEARCH VALUE HERE
 -- SET @replace_string = 'PPS-OF'
 
 DECLARE tables_cur CURSOR FOR SELECT ss.name +'.'+ so.name [name], object_id FROM sys.objects so INNER JOIN sys.schemas ss ON so.schema_id = ss.schema_id WHERE  type = 'U'

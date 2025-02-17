@@ -15,7 +15,7 @@ Declare @DataFoundInTables table (id int identity(1,1) not null, sqlcmd varchar(
 
 -- Settings
 
-SET @StringToFind = 'BX'
+SET @StringToFind = 'M-01-03-0010'
 SET NOCOUNT ON
 SET @StringToFind = '%'+@StringToFind+'%'
 

@@ -1,38 +1,38 @@
 ﻿
-INSERT INTO dbo.CompanyMenuConfigs
-       ( Name ,
-         [Column] ,
-         Path ,
-         MenuId ,
-         InActive ,
-         Description ,
-         SortOrder ,
-         DoctypeId ,
-         DoctypeName ,
-		  DocAccessId ,
-         List
-       )
-VALUES  ( N'GPW RS DETAIL REPORT' , -- Name - nvarchar(250)
-         4 , -- Column - smallint --¹Ñº¨Ò¡´éÒ¹ã¹àÁ¹Ù à»ç¹¤ÍÅÑÁá¹ÇµÑé§
-         N'PURCHASE/GPW REPORT' , -- Path - nvarchar(1000)
-         LOWER(NEWID()) , -- MenuId - nvarchar(100)
-         NULL , -- InActive - bit
-         N'รายงานรายละเอียดใบรับของ' , -- Description - nvarchar(500)
-         200.0004 , -- SortOrder - decimal --¡´´Ù¤èÒ INDEX ã¹ Inspect *¶éÒÍÂÙèã¹àÁ¹Ùà´ÔÁ¤èÒ¨Ø´·È¹ÔÂÁ ÁÒ¡¡ÇèÒµÑÇà´ÔÁ | áµè¶éÒàÁ¹ÙãËÁè ãËé¤èÒÁÒ¡¡ÇèÒã¹ËÅÑ¡Ë¹èÇÂ
-         90204 , -- DoctypeId - int
-         90204 , -- DoctypeName - nvarchar(max)
-         90204 , -- DoctypeId - int
-         N'/Report/GPW_RSDetailReportByDoc_revise/Form'  -- List - nvarchar(500)
-       )
+-- INSERT INTO dbo.CompanyMenuConfigs
+--        ( Name ,
+--          [Column] ,
+--          Path ,
+--          MenuId ,
+--          InActive ,
+--          Description ,
+--          SortOrder ,
+--          DoctypeId ,
+--          DoctypeName ,
+-- 		  DocAccessId ,
+--          List
+--        )
+-- VALUES  ( N'GPW REAL ESTATE REPORT' , -- Name - nvarchar(250)
+--          4 , -- Column - smallint --¹Ñº¨Ò¡´éÒ¹ã¹àÁ¹Ù à»ç¹¤ÍÅÑÁá¹ÇµÑé§
+--          N'PROJECT/GPW REPORT' , -- Path - nvarchar(1000)
+--          LOWER(NEWID()) , -- MenuId - nvarchar(100)
+--          NULL , -- InActive - bit
+--          N'' , -- Description - nvarchar(500)
+--          100.0001 , -- SortOrder - decimal --¡´´Ù¤èÒ INDEX ã¹ Inspect *¶éÒÍÂÙèã¹àÁ¹Ùà´ÔÁ¤èÒ¨Ø´·È¹ÔÂÁ ÁÒ¡¡ÇèÒµÑÇà´ÔÁ | áµè¶éÒàÁ¹ÙãËÁè ãËé¤èÒÁÒ¡¡ÇèÒã¹ËÅÑ¡Ë¹èÇÂ
+--          90101 , -- DoctypeId - int
+--          90101 , -- DoctypeName - nvarchar(max)
+--          90101 , -- DoctypeId - int
+--          N'/Report/HCE_ProfitRealEstateReport/Form'  -- List - nvarchar(500)
+--        )
 
 
 --  Delete dbo.CompanyMenuConfigs where Id = 2
 
 -- 	update dbo.CompanyMenuConfigs
---    SET [Description] = 'GPW GL Movement Detail Report'
--- 	WHERE  id= 1
+--    SET [List] = N'/Report/GPW_ProfitRealEstateReport/Form'
+-- 	WHERE  id= 10
 	 
-	select*from CompanyMenuConfigs --Order By Path,id --DoctypeId--SortOrder--Path --where Path = 'JOB/AAG BUDGET REPORT'
+-- 	select*from CompanyMenuConfigs --Order By Path,id --DoctypeId--SortOrder--Path --where Path = 'JOB/AAG BUDGET REPORT'
 
 
 -- Update CompanyMenuConfigs Set Path = 'PROJECT/THS REPORT' where id = 1
@@ -58,11 +58,12 @@ VALUES  ( N'GPW RS DETAIL REPORT' , -- Name - nvarchar(250)
 
 /* เพิ่ม Custom Note ให้เอกสาร  */
 -- INSERT INTO SubDocTypeCustomNoteMetas (CustomNoteMetaId,DocType,DocTypeId,SubDocTypeId,SortOrder,DefaultValue,SectionSort,[Required],Condition,[Type],Copies,UserName,Role)
--- SELECT CustomNoteMetaId,DocType,DocTypeId,660,SortOrder,DefaultValue,SectionSort,[Required],Condition,[Type],Copies,UserName,Role 
+-- SELECT CustomNoteMetaId,DocType,DocTypeId,606,SortOrder,DefaultValue,SectionSort,[Required],Condition,[Type],Copies,UserName,Role 
 -- FROM SubDocTypeCustomNoteMetas
--- WHERE Id = 659
+-- WHERE Id = 607
+-- select * from subdoctypes WHERE DocTypeId = 64
+-- SELECT * from SubDocTypeCustomNoteMetas    where DocTypeId = 64
 
--- SELECT * FROM SubDocTypeCustomNoteMetas WHERE DocTypeId = 166 --AND SubDocTypeId = 236
 /* update Custom Note ให้เอกสาร  */
 -- UPDATE SubDocTypeCustomNoteMetas
 -- SET [Role] = (select [Role] from SubDocTypeCustomNoteMetas where Id = 543)
