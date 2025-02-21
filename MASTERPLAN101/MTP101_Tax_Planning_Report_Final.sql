@@ -1,11 +1,11 @@
 /*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
  
 
--- DECLARE @p0 DATE = '2024-01-01'
--- DECLARE @p1 DATE = '2024-12-31'
--- DECLARE @p2 NVARCHAR(MAX)  = '1' 
--- DECLARE @p3 NVARCHAR(10) = '1' /*0.51*/
--- DECLARE @p4 NVARCHAR(10)  = '1' /*0.80*/
+DECLARE @p0 DATE = '2024-01-01'
+DECLARE @p1 DATE = '2024-12-31'
+DECLARE @p2 NVARCHAR(MAX)  = '1' 
+DECLARE @p3 NVARCHAR(10) = '1' /*0.51*/
+DECLARE @p4 NVARCHAR(10)  = '1' /*0.80*/
 
 
 DECLARE @startDate DATE = @p0
@@ -536,6 +536,48 @@ where AccountCode IN (51010002,51040005,51040007,51040008,51050102,51050103,5105
 		and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 )a group by a.Date,a.vat
 
+
+select	jv.Amount
+		,j.[Date]--FORMAT(j.Date ,'yyyyMM')  [Date]
+		,j.OrgCode
+		,Case when i.SystemCategoryId in (123,129) then 'Vat'
+				else 'NoVat'
+			end vat
+		,j.MadeByDocCode
+		,jv.AccountCode
+from  JournalVouchers j
+left join JVLines jv on j.Id = jv.JournalVoucherId
+left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
+			from Invoices i
+			left join InvoiceLines il on i.Id = il.InvoiceId
+			where il.SystemCategoryId in (123,129,131)
+
+			union all
+
+			select DISTINCT i.Id,i.Code,il.SystemCategoryId
+			from OtherPayments i
+			left join OtherPaymentLines il on i.Id = il.OtherPaymentId
+			where il.SystemCategoryId in (123,129,131)
+
+			union all
+
+			select DISTINCT i.Id,i.Code,il.SystemCategoryId
+			from WorkerExpenses i
+			left join WorkerExpenseLines il on i.Id = il.WorkerExpenseId
+			where il.SystemCategoryId in (123,129,131)
+
+			) i on  j.MadeByDocCode = i.Code
+
+where AccountCode IN (51010002,51040005,51040007,51040008,51050102,51050103,51050104,51050105,51070102,51070302,51080002,51090206,51130101,51140002
+						,51150101,51150201,51150302,51160001,51170003,51170201,51170202,51170203,51170204,51170303,51170403,51170404,51170405
+						,51170406,51180001,51190101,51210101,51210102,51220001,51230002,51240001,51250002,51272001,51272002,52060001,52060021
+						,52060022,52080001,52090104,52090205,52090206,52110002,52120004,52130002,52150002,52170002,52180003,52180004,55040402
+						,55050203,55110001,55110002,55120001,55130004,55140001)
+		and j.DocStatus in (4,5)
+		and jv.isDebit = 1
+		--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
+		and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
+		and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 /******************** Temp #Material 2.01 ค่าของมี Vat / 2.02 ค่าของไม่มี Vat********************/
   IF OBJECT_ID(N'tempdb..#Material', N'U') IS NOT NULL
     BEGIN
@@ -666,12 +708,13 @@ FROM	    dbo.JVLines jl WITH (nolock)
 			   LEFT JOIN dbo.GeneralAccountEntities ga WITH (NOLOCK) ON ga.EnumKey = jl.GeneralAccount
 			   LEFT JOIN dbo.Organizations o WITH (NOLOCK) ON IIF(ISNULL(jl.OrgId,0) IN (0,-1),j.OrgId,jl.OrgId) = o.Id
 			   LEFT JOIN dbo.AcctElementSets s WITH (NOLOCK) ON s.JVLineId = jl.Id --AND jl.MadeByDocTypeId = 149
-where jl.AccountCode LIKE '2%'/* (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
+where jl.AccountCode LIKE '21250100'/* (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
 						,41000601,41000102,41000202,41000302,41000402,41000502,41000602,41000700
 						,41000701,41000702,41000703,41000704,41000705,41000707,41000708) */
 		-- and s.isDebit = 0
 		and (CONVERT(DATE,ISNULL(NULLIF(s.DocDate,''),j.Date)) BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
-		and (ISNULL(s.OrgId,j.OrgId) in (select Id from #temporg) or @ProjectId is NULL)
+		and (ISNULL(s.OrgId,j.OrgId) in (select Id from #temporg) or @ProjectId is NULL) 
+		AND s.DocType IS NOT NULL
 		-- and i.SystemCategoryId not in (123,129)
 )a group by a.Date/* ,a.AcctCode */
 

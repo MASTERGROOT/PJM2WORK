@@ -2,9 +2,9 @@
 
 /*รายงานกำไรขั้นต้น รายโครงการ*/
 
--- DECLARE @p0 DATETIME = '2025-02-21'
--- DECLARE @p1 nvarchar(500) = '143'--'1931'--'1107,1152' --''--
--- DECLARE @p2 BIT = 1
+DECLARE @p0 DATETIME = '2025-02-21'
+DECLARE @p1 nvarchar(500) = '143'--'1931'--'1107,1152' --''--
+DECLARE @p2 BIT = 1
 
 DECLARE @Todate DATETIME = @p0
 DECLARE @ProjectId nvarchar(500) = @p1
