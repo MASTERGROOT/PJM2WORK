@@ -20,16 +20,16 @@
 /*2023-08-21 : Pichet : MS-29439 มีการทำรับเงินแล้ว มาดูในรายงานยอด Receipt กับไม่แสดง*/
 /*2023-08-09 : Pichet : MS-29233 รายงาน Project Summary คอลัมน์ Current Budget แก้ให้ใช้ Baseline เมื่อไม่พบ Revise ตาม Filter*/
 
- --DECLARE @p0 DATETIME = '2024-12-18'
- --declare @p1 nvarchar(500) = '4'--'1931'--'1107,1152' --''--
- --DECLARE @p2 BIT = 1
- --DECLARE @p3 DATETIME = ''
- --DECLARE @p4 DATETIME = ''
+--  DECLARE @p0 DATETIME = '2024-12-18'
+--  declare @p1 nvarchar(500) = '4'--'1931'--'1107,1152' --''--
+--  DECLARE @p2 BIT = 1
+--  DECLARE @p3 DATETIME = ''
+--  DECLARE @p4 DATETIME = ''
 
- --DECLARE @p5  nvarchar(500) = null
- --DECLARE @p6 nvarchar(500) = null
- --DECLARE @p7 nvarchar(500) = null
- --DECLARE @p8 nvarchar(100) = null
+--  DECLARE @p5  nvarchar(500) = null
+--  DECLARE @p6 nvarchar(500) = null
+--  DECLARE @p7 nvarchar(500) = null
+--  DECLARE @p8 nvarchar(100) = null
 
 DECLARE @Todate DATETIME = @p0
 declare @projectCode nvarchar(500) = @p1
@@ -46,14 +46,16 @@ DECLARE @SearchprojectCode nvarchar(100) = @p8
 
 --select @TaxMethod = TaxMethod, @TaxRate = TaxRate from InterimPayments where OrgId = @OrgId 
 
+Declare @ga NVARCHAR(max) = ''
+
+	Select @ga += CONCAT(GeneralAccount,',') From dbo.ChartOfAccounts  Where Path like '|224|%'
+
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
 
 /*##### Company condition Report #####*/
 declare @RND int = 2
 declare @ten real = 10
 declare @minval decimal(21,12) = power(@ten,-@RND)  -- for check fraction
-
-
 
 IF OBJECT_ID(N'tempdb..#temporg', N'U') IS NOT NULL
     BEGIN
@@ -71,6 +73,16 @@ select o.Id
 	AND (isnull( @SearchprojectCode,'')  ='' or org.Code LIKE '%' + @SearchprojectCode + '%')
 )
 
+-- Declare @tmpProject NVARCHAR(MAX)
+
+-- Select @tmpProject = dbo.GROUP_CONCAT(DISTINCT Id)
+-- From #temporg
+
+-- DECLARE @exists bit  = 0
+-- IF EXISTS(Select 1 From #temporg)
+-- BEGIN
+-- 	SET @exists = 1
+-- END 
 
  IF OBJECT_ID(N'tempdb..#tempGroup', N'U') IS NOT NULL
     BEGIN
@@ -134,7 +146,6 @@ FROM (
 
 ) o;
 
-
  /*======================= Set ProjectId ============================*/
  DECLARE @tmpProject NVARCHAR(MAX)
 select @tmpProject = dbo.GROUP_CONCAT(DISTINCT o.Id)
@@ -144,7 +155,6 @@ select @tmpProject = dbo.GROUP_CONCAT(DISTINCT o.Id)
  where 
  (isnull( @projectCode,'')  =''  or org.Id in (SELECT ncode FROM dbo.fn_listCode(@projectCode)))
 	AND (isnull( @SearchprojectCode,'')  ='' or org.Code LIKE '%' + @SearchprojectCode + '%')
-
 
 DECLARE @exists bit  = 0
 IF EXISTS(SELECT 1 from #temporg)
@@ -169,30 +179,104 @@ BEGIN
 
 END
 
-IF	OBJECT_ID('tempdb..#tempProjectStatus') IS NOT NULL
-BEGIN													   
-	DROP TABLE #tempProjectStatus
-END
-
 /*##### ส่วนคิด Remaining #####*/
 
 CREATE TABLE #tempallo (   LocationId INT, remainingallo decimal(21,6) )
 CREATE TABLE #tempact (   OrgId INT, remain decimal(21,6) )
 
 /*##### Doc Commit Detail #####*/
-insert into #tempallo
+insert Into #tempallo
 EXEC	[dbo].[sp_ManeeSystemCoreRemainingCommitBudgetRptManyProject] 
 		@Todate = @Todate,
 		@OrgId = @tmpProject;
 
 /*##### Doc Account Detail #####*/
-insert into #tempact
+insert Into #tempact
 EXEC	[dbo].[sp_ManeeSystemCoreRemainingAccountBudgetRptManyProject]
 		@Todate = @Todate,
 		@OrgId = @tmpProject
 
+IF OBJECT_ID('tempdb..#cte_JV') IS NOT NULL
+    BEGIN
+        DROP TABLE #cte_JV;
+END;
 
-	select  o.id,
+Select	j.Id JVId,s.JVLineId,j.Code JVCode,s.DocId,s.DocCode,s.DocDate,s.DocTypeId,s.OrgId ,s.OrgCode, s.OrgName,s.ExtOrgCode,s.ExtOrgName
+		,s.Amount,IIF(j.CreateBy = 'Pojjaman2 API','Zip Event',j.CreateBy) CreateBy,j.DocStatus
+Into #cte_JV
+From AcctElementSets s
+Left Join	JournalVouchers j ON s.DocId = j.MadeByDocId AND s.DocTypeId = j.MadeByTypeId 
+Where	(s.GeneralAccount IN (Select ncode From dbo.fn_listCode(@ga)))
+		AND j.DocStatus != -1 AND s.OrgId IN (Select Id From #temporg)
+
+IF  OBJECT_ID(N'tempdb..#RECEIPT') IS NOT NULL	
+    BEGIN
+            DROP TABLE #RECEIPT
+    END
+			
+			Select	x.OrgId ,x.OrgCode, x.OrgName
+					, SUM(x.SetAmount) Revenue, SUM(x.Amount) Receipt
+					, SUM(x.RemainAmount) RemainAmount
+					, SUM(IIF(x.ClearAmount > x.Amount AND x.SetAmount !=0,x.Amount,x.ClearAmount)) ClearAmount
+			Into	#RECEIPT		
+			From (
+			Select   
+					j.DocCode, j.DocDate, o.Code OrgCode, o.Id OrgId ,o.Name OrgName, j.ExtOrgCode, j.ExtOrgName,j.CreateBy
+					, dc.DocTypeCode DocType,j.DocStatus
+					, SUM(j.Amount) Amount, 'รายได้' [Group], 1 SortNumber, vl.DocId,vl.DocTypeId,vl.SpecialDiscount,vl.DepositAmt,vl.RetentionAmt
+					, IIF(vl.SetAmount = 0,j.Amount,vl.SetAmount) SetAmount,vl.RemainAmount
+					, SUM(IIF(vl.SetAmount = 0 AND vl.ClearAmount = 0,j.Amount,vl.ClearAmount)) ClearAmount
+			
+			From    #cte_JV j
+					Left hash Join dbo.DocTypeCodeList() dc ON dc.DocTypeId = j.DocTypeId
+					Left hash Join dbo.Organizations o ON o.id = j.OrgId
+					INNER hash join (
+									  Select  jv.DocId,jv.DocTypeId,jv.JVLineId 
+											 ,IIF(jv.DocStatus = -1,0,ISNULL(ds.Amount,0)) SpecialDiscount
+											  ,IIF(jv.DocStatus = -1,0,ISNULL(de.DepositAmt,0))  DepositAmt
+											  ,IIF(jv.DocStatus = -1,0,ISNULL(rt.Amount,0))  RetentionAmt
+                                              ,IIF(jv.DocStatus = -1,0,ISNULL(ar.SetARAmount - vat.SetVATAmount,0)) SetAmount
+                                              ,IIF(jv.DocStatus = -1,0,ISNULL(ar.ARRemain - vat.VATRemain,0)) RemainAmount
+                                              ,IIF(jv.DocStatus = -1,0,ISNULL(ar.ClearARAmount - vat.ClearVATAmount,0)) ClearAmount
+									  From	   #cte_JV jv  WITH (NOLOCK)
+											   LEFT JOIN dbo.InvoiceARs i on jv.DocId = i.Id and jv.DocTypeId = 38 /* เปลี่ยน inner join --> left join */
+											   LEFT JOIN dbo.InvoiceARLines ds WITH (NOLOCK) on ds.InvoiceARId = i.Id and ds.SystemCategoryId = 124
+											   Outer Apply (
+															Select	il.InvoiceARId,SUM(il.TaxBase)Depositamt
+															From	dbo.InvoiceARLines il WITH (NOLOCK)
+															Where   il.SystemCategoryId = 55
+																	AND ISNULL(il.DocQty,0) = 0
+																	AND il.InvoiceARId = i.Id
+																	Group By il.InvoiceARId
+																	) de
+											   left  join dbo.InvoiceARLines rt WITH (NOLOCK) on rt.InvoiceARId = i.Id and rt.SystemCategoryId = 49
+                                               Outer Apply (
+                                                            Select aes.Amount SetARAmount, aesr.RemainAmount ARRemain, aec.Amount ClearARAmount
+                                                            From AcctElementSets aes 
+                                                            INNER JOIN AcctElementSets_RemainAcctElement aesr ON aes.Id = aesr.Id
+                                                            LEFT JOIN AcctElementClears aec ON aesr.Id = aec.SetId
+                                                            Where aes.GeneralAccount = 111 AND aes.DocId = jv.DocId AND aes.DocTypeId = jv.DocTypeId
+                                               ) ar /* เพิ่ม set amount, remain amount, clear amount ของบรรทัดใบเเจ้งหนี้ที่ GA เป็น AR*/
+                                               Outer Apply (
+                                                            Select aes.Amount SetVATAmount, aesr.RemainAmount VATRemain, aec.Amount ClearVATAmount
+                                                            From AcctElementSets aes 
+                                                            INNER JOIN AcctElementSets_RemainAcctElement aesr ON aes.Id = aesr.Id
+                                                            LEFT JOIN AcctElementClears aec ON aesr.Id = aec.SetId
+                                                            Where aes.GeneralAccount = 293 AND aes.DocId = jv.DocId AND aes.DocTypeId = jv.DocTypeId
+                                               ) vat /* เพิ่ม set amount, remain amount, clear amount ของบรรทัดใบเเจ้งหนี้ที่ GA เป็น VAT*/
+									) vl ON vl.DocId = j.DocId AND vl.DocTypeId = j.DocTypeId AND vl.JVLineId = j.JVLineId
+					Left hash Join dbo.SitePathList() sp on j.DocTypeId = sp.DocTypeId
+					Group By	j.DocCode, j.DocDate, o.Id , o.Code ,o.Name, j.ExtOrgCode, j.ExtOrgName,j.CreateBy
+								, dc.DocTypeCode ,j.DocStatus
+								, vl.DocId,vl.DocTypeId,vl.SpecialDiscount,vl.DepositAmt,vl.RetentionAmt
+								, IIF(vl.SetAmount = 0,j.Amount,vl.SetAmount),vl.RemainAmount
+					
+					) x 
+					Where		x.OrgId IN (Select Id From #temporg)
+					Group By	x.OrgId, x.OrgCode, x.OrgName
+
+	/*##### Show Data #####*/
+	Select  o.id,
 			o.level-4 level,
 			o.name,
 			o.Code,
@@ -200,336 +284,264 @@ EXEC	[dbo].[sp_ManeeSystemCoreRemainingAccountBudgetRptManyProject]
 			iif(o.level >= 4 ,o.parent,oparent.parent) opa 
 			,iif(o.level >= 4 ,o.code,oparent.code) oparentcode
 			,o.path path
-			,IIF(coalesce(ir.TaxMethod, op.TaxType ) = 129,((ISNULL(op.ContractAmount,0)*isnull(op.CurrencyRate,1)) * 100 / 107),ISNULL(op.ContractAmount,0)*isnull(op.CurrencyRate,1)) ContractAmount
-			,IIF(coalesce(ir.TaxMethod, op.TaxType ) = 129,((ISNULL(op.ContractAmount,0)*isnull(op.CurrencyRate,1) + isNULL(pvo.SUMVO,0)) * 100 / 107),ISNULL(op.ContractAmount,0)*isnull(op.CurrencyRate,1) + isNULL(pvo.SUMVO,0)) CurrenctContract
+			,IIF(coalesce(ir.TaxMethod, op.TaxType ) = 129,((ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1)) * 100 / 107),ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1)) ContractAmount
+			,IIF(coalesce(ir.TaxMethod, op.TaxType ) = 129,((ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1) + ISNULL(pvo.SUMVO,0)) * 100 / 107),ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1) + ISNULL(pvo.SUMVO,0)) CurrenctContract
 			,budget.baseline BaselineBudget2
-			,isnull(cost.CommitAmt,0)  + isnull(ta.remainingallo,0) CommittedCost 
-			,isnull(ActualAmt,0) + IIF(@checkRemainAllocate = 1,isnull(tact.remain,0),0) ActualCost
-			,isnull(PaidAmt,0) + IIF(@checkRemainAllocate = 1,isnull(tact.remain,0),0) PaidCost
-			,iif(budget.ReviseCount = 0 ,ISNULL(baseline.Amount,0) ,isnull(budget.ReviseBudget,0))  - (isnull(cost.CommitAmt,0)  + isnull(ta.remainingallo,0)) Forecast
-			,iif(budget.ReviseCount = 0 ,ISNULL(baseline.Amount,0) ,isnull(budget.ReviseBudget,0)) CurrenctBudget
-			,CASE (ISNULL(op.ContractAmount,0) * ISNULL(op.CurrencyRate,0) + isNULL(pvo.SUMVO,0))
+			,ISNULL(cost.CommitAmt,0)  + ISNULL(ta.remainingallo,0) CommittedCost 
+			,ISNULL(ActualAmt,0) + IIF(@checkRemainAllocate = 1,ISNULL(tact.remain,0),0) ActualCost
+			,ISNULL(PaidAmt,0) + IIF(@checkRemainAllocate = 1,ISNULL(tact.remain,0),0) PaidCost
+			,iif(budget.ReviseCount = 0 ,ISNULL(baseline.Amount,0) ,ISNULL(budget.ReviseBudget,0))  - (ISNULL(cost.CommitAmt,0)  + ISNULL(ta.remainingallo,0)) Forecast
+			,iif(budget.ReviseCount = 0 ,ISNULL(baseline.Amount,0) ,ISNULL(budget.ReviseBudget,0)) CurrenctBudget
+			,CASE (ISNULL(op.ContractAmount,0) * ISNULL(op.CurrencyRate,0) + ISNULL(pvo.SUMVO,0))
 				WHEN 0 THEN 0
-				ELSE ((ISNULL(op.ContractAmount,0) * ISNULL(op.CurrencyRate,0) + ISNULL(pvo.SUMVO,0) - iif(budget.ReviseCount = 0 ,ISNULL(baseline.Amount,0) ,isnull(budget.ReviseBudget,0)) ) /  (ISNULL(op.ContractAmount,0) * ISNULL(op.CurrencyRate,0) + isNULL(pvo.SUMVO,0))) * 100
+				ELSE ((ISNULL(op.ContractAmount,0) * ISNULL(op.CurrencyRate,0) + ISNULL(pvo.SUMVO,0) - iif(budget.ReviseCount = 0 ,ISNULL(baseline.Amount,0) ,ISNULL(budget.ReviseBudget,0)) ) /  (ISNULL(op.ContractAmount,0) * ISNULL(op.CurrencyRate,0) + ISNULL(pvo.SUMVO,0))) * 100
 			 END [CurrencyProfit]
-			,isnull(pp.WorkProgress,0) ActualProgress
+			,ISNULL(pp.WorkProgress,0) ActualProgress
 
-			,Isnull(ISS.Completion,0) * op.CurrencyRate		[Completion] /*MS-28644*/
+			,ISNULL(ISS.Completion,0) * op.CurrencyRate		[Completion] /*MS-28644*/
+			,ISNULL(IVAR.Invoice,0) * op.CurrencyRate InvoicrAROnly
+			,IIF((ISNULL(RC.Receipt,0) * op.CurrencyRate)<(ISNULL(IVAR.Invoice,0) * op.CurrencyRate),ISNULL(IVAR.Invoice,0) * op.CurrencyRate,ISNULL(RC.Receipt,0) * op.CurrencyRate)[Invoice]
 
-			,Isnull(IVAR.Invoice,0) * op.CurrencyRate		[Invoice] /*MS-28644*/
+			,ISNULL(RC.Receipt,0) * op.CurrencyRate			[Receipt] /*MS-28644*/
 
-			,Isnull(RC.Receipt,0) * op.CurrencyRate			[Receipt] /*MS-28644*/
-
-			,(Isnull(IVAR.Invoice,0) * op.CurrencyRate)-(isnull(ActualAmt,0) + IIF(@checkRemainAllocate = 1,isnull(tact.remain,0),0)) GassProfit
-
+			,(IIF((ISNULL(RC.Receipt,0) * op.CurrencyRate)<(ISNULL(IVAR.Invoice,0) * op.CurrencyRate),ISNULL(IVAR.Invoice,0) * op.CurrencyRate,ISNULL(RC.Receipt,0) * op.CurrencyRate))-(ISNULL(ActualAmt,0) + IIF(@checkRemainAllocate = 1,ISNULL(tact.remain,0),0)) GassProfit
+			,IIF((ISNULL(IVAR.Invoice,0) * op.CurrencyRate) = 0,0,
+			((IIF((ISNULL(RC.Receipt,0) * op.CurrencyRate)<(ISNULL(IVAR.Invoice,0) * op.CurrencyRate),ISNULL(IVAR.Invoice,0) * op.CurrencyRate,ISNULL(RC.Receipt,0) * op.CurrencyRate)-(ISNULL(ActualAmt,0) + IIF(@checkRemainAllocate = 1,ISNULL(tact.remain,0),0)))*100)
+			/(IIF((ISNULL(RC.Receipt,0) * op.CurrencyRate)<(ISNULL(IVAR.Invoice,0) * op.CurrencyRate),ISNULL(IVAR.Invoice,0) * op.CurrencyRate,ISNULL(RC.Receipt,0) * op.CurrencyRate))
+			) [%GassProfit]
+			,IIF((IIF(coalesce(ir.TaxMethod, op.TaxType ) = 129,((ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1) + ISNULL(pvo.SUMVO,0)) * 100 / 107),ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1) + ISNULL(pvo.SUMVO,0))) = 0,0,
+			((IIF(coalesce(ir.TaxMethod, op.TaxType ) = 129,((ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1) + ISNULL(pvo.SUMVO,0)) * 100 / 107),ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1) + ISNULL(pvo.SUMVO,0))-iif(budget.ReviseCount = 0 ,ISNULL(baseline.Amount,0) ,ISNULL(budget.ReviseBudget,0)))*100)
+			/(IIF(coalesce(ir.TaxMethod, op.TaxType ) = 129,((ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1) + ISNULL(pvo.SUMVO,0)) * 100 / 107),ISNULL(op.ContractAmount,0)*ISNULL(op.CurrencyRate,1) + ISNULL(pvo.SUMVO,0)))
+			) [%ExpectedGassProfit]
 			,oparent.Name Name1
 			,oparent.Code Code1
+			,CONCAT(oparent.Code,' : ',oparent.Name) ParentCode
+			,CONCAT(g.Code,' : ',g.Name) GroupProject
+			--,Format(Convert(date,Right(oparent.Name,4),103),'yyyy') ProjectYear
+			,Format(ISNULL(CONVERT(datetime,py.DataValues,105),op.StartDate),'yyyy') ProjectYear
 			,ISNULL(commitcost.CommitAmount,0) + IIF(@checkRemainAllocate = 1,ISNULL(ta.remainingallo,0),0) CommittedCost2
 			,ISNULL(baseline.Amount,0) [BaselineBudget]
-	into #tempbudget
-	from Organizations o 
+			,cns.Description ConstructionStatus
+			,cts.Description ContractStatus
+			,fs.Description FinancialStatus
+			,p.Name PMName
+			,CONCAT(o.Code,' : ',o.Name) ProjectCodeandName
+			,ext.Id ExtOrgId,ext.Code ExtOrgCode,ext.Name ExtOrgName
+			
+	Into #tempbudget
+	From Organizations o 
 	inner join Organizations_ProjectConstruction op on o.id= op.id
-
-    OUTER APPLY (
-        SELECT TaxMethod ,TaxRate FROM InterimPayments
-        WHERE OrgId = o.Id
-        GROUP BY OrgId,TaxMethod ,TaxRate
+	Left Join CustomNoteLines py ON py.DocGuid = o.guid AND py.KeyName = 'p.EventDate'
+	Left Join ExtOrganizations ext ON ext.Id = op.ExtOrgId
+	Left Join CodeDescriptions cns ON cns.Name = 'ConstructionStatus' AND cns.Value = op.ConstructionStatus
+	Left Join CodeDescriptions cts ON cts.Name = 'ContractStatus' AND cts.Value = op.ContractStatus
+	Left Join CodeDescriptions fs ON fs.Name = 'FinancialStatus' AND fs.Value = op.FinancialStatus
+	----------PM Manager--------------
+	Left Join (		Select	--min(PersonId) PersonId,
+							dbo.GROUP_CONCAT_D(DISTINCT Name,',') Name,
+							--Username,
+							OrgId 
+					From Persons 
+					Where SystemCode ='PersonInChange'
+					Group By OrgId
+				) [p] ON [p].OrgId = o.Id
+    Outer Apply (
+        Select TaxMethod ,TaxRate From InterimPayments
+        Where OrgId = o.Id
+        Group By OrgId,TaxMethod ,TaxRate
     ) ir
 	left join Organizations oparent on o.parent = oparent.id 
+	left join Organizations g ON g.Id = oparent.Parent
 	left join #tempallo ta on ta.LocationId = o.Id
 	left join #tempact tact on tact.OrgId =o.id 
-	left hash join ( 
-				select 
+	Left hash Join ( 
+				Select 
 						b.ProjectId
-						,sum(isNUll(bl.amount,0)) Baseline
-						,sum(isnull(revise.CompleteAmount,0)) ReviseBudget
+						,SUM(ISNULL(bl.amount,0)) Baseline
+						,SUM(ISNULL(revise.CompleteAmount,0)) ReviseBudget
 						,count(revise.id) ReviseCount
-				 from Budgets b
+				 From Budgets b
 				left join BudgetLines bl on bl.BudgetId = b.Id
-				left hash join (	select revise.* from (
-											SELECT  rb.RunNumber,
+				Left hash Join (	Select revise.* From (
+											Select  rb.RunNumber,
 													rb.id,
-													isnull(rbl.CompleteAmount, 0) CompleteAmount,
+													ISNULL(rbl.CompleteAmount, 0) CompleteAmount,
 													rb.ProjectId,
 													rb.BudgetId,
 													rbl.BudgetLineId
-											FROM 
+											From 
 											(
-												SELECT projectid, MAX(RunNumber) runnumber
-												FROM RevisedBudgets 
-												where RevisedBudgets.Date <= @Todate
-												GROUP BY ProjectId
+												Select projectid, MAX(RunNumber) runnumber
+												From RevisedBudgets 
+												Where RevisedBudgets.Date <= @Todate
+												Group By ProjectId
 											) b 
 											INNER loop JOIN RevisedBudgets rb ON rb.ProjectId = b.ProjectId AND rb.RunNumber = b.runnumber
 											left loop join RevisedBudgetLines rbl on rbl.RevisedBudgetId = rb.Id
 											)revise
 										 )revise on revise.BudgetLineId = bl.Id
 
-				group by b.ProjectId
+				Group By b.ProjectId
 
 				)budget on budget.ProjectId = o.Id
-	left hash join (	select SUM(isnull(ContractAmount,0)) SUMVO,
+	Left hash Join (	Select SUM(ISNULL(ContractAmount,0)) SUMVO,
 						max(ContractDate) contractdate,
 						pv.ProjectConstructionId 
-						from ProjectVOes pv
-						where ContractDate <= @Todate
-						group by pv.ProjectConstructionId
+						From ProjectVOes pv
+						Where ContractDate <= @Todate
+						Group By pv.ProjectConstructionId
 						)pvo on pvo.ProjectConstructionId = o.id
-	left hash join (select	sum(c.amount) CommitAmt,
+	Left hash Join (Select	SUM(c.amount) CommitAmt,
 								
 								c.OrgId [OrgId],
-								sum(acl.AcctAmt) ActualAmt,
-								sum(pcl.PaidAmt) PaidAmt
+								SUM(acl.AcctAmt) ActualAmt,
+								SUM(pcl.PaidAmt) PaidAmt
 
-						from CommittedCostLines c
+						From CommittedCostLines c
 						
-						left join (select CommittedCostLineId
-										  ,ISNULL(sum(amount),0) AcctAmt 
-									from AccountCostLines 
-									where Date <= @Todate
-									group by CommittedCostLineId )acl on acl.CommittedCostLineId = c.Id							
-						left join (select CommittedCostLineId
-										  ,ISNULL(sum(amount),0) PaidAmt 
-									from PaidCostLines 
-									where Date <= @Todate
-									group by CommittedCostLineId )pcl on pcl.CommittedCostLineId = c.Id
+						left join (Select CommittedCostLineId
+										  ,ISNULL(SUM(amount),0) AcctAmt 
+									From AccountCostLines 
+									Where Date <= @Todate
+									Group By CommittedCostLineId )acl on acl.CommittedCostLineId = c.Id							
+						left join (Select CommittedCostLineId
+										  ,ISNULL(SUM(amount),0) PaidAmt 
+									From PaidCostLines 
+									Where Date <= @Todate
+									Group By CommittedCostLineId )pcl on pcl.CommittedCostLineId = c.Id
 						
-						WHERE c.OrgId IN (SELECT Id FROM #temporg)
+						Where c.OrgId IN (Select Id From #temporg)
 
 						AND c.Date <= @Todate
 						
-						group by c.OrgId
+						Group By c.OrgId
 					)cost on cost.OrgId = o.id
-	left hash join (select ProjectId,
+	Left hash Join (Select ProjectId,
 					MAX(PlanValuePercent) WorkProgress
-					from dbo.ProjectScheduleProgresses
-					where EffectiveDate <= @Todate
-					 group by ProjectId)pp on pp.ProjectId = o.id
+					From dbo.ProjectScheduleProgresses
+					Where EffectiveDate <= @Todate
+					 Group By ProjectId)pp on pp.ProjectId = o.id
 
 
-outer apply /*MS-28644*/
+Outer Apply /*MS-28644*/
 (
 
 
-	select ISNULL(sum (ISS.[Completion]),0)  [Completion]
-	from
+	Select ISNULL(SUM (ISS.[Completion]),0)  [Completion]
+	From
 	(
-		select 
-		--ISNULL(sum (
+		Select 
+		--ISNULL(SUM (
 			case
-				when ir.TaxMethod in (131, 199, 207) then isnull(issl.CostAmount, 0)
-				when ir.TaxMethod = 129 then (isnull(issl.LineAmount, 0) * 100.00) / (100.00 + issl.TaxRate)
+				when ir.TaxMethod in (131, 199, 207) then ISNULL(issl.CostAmount, 0)
+				when ir.TaxMethod = 129 then (ISNULL(issl.LineAmount, 0) * 100.00) / (100.00 + issl.TaxRate)
 				else 
-				isnull(issl.LineAmount, 0)
+				ISNULL(issl.LineAmount, 0)
 			end 
 			* 
 			iss.DocCurrencyRate
 		--),0) 
 		[Completion]
-		from InspectionSheetLines issl 
+		From InspectionSheetLines issl 
 		LEFT JOIN dbo.InspectionSheets iss ON iss.Id = issl.InspectionSheetId
-		WHERE exists (
-			select 1 from InspectionSheets ssd where ssd.OrgId = o.Id and ssd.Id = issl.InspectionSheetId and ssd.DocStatus != -1
+		Where exists (
+			Select 1 From InspectionSheets ssd Where ssd.OrgId = o.Id and ssd.Id = issl.InspectionSheetId and ssd.DocStatus != -1
 		) and issl.SystemCategoryId = 128
 	) ISS
 
 )	ISS
+Left hash Join (Select OrgId,OrgCode,OrgName,Receipt From #RECEIPT) RC ON RC.OrgId = o.Id
 
-outer apply /*MS-28644*/
-(
-	Select SUM([Invoice]) [Invoice]
+Outer Apply
+(	Select SUM([Invoice]) [Invoice]
 	From (
 	Select
-	ISNULL(SUM(ISNULL(IVARL.CostAmount, 0)), 0) [Invoice]
+	SUM(ISNULL(IVARL.CostAmount, 0)) [Invoice]
 	From InvoiceARLines IVARL
+	Inner Join InvoiceARs IVAR ON IVAR.id = IVARL.InvoiceARId
 	Where exists (
 		Select 1 From InvoiceARs IVAR Where IVAR.LocationId = o.Id AND IVAR.Id = IVARL.InvoiceARId AND IVAR.DocStatus != -1
 	) and IVARL.SystemCategoryId IN (99,128,177)
 	UNION ALL
-	Select ISNULL(SUM(ISNULL(ORARL.Amount, 0)), 0) [Invoice]
+	Select SUM(ISNULL(ISNULL(ORARL.TaxBase,ORAL.Amount), 0)) [Invoice]
 	From OtherReceiveLines ORARL
+	Inner Join OtherReceives ORAR ON ORAR.Id = ORARL.OtherReceiveId
+	Left Join OtherReceiveLines ORAL ON ORAL.OtherReceiveId = ORAR.Id AND ORAL.SystemCategoryId IN (107)
 	Where Exists (
 		Select 1 From OtherReceives IVOR Where IVOR.LocationId = o.Id and IVOR.Id = ORARL.OtherReceiveId and IVOR.DocStatus != -1
 	) AND (ORARL.OtherReceiveId IN  (Select OtherReceiveId From OtherReceiveLines Where SystemCategoryId IN (44) AND isSet = 1 Group By OtherReceiveId))
-	AND ORARL.SystemCategoryId IN (107)
+	AND ORARL.SystemCategoryId IN (123,129,131)
+	------------------ Adjust Invoice AR ---------------------
+	UNION ALL
+	--Select ISNULL(SUM(ISNULL(adjl.AdjustTaxBase, 0)),0)*-1 [Invoice]
+	--From AdjustInvoiceARLines adjl
+	--Left Join AdjustInvoiceARs adj ON adj.Id = adjl.AdjustInvoiceARId
+	--Where adjl.SystemCategoryId IN (152) AND adjl.AdjustInvoiceARId = 1 AND adj.DocStatus != -1 AND adjl.OrgId = o.Id
+	Select SUM(ISNULL(adjl.AdjustTaxBase, 0)*-1) [Invoice]
+	From AdjustInvoiceARLines adjl
+	Inner Join AdjustInvoiceARs adj ON adj.Id = adjl.AdjustInvoiceARId
+	Where adjl.SystemCategoryId IN (152,153) AND adj.DocStatus != -1 AND adjl.OrgId = o.Id
 	) IV
-) IVAR
-
-outer apply /*MS-28644*/
-(
-	select sum(rc.[Receipt]) [Receipt]
-	from
-	(
-		select 
-		isnull(sum(round((rep_final.ReceiptAmount + rep_final.RetentionSetAmount) - rep_final.Vat - rep_final.CalDeposit_Credit + rep_final.SubDeposit, 2)), 0) [Receipt]
-		from (
-			select
-				rep.ReceiptAmount,
-				rep.RetentionSetAmount,
-				isnull((rep.RetentionSetAmount + rep.ReceiptAmount) / nullif(rep.ReceiptPerUnitDeposit_Debit, 0), 0) [SubDeposit],
-				isnull((rep.ReceiptAmount + rep.RetentionSetAmount) / nullif(rep.ReceiptPerUnitVat, 0), 0) [Vat],
-				isnull((rep.ReceiptAmount + rep.RetentionSetAmount) / nullif(rep.ReceiptPerUnitDeposit_Credit, 0), 0) [CalDeposit_Credit]
-			from (
-				select 
-					*,
-					isnull(dep.AR / nullif(dep.Deposit_Debit, 0), 0) [ReceiptPerUnitDeposit_Debit],
-					isnull(dep.AR / nullif(dep.VatAmount, 0), 0) [ReceiptPerUnitVat],
-					isnull(dep.AR / nullif(dep.Deposit_Credit, 0), 0) [ReceiptPerUnitDeposit_Credit]
-				from (
-						select
-							*,
-							case ir.TaxMethod 
-								when 131 then 0.0
-								else ( (inv.InvoiceLine - inv.Discount) - inv.Deposit_Debit ) * (ir.TaxRate / 100.00)
-							end [VatAmount],
-							((inv.InvoiceLine - inv.Discount) + inv.Deposit_Credit - inv.Deposit_Debit) + 
-							( 
-							 case ir.TaxMethod 
-								when 131 then 0.0
-								else ( (inv.InvoiceLine - inv.Discount) - inv.Deposit_Debit ) * (ir.TaxRate / 100.00)
-							end
-							) [AR]
-						from (
-							select
-								rcl.ReceiptId,
-								rcl.DocAmount,
-								rcl.ReceiptAmount,
-								rcl.RetentionSetAmount,
-								rcl.RefIVId 
-							from ReceiptLines rcl 
-							where rcl.SystemCategoryId = 38
-
-								and exists (
-									select 1 from Receipts rc 
-										where rc.DocTypeId = 51
-											and rc.DocStatus != -1 
-											and rc.LocationId = o.Id
-											and rc.Id = rcl.ReceiptId
-								)
-						) rc
-						cross apply (
-							Select 
-								sum(iif(iv.SystemCategoryId = 49, iv.Amount, 0.0)) [ARRetention],
-								sum(iif(iv.SystemCategoryId = 107 , iv.Amount, 0.0)) - sum(iif(iv.SystemCategoryId = 55 and iv.isset = 1, iv.Amount, 0.0)) [InvoiceLine],
-								sum(iif(iv.SystemCategoryId = 55 and iv.GeneralAccount = 221 and iv.isset = 1, iv.Amount, 0.0)) [Deposit_Credit],
-								sum(iif(iv.SystemCategoryId = 55 and iv.GeneralAccount = 221 and iv.isset = 0, iv.Amount, 0.0)) [Deposit_Debit],
-								sum(iif(iv.SystemCategoryId = 124, iv.Amount, 0.0)) [Discount]
-							from InvoiceARLines iv
-								where iv.InvoiceARId = rc.RefIVId and iv.SystemCategoryId in (49, 107, 55)
-						) inv
-				) dep
-			) rep
-		) rep_final
-
-		union all 
-
-		select 
-			isnull(sum((ISNULL(rcl.TaxBase, 0) + isnull(rcl.SubtractDeposit, 0)) * r.DocCurrencyRate), 0) [Receipt]
-		from ReceiptLines rcl
-		LEFT JOIN dbo.Receipts r ON rcl.ReceiptId = r.Id
-		where rcl.SystemCategoryId in (127, 128,177)
-			and exists (
-				select 1 from Receipts rc
-				where rc.DocTypeId = 151
-					and rc.DocStatus != -1
-					and rc.LocationId = o.Id
-					and rc.Id = rcl.ReceiptId
-			)
-			AND EXISTS (
-				SELECT 1 FROM dbo.InterimPaymentLines ipl WHERE  SystemCategoryId != 55
-				AND rcl.InterimPaymentLineId = ipl.Id
-			)
-		union all 
-		-- ***** Receipt From Quotation/Invoice AR ***** ยอดใบเสร็จรับเงินจากใบเสนอราคา ไม่ผ่าน Interim
-		select 
-			isnull(sum((ISNULL(rcl.TaxBase, 0) + isnull(rcl.SubtractDeposit, 0)) * r.DocCurrencyRate), 0) [Receipt]
-		from ReceiptLines rcl
-		LEFT JOIN dbo.Receipts r ON rcl.ReceiptId = r.Id
-		where rcl.SystemCategoryId in (99)
-			and exists (
-				select 1 from Receipts rc
-				where rc.DocTypeId = 151
-					and rc.DocStatus != -1
-					and rc.LocationId = o.Id
-					and rc.Id = rcl.ReceiptId
-			)
-		 union all
-		 -- ***** Receipt From Quotation/OtherReceive ***** ยอดใบเสร็จรับเงินจากใบเสนอราคา ไม่ผ่าน Interim
-		
-		 Select		SUM(rl.ReceiptAmount)-SUM(orl.TaxAmount) [Receipt]
-		 From		Receiptlines rl
-		 LEFT JOIN	dbo.Receipts r ON rl.ReceiptId = r.Id
-		 LEFT JOIN	(Select SUM(IIF(SystemCategoryId = 36,TaxAmount*-1,TaxAmount)) TaxAmount,OtherReceiveId From OtherReceivelines Where SystemCategoryId IN (36,123,129) Group By OtherReceiveId) orl ON orl.OtherReceiveId = r.TaxItemId AND r.DocTypeId IN (44)
-		 Where		rl.SystemCategoryId IN (111) AND r.LocationId = o.Id AND r.DocStatus != -1
-	) RC
-
-) RC
-
-	LEFT HASH JOIN (
-	SELECT	 IV.LocationId
+) IVAR 
+Left hash Join (
+	Select	 IV.LocationId
 				,SUM(ISNULL(IV.ARNOVAT,0)) [ARNOVAT]
-		FROM (	SELECT	 a.LocationId
+		From (	Select	 a.LocationId
 						,a.Id InvoiceARId
 						,SUM(ISNULL(gtt.Amount,0)+ISNULL(pen.Amount,0)-ISNULL(vat.TaxAmount,0)) *a.DocCurrencyRate [ARNOVAT]
-				FROM	dbo.InvoiceARs	a
-				LEFT JOIN ( SELECT InvoiceARId,Amount FROM dbo.InvoiceARLines WHERE SystemCategoryId IN (111))gtt ON gtt.InvoiceARId=a.Id
-				LEFT JOIN ( SELECT InvoiceARId,TaxAmount FROM dbo.InvoiceARLines WHERE SystemCategoryId IN (123,131,129,199))vat ON vat.InvoiceARId=a.Id
-				LEFT JOIN ( SELECT InvoiceARId,Amount FROM dbo.InvoiceARLines WHERE SystemCategoryId IN (148))pen ON pen.InvoiceARId=a.Id
-				WHERE	a.DocStatus NOT IN (-1,-11)
+				From	dbo.InvoiceARs	a
+				LEFT JOIN ( Select InvoiceARId,Amount From dbo.InvoiceARLines Where SystemCategoryId IN (111))gtt ON gtt.InvoiceARId=a.Id
+				LEFT JOIN ( Select InvoiceARId,TaxAmount From dbo.InvoiceARLines Where SystemCategoryId IN (123,131,129,199))vat ON vat.InvoiceARId=a.Id
+				LEFT JOIN ( Select InvoiceARId,Amount From dbo.InvoiceARLines Where SystemCategoryId IN (148))pen ON pen.InvoiceARId=a.Id
+				Where	a.DocStatus NOT IN (-1,-11)
 				AND a.Date <= @Todate
 				AND a.SystemCategoryId IN (128)
-				GROUP BY a.LocationId,a.Id,a.DocCurrencyRate
+				Group By a.LocationId,a.Id,a.DocCurrencyRate
 		) IV
-		GROUP BY IV.LocationId
+		Group By IV.LocationId
 	) inv ON inv.LocationId = o.Id
-	outer apply (
-		select 
+	Outer Apply (
+		Select 
 			case ip.TaxMethod
 				when 131 then SUM(ISNULL(rl.ReceiptAmount,0) + ISNULL(rl.SubtractRetention, 0) * rl.RefIVCurrencyRate)
-				else sum((((isnull(rl.ReceiptAmount, 0) + Isnull(rl.SubtractRetention, 0)) * 100.00 ) / (100.00 + isnull(ip.TaxRate, 7))) * rl.RefIVCurrencyRate)
+				else SUM((((ISNULL(rl.ReceiptAmount, 0) + ISNULL(rl.SubtractRetention, 0)) * 100.00 ) / (100.00 + ISNULL(ip.TaxRate, 7))) * rl.RefIVCurrencyRate)
 			end [Receipt]
-		from ReceiptLines rl
+		From ReceiptLines rl
 		inner join Receipts r on r.Id = rl.ReceiptId
 		inner join InterimPayments [ip] on ip.OrgId = rl.LocationId
-		where rl.ReceiptId = r.Id 
+		Where rl.ReceiptId = r.Id 
 			and r.DocStatus not in (-1, 11)
 			and r.Date <= @ToDate
 			and rl.LocationId = o.Id
-		group by ip.TaxMethod
+		Group By ip.TaxMethod
 	) r
-	LEFT hash JOIN (
-			SELECT  SUM(ISNULL(cost.cAmount,0)) CommitAmount , o.Id
-			FROM Organizations o
+	Left hash Join (
+			Select  SUM(ISNULL(cost.cAmount,0)) CommitAmount , o.Id
+			From Organizations o
 			LEFT loop join Budgets b on b.ProjectId = o.id 
 			LEFT loop join WBS on wbs.BudgetId = b.Id
-			LEFT hash join (select SUM(cm.Amount) cAmount,cm.WBSId 
-							FROM CommittedCostLines  cm
-							LEFT hash JOIN (select sum(amount)acamount ,CommittedCostLineId from AccountCostLines where date<=@Todate group by CommittedCostLineId )ac on ac.CommittedCostLineId =cm.id
-							LEFT hash JOIN (select sum(amount)pamount ,CommittedCostLineId from PaidCostLines where date<=@Todate group by CommittedCostLineId )pd on pd.CommittedCostLineId =cm.id
-							WHERE cm.date <= @Todate 
-							AND (@exists = 0 OR EXISTS (select id from #temporg [test] WHERE test.Id = cm.OrgId ))
-			GROUP by cm.wbsid
+			Left hash Join (Select SUM(cm.Amount) cAmount,cm.WBSId 
+							From CommittedCostLines  cm
+							Left hash Join (Select SUM(amount)acamount ,CommittedCostLineId From AccountCostLines Where date<=@Todate Group By CommittedCostLineId )ac on ac.CommittedCostLineId =cm.id
+							Left hash Join (Select SUM(amount)pamount ,CommittedCostLineId From PaidCostLines Where date<=@Todate Group By CommittedCostLineId )pd on pd.CommittedCostLineId =cm.id
+							Where cm.date <= @Todate 
+							AND (@exists = 0 OR EXISTS (Select id From #temporg [test] Where test.Id = cm.OrgId ))
+			Group By cm.wbsid
 		)cost on cost.WBSId = wbs.id
-		WHERE (@exists = 0 or EXISTS (select id from #temporg [test] WHERE test.Id = o.Id))
-		GROUP BY o.Id
+		Where (@exists = 0 or EXISTS (Select id From #temporg [test] Where test.Id = o.Id))
+		Group By o.Id
 	) commitcost ON commitcost.Id = o.Id
-	LEFT hash JOIN  (
-		SELECT SUM(ISNULL(CompleteAmount,0)) Amount , rb.ProjectId
-		FROM dbo.RevisedBudgetLines rbl
+	Left hash Join  (
+		Select SUM(ISNULL(CompleteAmount,0)) Amount , rb.ProjectId
+		From dbo.RevisedBudgetLines rbl
 		INNER JOIN dbo.RevisedBudgets rb ON rbl.RevisedBudgetId = rb.Id 
-		WHERE rb.RevisedBudgetType = 0
-		GROUP BY rb.ProjectId
+		Where rb.RevisedBudgetType = 0
+		Group By rb.ProjectId
 	) baseline ON baseline.ProjectId = budget.ProjectId
-	where o.parent != 1
-	AND o.OrgCategory IN (80,85,86,87,196,197)
-    and (o.Id in (select id from #temporg) or (len(isnull(@projectCode,'')) = 0) AND isnull(@projectCode,'') = '')
-	AND ((op.ContractDate BETWEEN @ToContractDate AND @EndContractDate) OR (@ToContractDate = '1900-01-01' AND @EndContractDate = '1900-01-01'))
-	AND ((FinancialStatus IN (SELECT * FROM dbo.fn_listCode(@FinancialStatus))) OR @FinancialStatus IS NULL )
-	AND ((ConstructionStatus IN (SELECT * FROM dbo.fn_listCode(@ConstructionStatus))) OR @ConstructionStatus IS NULL )
-	AND ((ContractStatus IN (SELECT * FROM dbo.fn_listCode(@ProgressStatus))) OR @ProgressStatus IS NULL)
-    AND ((exists (SELECT 1 FROM #TempRoleOrg rsd WHERE (rsd.AllOrg = 1 OR rsd.OrgId = @projectCode))) OR @isPowerUser = 1) --Add view report condition depends on User role for view org
-	order by parent
-option(recompile)
+	Where	o.Id IN (Select Id From #temporg)
+	Order By parent
+
+
 
 if(isnull( @projectCode,'')  != '' or isnull( @SearchprojectCode,'')  !='')
 begin
