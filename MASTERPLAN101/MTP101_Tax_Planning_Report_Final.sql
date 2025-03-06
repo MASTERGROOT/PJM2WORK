@@ -245,7 +245,8 @@ from
 					,jv.isDebit
 				from JournalVouchers j
 				left join JVLines jv on j.Id = jv.JournalVoucherId
-				where jv.AccountCode = '61010001'
+				-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+				where jv.AccountCode = '61010001'/* coa.AnalysisCode1 = 'เงินเดือน ปันส่วน' */
 						--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
 						and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 						and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
@@ -289,7 +290,8 @@ from
 					,jv.isDebit
 		from JournalVouchers j
 		left join JVLines jv on j.Id = jv.JournalVoucherId
-		where jv.AccountCode in ('61030001','61030002','61030003','61030004')
+		-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+		where jv.AccountCode in ('61030001','61030002','61030003','61030004')/* coa.AnalysisCode1 = 'ค่าเดินทาง+น้ำมัน ปันส่วน' */
 				--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
 				and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 				and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
@@ -334,7 +336,8 @@ from
 					,jv.isDebit
 					from JournalVouchers j
 		left join JVLines jv on j.Id = jv.JournalVoucherId
-		where jv.AccountCode in ('61110006')
+		-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+		where jv.AccountCode in ('61110006')/* coa.AnalysisCode1 = 'ค่าเสื่อมราคาหน้างาน' */
 				--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
 				and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 				and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
@@ -378,7 +381,8 @@ from
 				,jv.isDebit
 				from JournalVouchers j
 				left join JVLines jv on j.Id = jv.JournalVoucherId
-				where jv.AccountCode = '61010001'
+				-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+				where jv.AccountCode = '61010001'/* coa.AnalysisCode1 = 'บริหารไม่มี Vat' */
 						--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
 						and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 						and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
@@ -421,7 +425,8 @@ from
 					,jv.isDebit
 					from JournalVouchers j
 					left join JVLines jv on j.Id = jv.JournalVoucherId
-					where (jv.AccountCode between '60000000' and '61130006')
+					-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+					where (jv.AccountCode between '60000000' and '61130006')/* coa.AnalysisCode1 = 'บริหาร Vat' */
 							--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
 							and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 							and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
@@ -464,7 +469,8 @@ from(select j.OrgId
 			,jv.isDebit
 			from JournalVouchers j
 			left join JVLines jv on j.Id = jv.JournalVoucherId
-			where jv.AccountCode in ('60020002','60030002','60030003','60030007')
+			-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+			where jv.AccountCode in ('60020002','60030002','60030003','60030007')/* coa.AnalysisCode1 = 'ค่าโฆษณา' */
 					--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
 					and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 					and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
@@ -494,7 +500,7 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,isnull(sum(a.Amount),0) [AmtSubcontract]
 Into #Subcontract
 from(
-select	jv.Amount
+select	IIF(jv.isDebit = 1,jv.Amount,jv.Amount * -1) Amount /* ดึงมาทั้ง dr cr เเล้วให้มัน Net กัน */
 		,j.[Date]--FORMAT(j.Date ,'yyyyMM')  [Date]
 		,j.OrgCode
 		,Case when i.SystemCategoryId in (123,129) then 'Vat'
@@ -502,6 +508,7 @@ select	jv.Amount
 			end vat
 from  JournalVouchers j
 left join JVLines jv on j.Id = jv.JournalVoucherId
+INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
 left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
 			from Invoices i
 			left join InvoiceLines il on i.Id = il.InvoiceId
@@ -523,13 +530,13 @@ left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
 
 			) i on  j.MadeByDocCode = i.Code
 
-where AccountCode IN (51010002,51040005,51040007,51040008,51050102,51050103,51050104,51050105,51070102,51070302,51080002,51090206,51130101,51140002
+where /* jv.AccountCode IN (51010002,51040005,51040007,51040008,51050102,51050103,51050104,51050105,51070102,51070302,51080002,51090206,51130101,51140002
 						,51150101,51150201,51150302,51160001,51170003,51170201,51170202,51170203,51170204,51170303,51170403,51170404,51170405
 						,51170406,51180001,51190101,51210101,51210102,51220001,51230002,51240001,51250002,51272001,51272002,52060001,52060021
 						,52060022,52080001,52090104,52090205,52090206,52110002,52120004,52130002,52150002,52170002,52180003,52180004,55040402
-						,55050203,55110001,55110002,55120001,55130004,55140001)
+						,55050203,55110001,55110002,55120001,55130004,55140001) */coa.AnalysisCode1 = 'แรง'
 		and j.DocStatus in (4,5)
-		and jv.isDebit = 1
+		-- and jv.isDebit = 1
 		--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
 		and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 		and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
@@ -552,7 +559,7 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,isnull(sum(a.Amount),0) [AmtMaterial]
 Into #Material
 from(
-select jv.Amount
+select IIF(jv.isDebit = 1,jv.Amount,jv.Amount * -1) Amount /* ดึงมาทั้ง dr cr เเล้วให้มัน Net กัน */
 		,j.[Date]--FORMAT(j.Date ,'yyyyMM')  [Date]
 		,j.OrgCode
 		,Case when i.SystemCategoryId in (123,129) then 'Vat'
@@ -562,6 +569,7 @@ select jv.Amount
 		,j.MadeByDocCode
 from  JournalVouchers j
 left join JVLines jv on j.Id = jv.JournalVoucherId
+INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
 left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
 			from Invoices i
 			left join InvoiceLines il on i.Id = il.InvoiceId
@@ -591,21 +599,22 @@ left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
 			where il.SystemCategoryId in (123,129,131)
 					and i.DocStatus not in (-1)
 			) i on  j.MadeByDocCode = i.Code
-where AccountCode IN (51010001,51010005,51010006,51020002,51020003,51020007,51020010,51020011,51020012,51020014,51020016,51030001,51030002,51030003,51030004
+where /* AccountCode IN (51010001,51010005,51010006,51020002,51020003,51020007,51020010,51020011,51020012,51020014,51020016,51030001,51030002,51030003,51030004
 						,51030005,51030006,51030007,51030009,51030010,51030011,51030012,51040001,51040002,51040004,51040006,51050101,51050202,51050203
 						,51050204,51050206,51050207,51050208,51070101,51070301,51080001,51080003,51090101,51090203,51090204,51090301,51100001,51110001
 						,51120101,51120201,51120202,51120204,51120206,51130202,51130205,51140001,51150301,51170001,51170002,51170101,51170103,51170104
 						,51170301,51170401,51170402,51170503,51190003,51190004,51210001,51210002,51210003,51210004,51210104,51230001,51250001,51271001
 						,52020001,52040001,52040002,52050003,52070001,52090101,52090102,52090201,52100001,52110001,52120003,52140203,52160001,52170001
-						,52180001,54020101,54060001,55010001,55040401,55050201,55050202,55060001,55080001,52190001)
+						,52180001,54020101,54060001,55010001,55040401,55050201,55050202,55060001,55080001,52190001) */
+						coa.AnalysisCode1 = 'ของ'
 		and j.DocStatus in (4,5)
-		and jv.isDebit = 1
+		-- and jv.isDebit = 1
 		--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
 		and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 		and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 )a group by a.Date,a.vat
 
-/******************** Temp #Accouctchart4Vat รายได้ผัง4 Vat / รายได้ผัง4ไม่มี Vat********************/
+/******************** Temp #Accouctchart4Vat 1.01 ประมาณการรายได้********************/
   IF OBJECT_ID(N'tempdb..#Accouctchart4Vat', N'U') IS NOT NULL
     BEGIN
         DROP TABLE #Accouctchart4Vat;
@@ -629,16 +638,17 @@ select DISTINCT s.Amount
 				,s.DocType
 				,s.DocCode,s.isDebit,s.AccountCode
 from AcctElementSets s
+-- INNER JOIN ChartOfAccounts coa ON coa.Id = s.AccountId
 where s.AccountCode LIKE '4%'/*IN (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
 						,41000601,41000102,41000202,41000302,41000402,41000502,41000602,41000700
-						,41000701,41000702,41000703,41000704,41000705,41000707,41000708)*/
+						,41000701,41000702,41000703,41000704,41000705,41000707,41000708)*/ /* coa.AnalysisCode1 = 'ประมาณการรายได้' */
 		-- and s.isDebit = 0
 		and (s.DocDate BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 		and (s.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 		--and i.SystemCategoryId in (123,129)
 )a group by a.Date,a.isDebit/* ,a.AccountCode */
 
-/******************** Temp #Accouctchart4NoVat  รายได้ผัง4ไม่มี Vat********************/
+/******************** Temp #Accouctchart4NoVat  1.02 Vatขาย********************/
   IF OBJECT_ID(N'tempdb..#Accouctchart4NoVat', N'U') IS NOT NULL
     BEGIN
         DROP TABLE #Accouctchart4NoVat;
@@ -665,9 +675,10 @@ FROM	    dbo.JVLines jl WITH (nolock)
 			   LEFT JOIN dbo.GeneralAccountEntities ga WITH (NOLOCK) ON ga.EnumKey = jl.GeneralAccount
 			   LEFT JOIN dbo.Organizations o WITH (NOLOCK) ON IIF(ISNULL(jl.OrgId,0) IN (0,-1),j.OrgId,jl.OrgId) = o.Id
 			   LEFT JOIN dbo.AcctElementSets s WITH (NOLOCK) ON s.JVLineId = jl.Id --AND jl.MadeByDocTypeId = 149
+			   -- INNER JOIN ChartOfAccounts coa ON coa.Id = jl.AccountId
 where jl.AccountCode LIKE '21250100'/* (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
 						,41000601,41000102,41000202,41000302,41000402,41000502,41000602,41000700
-						,41000701,41000702,41000703,41000704,41000705,41000707,41000708) */
+						,41000701,41000702,41000703,41000704,41000705,41000707,41000708) *//* coa.AnalysisCode1 = 'Vatขาย' */
 		-- and s.isDebit = 0
 		and (CONVERT(DATE,ISNULL(NULLIF(s.DocDate,''),j.Date)) BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 		and (ISNULL(s.OrgId,j.OrgId) in (select Id from #temporg) or @ProjectId is NULL) 

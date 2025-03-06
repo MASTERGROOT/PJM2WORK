@@ -1,9 +1,10 @@
 /*==> Ref:d:\site\erppro\notpublish\customprinting\reportcommands\mtp101_summary_of_project_income_and_expenses.sql ==>*/
  
 /*รายได้แต่ละโครงการ - ผู้บริหาร*/
+/* คุณกร รวม VAT  */
 
-DECLARE @p0 DATETIME = '2025-01-08'
-DECLARE @p1 nvarchar(500) = '113'--'1931'--'1107,1152' --''--
+DECLARE @p0 DATETIME = '2025-02-28'
+DECLARE @p1 nvarchar(500) = '143'--'1931'--'1107,1152' --''--
 DECLARE @p2 BIT = 0
 
 DECLARE @Todate DATETIME = @p0
@@ -54,14 +55,14 @@ from (
 				from( 
 					/*PO ExtVat*/
 					select p.LocationId,p.Id,p.Code,22 DocType,p.Date,pl.SystemCategoryId
-					,isnull(b1.POAmount,0) POAmount
+					,isnull(b1.POAmount,0) - ISNULL(sp.PODiscount,0) POAmount
 					,isnull(ajl.AdjustAmount,0) AdjustAmount
-					,isnull(rl.RSAmount,0) RSAmount
+					,isnull(rs.RSAmount,0) - ISNULL(rs.RSDiscount,0) RSAmount
 					,isnull(il.InvoiceAmount,0) InvoiceAmount
 					,isnull(il.DiscountInvAmount,0) DiscountInvAmount
-					,isnull(cn.AdjustInvoiceAmount,0) AdjustInvoiceAmount
-					,isnull(pl1.PayAmount1,(isnull(pl2.PayAmount2,0))) * 100 / 107 PayAmount
-					,isnull(pn1.PayAmount1,(isnull(pn2.PayAmount2,0))) * 100 / 107 PaycnAmount
+					,isnull(il.AdjustInvoiceAmount,0) AdjustInvoiceAmount
+					,isnull(il.PayAmount1,(isnull(il.PayAmount2,0))) PayAmount
+					,isnull(il.PaycnAmount1,(isnull(il.PaycnAmount2,0))) PaycnAmount
 					from POes p
 					left join POLines pl on p.Id = pl.POId 
 					left join (select b.POId,b.SystemCategoryId,SUM(b.Amount) POAmount
@@ -69,74 +70,80 @@ from (
 								where b.SystemCategoryId = 99
 								group by b.POId,b.SystemCategoryId
 								) b1 on p.Id = b1.POId
+					left join (select pl.POId,pl.SystemCategoryId,SUM(pl.Amount) PODiscount
+								from POLines pl
+								where pl.SystemCategoryId = 124
+								group by pl.POId,pl.SystemCategoryId
+								) sp on p.Id = sp.POId
 					left join (select aj.POId,ABS(sum(ajl.AdjustAmount)) AdjustAmount
 								from AdjustPOes aj
 								left Join AdjustPOLines ajl on aj.Id = ajl.AdjustPOId
 								where ajl.SystemCategoryId = 99 and aj.DocStatus not in (-1) 
 								group by aj.POId
 								)ajl on p.Id = ajl.POId
-					left join (select  r.RefDocId,sum(rl.Amount) RSAmount
+					LEFT JOIN (
+						SELECT a.RefDocId, SUM(a.RSAmount) RSAmount ,SUM(a.RSDiscount) RSDiscount
+						from(
+								select  r.RefDocId,sum(rl.Amount) RSAmount, NULL RSDiscount
 								from ReceiveSuppliers r
 								left Join ReceiveSupplierLines rl on r.Id = rl.ReceiveSupplierId
-								where rl.SystemCategoryId = 99 and r.DocStatus not in (-1)
-								group by r.RefDocId
-								)rl on p.Id = rl.RefDocId
-					left join (select il.RefDocCode2,sum(il.Amount) InvoiceAmount,sum(il2.DiscountInvAmount) DiscountInvAmount
-								from Invoices i
-								left join InvoiceLines il on i.Id = il.InvoiceId
-								left join (select il.InvoiceId,sum(il.Amount) DiscountInvAmount
-											from InvoiceLines il
-											where il.SystemCategoryId = 124
-											group by il.InvoiceId
-											) il2 on il.InvoiceId = il2.InvoiceId
-								where il.SystemCategoryId = 99 and i.DocStatus not in (-1)
-								group by il.RefDocCode2
-								)il on p.Code = il.RefDocCode2
-					left join (select c.Code,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount ,i.RefDocCode2
-								from AdjustInvoices c
-								left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
-								left join (select i.Code,il.RefDocCode2
+								where rl.SystemCategoryId = 99 and r.DocStatus not in (-1) 
+								GROUP by r.RefDocId 
+						UNION ALL
+								SELECT r.RefDocId,NULL RSAmount, sum(rl.Amount) RSDiscount
+								from ReceiveSuppliers r
+								left Join ReceiveSupplierLines rl on r.Id = rl.ReceiveSupplierId
+								WHERE rl.SystemCategoryId = 124 AND r.DocStatus not in (-1) 
+								GROUP by r.RefDocId ) a group by RefDocId
+					)rs ON rs.RefDocId = p.Id
+					OUTER APPLY (
+								select po.Id,SUM(i.InvoiceAmount) InvoiceAmount,SUM(i.DiscountInvAmount) DiscountInvAmount,SUM(cn.AdjustInvoiceAmount) AdjustInvoiceAmount
+								,SUM(pl1.PayAmount1) PayAmount1,SUM(pl2.PayAmount2) PayAmount2,SUM(pn1.PaycnAmount1) PaycnAmount1,SUM(pn2.PaycnAmount2) PaycnAmount2
+								from POes po
+								LEFT JOIN (
+										select i.Id,i.Code,il.RefDocId2,il.RefDocCode2,sum(il.Amount) InvoiceAmount, SUM(il.SpecialDiscount) DiscountInvAmount
 											from Invoices i
 											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 99 and i.DocStatus not in (-1) 
-											) i on cl.RefDocCode = i.Code
-								where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
-								group by c.Code,cl.RefDocCode ,i.RefDocCode2
-								)cn on p.Code = cn.RefDocCode2
-					left join (select i.RefDocCode2,Isnull(sum(pl.PayAmount),0)  PayAmount1
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								left join (select i.Code,il.RefDocCode2
-											from Invoices i
-											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 99 and i.DocStatus not in (-1) 
-											) i on pl.InvoiceAPCode = i.Code
-								where pl.SystemCategoryId in (37,39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by i.RefDocCode2
-								)pl1 on p.Code = pl1.RefDocCode2 
-					left join (select i.RefDocCode2,Isnull(sum(pl.PayAmount),0) PayAmount2
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								left join (select i.Code,il.RefDocCode2
-											from Invoices i
-											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 99 and i.DocStatus not in (-1) 
-											) i on pl.InvoiceAPCode = i.Code
-								where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by i.RefDocCode2
-								)pl2 on p.Code = pl2.RefDocCode2
-					left join (select p.id,pl.DocCode,Isnull(sum(pl.PayAmount),0)  PayAmount1
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by p.id,pl.DocCode
-								)pn1 on cn.Code = pn1.DocCode 
-					left join (select p.id,pl.InvoiceAPCode,Isnull(sum(pl.PayAmount),0) PayAmount2
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by p.id,pl.InvoiceAPCode
-								)pn2 on cn.Code = pn2.InvoiceAPCode
+											where il.SystemCategoryId = 99 and i.DocStatus not in (-1)
+											group by il.RefDocId2,il.RefDocCode2,i.Id,i.Code
+										) i ON i.RefDocId2 = po.Id
+								left join (select c.Id,c.Code,cl.RefDocId,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount
+											from AdjustInvoices c
+											left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
+											where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
+											group by c.Id,c.Code,cl.RefDocId,cl.RefDocCode
+											) cn ON cn.RefDocId = i.Id
+								left join (select p.id,pl.DocCode,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+											,sum(pl.TaxBase) PayAmount1
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (37,39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.DocCode,pl.DocId
+											)pl1 on i.Id = pl1.DocId
+								LEFT JOIN (select p.id,pl.InvoiceAPCode
+											,SUM(pl.PayDocAmount) * 100 / 107 PayAmount2
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.InvoiceAPCode
+											) pl2 ON pl2.InvoiceAPCode = i.Code
+								left join (select p.id,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+											,sum(pl.PayDocAmount) PaycnAmount1
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.DocId
+											)pn1 on cn.Id = pn1.DocId 
+								left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
+											,sum(pl.PayDocAmount) PaycnAmount2
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.InvoiceAPCode
+											)pn2 on pn2.InvoiceAPCode = cn.Code
+								where po.Id = p.Id
+								GROUP BY Po.Id
+					) il
 					where p.Date <= @Todate
 							and p.DocStatus not in (-1) 
 							and pl.SystemCategoryId = 123 
@@ -145,14 +152,14 @@ from (
 					union all
 					/*PO IncVat*/
 					select p.LocationId,p.Id,p.Code,22 DocType,p.Date,pl.SystemCategoryId
-					,isnull(b1.POAmount,0) POAmount
+					,isnull(b1.POAmount,0) - ISNULL(sp.PODiscount,0)POAmount
 					,isnull(ajl.AdjustAmount,0) AdjustAmount
-					,isnull(rl.RSAmount,0) RSAmount
+					,isnull(rs.RSAmount,0) - ISNULL(rs.RSDiscount,0) RSAmount
 					,isnull(il.InvoiceAmount,0) InvoiceAmount
 					,isnull(il.DiscountInvAmount,0) DiscountInvAmount
-					,isnull(cn.AdjustInvoiceAmount,0) AdjustInvoiceAmount
-					,isnull(pl1.PayAmount1,(isnull(pl2.PayAmount2,0))) PayAmount
-					,isnull(pn1.PayAmount1,(isnull(pn2.PayAmount2,0))) PaycnAmount
+					,isnull(il.AdjustInvoiceAmount,0) AdjustInvoiceAmount
+					,isnull(il.PayAmount1,(isnull(il.PayAmount2,0))) PayAmount
+					,isnull(il.PaycnAmount1,(isnull(il.PaycnAmount2,0))) PaycnAmount
 					from POes p
 					left join POLines pl on p.Id = pl.POId 
 					left join (select b.POId,b.SystemCategoryId,SUM(b.Amount) POAmount
@@ -160,74 +167,80 @@ from (
 								where b.SystemCategoryId = 99
 								group by b.POId,b.SystemCategoryId
 								) b1 on p.Id = b1.POId
+					left join (select pl.POId,pl.SystemCategoryId,SUM(pl.Amount) PODiscount
+								from POLines pl
+								where pl.SystemCategoryId = 124
+								group by pl.POId,pl.SystemCategoryId
+								) sp on p.Id = sp.POId
 					left join (select aj.POId,ABS(sum(ajl.AdjustAmount)) AdjustAmount
 								from AdjustPOes aj
 								left Join AdjustPOLines ajl on aj.Id = ajl.AdjustPOId
 								where ajl.SystemCategoryId = 99 and aj.DocStatus not in (-1) 
 								group by aj.POId
 								)ajl on p.Id = ajl.POId
-					left join (select  r.RefDocId,sum(rl.Amount) RSAmount
+					LEFT JOIN (
+						SELECT a.RefDocId, SUM(a.RSAmount) RSAmount ,SUM(a.RSDiscount) RSDiscount
+						from(
+								select  r.RefDocId,sum(rl.Amount) RSAmount, NULL RSDiscount
 								from ReceiveSuppliers r
 								left Join ReceiveSupplierLines rl on r.Id = rl.ReceiveSupplierId
-								where rl.SystemCategoryId = 99 and r.DocStatus not in (-1)
-								group by r.RefDocId
-								)rl on p.Id = rl.RefDocId
-					left join (select il.RefDocCode2,sum(il.Amount) InvoiceAmount,sum(il2.DiscountInvAmount) DiscountInvAmount
-								from Invoices i
-								left join InvoiceLines il on i.Id = il.InvoiceId
-								left join (select il.InvoiceId,sum(il.Amount) DiscountInvAmount
-											from InvoiceLines il
-											where il.SystemCategoryId = 124
-											group by il.InvoiceId
-											) il2 on il.InvoiceId = il2.InvoiceId
-								where il.SystemCategoryId = 99 and i.DocStatus not in (-1)
-								group by il.RefDocCode2
-								)il on p.Code = il.RefDocCode2
-					left join (select c.Code,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount ,i.RefDocCode2
-								from AdjustInvoices c
-								left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
-								left join (select i.Code,il.RefDocCode2
+								where rl.SystemCategoryId = 99 and r.DocStatus not in (-1) 
+								GROUP by r.RefDocId 
+						UNION ALL
+								SELECT r.RefDocId,NULL RSAmount, sum(rl.Amount) RSDiscount
+								from ReceiveSuppliers r
+								left Join ReceiveSupplierLines rl on r.Id = rl.ReceiveSupplierId
+								WHERE rl.SystemCategoryId = 124 AND r.DocStatus not in (-1) 
+								GROUP by r.RefDocId ) a group by RefDocId
+					)rs ON rs.RefDocId = p.Id
+					OUTER APPLY (
+								select po.Id,SUM(i.InvoiceAmount) InvoiceAmount,SUM(i.DiscountInvAmount) DiscountInvAmount,SUM(cn.AdjustInvoiceAmount) AdjustInvoiceAmount
+								,SUM(pl1.PayAmount1) PayAmount1,SUM(pl2.PayAmount2) PayAmount2,SUM(pn1.PaycnAmount1) PaycnAmount1,SUM(pn2.PaycnAmount2) PaycnAmount2
+								from POes po
+								LEFT JOIN (
+										select i.Id,i.Code,il.RefDocId2,il.RefDocCode2,sum(il.Amount) InvoiceAmount, SUM(il.SpecialDiscount) DiscountInvAmount
 											from Invoices i
 											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 99 and i.DocStatus not in (-1) 
-											) i on cl.RefDocCode = i.Code
-								where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
-								group by c.Code,cl.RefDocCode ,i.RefDocCode2
-								)cn on p.Code = cn.RefDocCode2
-					left join (select i.RefDocCode2,Isnull(sum(pl.PayAmount),0)  PayAmount1
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								left join (select i.Code,il.RefDocCode2
-											from Invoices i
-											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 99 and i.DocStatus not in (-1) 
-											) i on pl.InvoiceAPCode = i.Code
-								where pl.SystemCategoryId in (37,39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by i.RefDocCode2
-								)pl1 on p.Code = pl1.RefDocCode2 
-					left join (select i.RefDocCode2,Isnull(sum(pl.PayAmount),0) PayAmount2
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								left join (select i.Code,il.RefDocCode2
-											from Invoices i
-											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 99 and i.DocStatus not in (-1) 
-											) i on pl.InvoiceAPCode = i.Code
-								where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by i.RefDocCode2
-								)pl2 on p.Code = pl2.RefDocCode2
-					left join (select p.id,pl.DocCode,Isnull(sum(pl.PayAmount),0)  PayAmount1
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by p.id,pl.DocCode
-								)pn1 on cn.Code = pn1.DocCode 
-					left join (select p.id,pl.InvoiceAPCode,Isnull(sum(pl.PayAmount),0) PayAmount2
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by p.id,pl.InvoiceAPCode
-								)pn2 on cn.Code = pn2.InvoiceAPCode
+											where il.SystemCategoryId = 99 and i.DocStatus not in (-1)
+											group by il.RefDocId2,il.RefDocCode2,i.Id,i.Code
+										) i ON i.RefDocId2 = po.Id
+								left join (select c.Id,c.Code,cl.RefDocId,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount
+											from AdjustInvoices c
+											left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
+											where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
+											group by c.Id,c.Code,cl.RefDocId,cl.RefDocCode
+											) cn ON cn.RefDocId = i.Id
+								left join (select p.id,pl.DocCode,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+											,sum(pl.PayDocAmount) PayAmount1
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (37,39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.DocCode,pl.DocId
+											)pl1 on i.Id = pl1.DocId
+								LEFT JOIN (select p.id,pl.InvoiceAPCode
+											,SUM(pl.PayDocAmount) PayAmount2
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.InvoiceAPCode
+											) pl2 ON pl2.InvoiceAPCode = i.Code
+								left join (select p.id,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+											,sum(pl.PayDocAmount) PaycnAmount1
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.DocId
+											)pn1 on cn.Id = pn1.DocId 
+								left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
+											,sum(pl.PayDocAmount) PaycnAmount2
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.InvoiceAPCode
+											)pn2 on pn2.InvoiceAPCode = cn.Code
+								where po.Id = p.Id
+								GROUP BY Po.Id
+					) il
 					where p.Date <= @Todate
 							and p.DocStatus not in (-1) 
 							and pl.SystemCategoryId = 129
@@ -236,14 +249,14 @@ from (
 					union all
 					/*PO NOVat*/
 					select p.LocationId,p.Id,p.Code,22 DocType,p.Date,pl.SystemCategoryId
-					,isnull(b1.POAmount,0) POAmount
+					,isnull(b1.POAmount,0) - ISNULL(sp.PODiscount,0) POAmount
 					,isnull(ajl.AdjustAmount,0) AdjustAmount
-					,isnull(rl.RSAmount,0) RSAmount
+					,isnull(rs.RSAmount,0) - ISNULL(rs.RSDiscount,0) RSAmount
 					,isnull(il.InvoiceAmount,0) InvoiceAmount
 					,isnull(il.DiscountInvAmount,0) DiscountInvAmount
-					,isnull(cn.AdjustInvoiceAmount,0) AdjustInvoiceAmount
-					,isnull(pl1.PayAmount1,(isnull(pl2.PayAmount2,0))) PayAmount
-					,isnull(pn1.PayAmount1,(isnull(pn2.PayAmount2,0))) PaycnAmount
+					,isnull(il.AdjustInvoiceAmount,0) AdjustInvoiceAmount
+					,isnull(il.PayAmount1,(isnull(il.PayAmount2,0))) PayAmount
+					,isnull(il.PaycnAmount1,(isnull(il.PaycnAmount2,0))) PaycnAmount
 					from POes p
 					left join POLines pl on p.Id = pl.POId 
 					left join (select b.POId,b.SystemCategoryId,SUM(b.Amount) POAmount
@@ -251,74 +264,80 @@ from (
 								where b.SystemCategoryId = 99
 								group by b.POId,b.SystemCategoryId
 								) b1 on p.Id = b1.POId
+					left join (select pl.POId,pl.SystemCategoryId,SUM(pl.Amount) PODiscount
+								from POLines pl
+								where pl.SystemCategoryId = 124
+								group by pl.POId,pl.SystemCategoryId
+								) sp on p.Id = sp.POId
 					left join (select aj.POId,ABS(sum(ajl.AdjustAmount)) AdjustAmount
 								from AdjustPOes aj
 								left Join AdjustPOLines ajl on aj.Id = ajl.AdjustPOId
 								where ajl.SystemCategoryId = 99 and aj.DocStatus not in (-1) 
 								group by aj.POId
 								)ajl on p.Id = ajl.POId
-					left join (select  r.RefDocId,sum(rl.Amount) RSAmount
+					LEFT JOIN (
+						SELECT a.RefDocId, SUM(a.RSAmount) RSAmount ,SUM(a.RSDiscount) RSDiscount
+						from(
+								select  r.RefDocId,sum(rl.Amount) RSAmount, NULL RSDiscount
 								from ReceiveSuppliers r
 								left Join ReceiveSupplierLines rl on r.Id = rl.ReceiveSupplierId
-								where rl.SystemCategoryId = 99 and r.DocStatus not in (-1)
-								group by r.RefDocId
-								)rl on p.Id = rl.RefDocId
-					left join (select il.RefDocCode2,sum(il.Amount) InvoiceAmount,sum(il2.DiscountInvAmount) DiscountInvAmount
-								from Invoices i
-								left join InvoiceLines il on i.Id = il.InvoiceId
-								left join (select il.InvoiceId,sum(il.Amount) DiscountInvAmount
-											from InvoiceLines il
-											where il.SystemCategoryId = 124
-											group by il.InvoiceId
-											) il2 on il.InvoiceId = il2.InvoiceId
-								where il.SystemCategoryId = 99 and i.DocStatus not in (-1)
-								group by il.RefDocCode2
-								)il on p.Code = il.RefDocCode2
-					left join (select c.Code,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount ,i.RefDocCode2
-								from AdjustInvoices c
-								left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
-								left join (select i.Code,il.RefDocCode2
+								where rl.SystemCategoryId = 99 and r.DocStatus not in (-1) 
+								GROUP by r.RefDocId 
+						UNION ALL
+								SELECT r.RefDocId,NULL RSAmount, sum(rl.Amount) RSDiscount
+								from ReceiveSuppliers r
+								left Join ReceiveSupplierLines rl on r.Id = rl.ReceiveSupplierId
+								WHERE rl.SystemCategoryId = 124 AND r.DocStatus not in (-1) 
+								GROUP by r.RefDocId ) a group by RefDocId
+					)rs ON rs.RefDocId = p.Id
+					OUTER APPLY (
+								select po.Id,SUM(i.InvoiceAmount) InvoiceAmount,SUM(i.DiscountInvAmount) DiscountInvAmount,SUM(cn.AdjustInvoiceAmount) AdjustInvoiceAmount
+								,SUM(pl1.PayAmount1) PayAmount1,SUM(pl2.PayAmount2) PayAmount2,SUM(pn1.PaycnAmount1) PaycnAmount1,SUM(pn2.PaycnAmount2) PaycnAmount2
+								from POes po
+								LEFT JOIN (
+										select i.Id,i.Code,il.RefDocId2,il.RefDocCode2,sum(il.Amount) InvoiceAmount, SUM(il.SpecialDiscount) DiscountInvAmount
 											from Invoices i
 											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 99 and i.DocStatus not in (-1) 
-											) i on cl.RefDocCode = i.Code
-								where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
-								group by c.Code,cl.RefDocCode ,i.RefDocCode2
-								)cn on p.Code = cn.RefDocCode2
-					left join (select i.RefDocCode2,Isnull(sum(pl.PayAmount),0)  PayAmount1
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								left join (select i.Code,il.RefDocCode2
-											from Invoices i
-											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 99 and i.DocStatus not in (-1) 
-											) i on pl.InvoiceAPCode = i.Code
-								where pl.SystemCategoryId in (37,39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by i.RefDocCode2
-								)pl1 on p.Code = pl1.RefDocCode2 
-					left join (select i.RefDocCode2,Isnull(sum(pl.PayAmount),0) PayAmount2
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								left join (select i.Code,il.RefDocCode2
-											from Invoices i
-											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 99 and i.DocStatus not in (-1) 
-											) i on pl.InvoiceAPCode = i.Code
-								where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by i.RefDocCode2
-								)pl2 on p.Code = pl2.RefDocCode2
-					left join (select p.id,pl.DocCode,Isnull(sum(pl.PayAmount),0)  PayAmount1
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by p.id,pl.DocCode
-								)pn1 on cn.Code = pn1.DocCode 
-					left join (select p.id,pl.InvoiceAPCode,Isnull(sum(pl.PayAmount),0) PayAmount2
-								from Payments p
-								left join PaymentLines pl on p.Id = pl.PaymentId
-								where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-								group by p.id,pl.InvoiceAPCode
-								)pn2 on cn.Code = pn2.InvoiceAPCode
+											where il.SystemCategoryId = 99 and i.DocStatus not in (-1)
+											group by il.RefDocId2,il.RefDocCode2,i.Id,i.Code
+										) i ON i.RefDocId2 = po.Id
+								left join (select c.Id,c.Code,cl.RefDocId,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount
+											from AdjustInvoices c
+											left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
+											where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
+											group by c.Id,c.Code,cl.RefDocId,cl.RefDocCode
+											) cn ON cn.RefDocId = i.Id
+								left join (select p.id,pl.DocCode,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+											,sum(pl.PayDocAmount) PayAmount1
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (37,39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.DocCode,pl.DocId
+											)pl1 on i.Id = pl1.DocId
+								LEFT JOIN (select p.id,pl.InvoiceAPCode
+											,SUM(pl.PayDocAmount) PayAmount2
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.InvoiceAPCode
+											) pl2 ON pl2.InvoiceAPCode = i.Code
+								left join (select p.id,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+											,sum(pl.PayDocAmount) PaycnAmount1
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.DocId
+											)pn1 on cn.Id = pn1.DocId 
+								left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
+											,sum(pl.PayDocAmount) PaycnAmount2
+											from Payments p
+											left join PaymentLines pl on p.Id = pl.PaymentId
+											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+											group by p.id,pl.InvoiceAPCode
+											)pn2 on pn2.InvoiceAPCode = cn.Code
+								where po.Id = p.Id
+								GROUP BY Po.Id
+					) il
 					where p.Date <= @Todate
 							and p.DocStatus not in (-1) 
 							and pl.SystemCategoryId = 131
@@ -556,15 +575,15 @@ from(
 					
 	from(
 			/*SC ExtVat*/
-			select s.LocationId,s.Id,105 Doctype,s.Code,s.Date,sl.SystemCategoryId,isnull(sul.SCAmount,0) SCAmount
+			select s.LocationId,s.Id,105 Doctype,s.Code,s.Date,sl.SystemCategoryId,isnull(sul.SCAmount,0) - ISNULL(sul.SCDiscount,0) SCAmount
 					,isnull(p.RetentionAmount,0) RetentionAmount,isnull(p.WHTAmount,0) WHTAmount,isnull(p.DeductionRecordDocAmount,0) DeductionRecordDocAmount
 					,isnull(v.AdjustCostAmount,0) AdjustCostAmount,isnull(il.InvoiceAmount,0) InvoiceAmount,isnull(il.SpecialDiscount,0) SpecialDiscount
-					,isnull(cn.AdjustInvoiceAmount,0) AdjustInvoiceAmount
-					,isnull(pl1.PayAmount1,(isnull(pl2.PayAmount2,0))) * 100 / 107 PayAmount
-					,isnull(pn1.PayAmount1,(isnull(pn2.PayAmount2,0))) * 100 / 107 PaycnAmount
+					,isnull(il.AdjustInvoiceAmount,0) AdjustInvoiceAmount
+					,isnull(il.PayAmount1,(isnull(il.PayAmount2,0))) PayAmount
+					,isnull(il.PaycnAmount1,(isnull(il.PaycnAmount2,0))) PaycnAmount
 								from SubContracts s
 								left join SubContractLines sl on s.Id = sl.SubContractId 
-								left join (select sl.SubContractId,SUM(sl.Amount) SCAmount
+								left join (select sl.SubContractId,SUM(sl.Amount) SCAmount, SUM(SpecialDiscountAmount) SCDiscount
 											from SubContractLines sl
 											where sl.SystemCategoryId = 105
 											group by sl.SubContractId
@@ -584,46 +603,54 @@ from(
 											where vl.SystemCategoryId = 105
 											group by v.SubContractId
 											) v on s.Id = v.SubContractId
-								left join (select i.Code,il.RefDocCode2,sum(il.Amount) InvoiceAmount,sum(il.SpecialDiscount) SpecialDiscount
-											from Invoices i
-											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 105 and i.DocStatus not in (-1)
-											group by i.Code,il.RefDocCode2
-											)il on s.Code = il.RefDocCode2
-								left join (select c.Code,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount
-											from AdjustInvoices c
-											left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
-											where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
-											group by c.Code,cl.RefDocCode
-											)cn on il.Code = cn.RefDocCode
-								left join (select p.id,pl.DocCode--,Isnull(sum(pl.DocAmount),0)  PayAmount1
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (213) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.DocCode
-											)pl1 on il.Code = pl1.DocCode 
-								left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.InvoiceAPCode
-											)pl2 on il.Code = pl2.InvoiceAPCode
-								left join (select p.id,pl.DocCode--,Isnull(sum(pl.DocAmount),0)  PayAmount1
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.DocCode
-											)pn1 on cn.Code = pn1.DocCode 
-								left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.InvoiceAPCode
-											)pn2 on cn.Code = pl2.InvoiceAPCode
+								OUTER APPLY (
+											select sc.Id,SUM(i.InvoiceAmount) InvoiceAmount,SUM(i.SpecialDiscount) SpecialDiscount,SUM(cn.AdjustInvoiceAmount) AdjustInvoiceAmount
+											,SUM(pl1.PayAmount1) PayAmount1,SUM(pl2.PayAmount2) PayAmount2,SUM(pn1.PaycnAmount1) PaycnAmount1,SUM(pn2.PaycnAmount2) PaycnAmount2
+											from SubContracts sc
+											LEFT JOIN (
+													select i.Id,i.Code,il.RefDocId2,il.RefDocCode2,sum(il.Amount) InvoiceAmount , SUM(il.SpecialDiscount) SpecialDiscount
+														from Invoices i
+														left join InvoiceLines il on i.Id = il.InvoiceId
+														where il.SystemCategoryId = 105 and i.DocStatus not in (-1)
+														group by il.RefDocId2,il.RefDocCode2,i.Id,i.Code
+													) i ON i.RefDocId2 = sc.Id
+											left join (select c.Id,c.Code,cl.RefDocId,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount
+														from AdjustInvoices c
+														left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
+														where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
+														group by c.Id,c.Code,cl.RefDocId,cl.RefDocCode
+														) cn ON cn.RefDocId = i.Id
+											left join (select p.id,pl.DocCode,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+														,sum(pl.TaxBase) PayAmount1
+														from Payments p
+														left join PaymentLines pl on p.Id = pl.PaymentId
+														where pl.SystemCategoryId in (213) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+														group by p.id,pl.DocCode,pl.DocId
+														)pl1 on i.Id = pl1.DocId
+											LEFT JOIN (select p.id,pl.InvoiceAPCode
+														,SUM(pl.PayDocAmount) * 100 / 107 PayAmount2
+														from Payments p
+														left join PaymentLines pl on p.Id = pl.PaymentId
+														where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+														group by p.id,pl.InvoiceAPCode
+														) pl2 ON pl2.InvoiceAPCode = i.Code
+											left join (select p.id,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+														,sum(pl.PayDocAmount) PaycnAmount1
+														from Payments p
+														left join PaymentLines pl on p.Id = pl.PaymentId
+														where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+														group by p.id,pl.DocId
+														)pn1 on cn.Id = pn1.DocId 
+											left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
+														,sum(pl.PayDocAmount) PaycnAmount2
+														from Payments p
+														left join PaymentLines pl on p.Id = pl.PaymentId
+														where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+														group by p.id,pl.InvoiceAPCode
+														)pn2 on pn2.InvoiceAPCode = cn.Code
+											where sc.Id = s.Id
+											GROUP BY sc.Id
+											) il
 								where s.Date <= @Todate
 										and s.DocStatus not in (-1) 
 										and sl.SystemCategoryId = 123
@@ -633,9 +660,9 @@ from(
 			select s.LocationId,s.Id,105 Doctype,s.Code,s.Date,sl.SystemCategoryId,isnull(sul.SCAmount,0) SCAmount
 					,isnull(p.RetentionAmount,0) RetentionAmount,isnull(p.WHTAmount,0) WHTAmount,isnull(p.DeductionRecordDocAmount,0) DeductionRecordDocAmount
 					,isnull(v.AdjustCostAmount,0) AdjustCostAmount,isnull(il.InvoiceAmount,0) InvoiceAmount,isnull(il.SpecialDiscount,0) SpecialDiscount
-					,isnull(cn.AdjustInvoiceAmount,0) AdjustInvoiceAmount
-					,isnull(pl1.PayAmount1,(isnull(pl2.PayAmount2,0))) PayAmount
-					,isnull(pn1.PayAmount1,(isnull(pn2.PayAmount2,0))) PaycnAmount
+					,isnull(il.AdjustInvoiceAmount,0) AdjustInvoiceAmount
+					,isnull(il.PayAmount1,(isnull(il.PayAmount2,0))) PayAmount
+					,isnull(il.PaycnAmount1,(isnull(il.PaycnAmount2,0))) PaycnAmount
 								from SubContracts s
 								left join SubContractLines sl on s.Id = sl.SubContractId 
 								left join (select sl.SubContractId,SUM(sl.Amount) SCAmount
@@ -658,46 +685,50 @@ from(
 											where vl.SystemCategoryId = 105
 											group by v.SubContractId
 											) v on s.Id = v.SubContractId
-								left join (select i.Code,il.RefDocCode2,sum(il.Amount) InvoiceAmount,sum(il.SpecialDiscount) SpecialDiscount
+								OUTER APPLY (SELECT a.RefDocId2,SUM(a.InvoiceAmount) InvoiceAmount, SUM(a.SpecialDiscount) SpecialDiscount, SUM(a.AdjustInvoiceAmount) AdjustInvoiceAmount
+                                            ,SUM(a.PayAmount1) PayAmount1,SUM(a.PayAmount2) PayAmount2, SUM(a.PaycnAmount1) PaycnAmount1, SUM(a.PaycnAmount2) PaycnAmount2
+                                            from(
+                                                select il.RefDocId2,SUM(il.Amount) InvoiceAmount,SUM(il.SpecialDiscount) SpecialDiscount,ISNULL(cn.AdjustInvoiceAmount,0) AdjustInvoiceAmount
+											,ISNULL(pl1.PayAmount1,0)PayAmount1,ISNULL(pl2.PayAmount2,0)PayAmount2,ISNULL(pn1.PayAmount1,0) PaycnAmount1,ISNULL(pn2.PayAmount2,0)PaycnAmount2
 											from Invoices i
 											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 105 and i.DocStatus not in (-1)
-											group by i.Code,il.RefDocCode2
-											)il on s.Code = il.RefDocCode2
-								left join (select c.Code,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount
-											from AdjustInvoices c
-											left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
-											where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
-											group by c.Code,cl.RefDocCode
-											)cn on il.Code = cn.RefDocCode
-								left join (select p.id,pl.DocCode--,Isnull(sum(pl.DocAmount),0)  PayAmount1
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (213) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.DocCode
-											)pl1 on il.Code = pl1.DocCode 
-								left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.InvoiceAPCode
-											)pl2 on il.Code = pl2.InvoiceAPCode
-								left join (select p.id,pl.DocCode--,Isnull(sum(pl.DocAmount),0)  PayAmount1
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.DocCode
-											)pn1 on cn.Code = pn1.DocCode 
-								left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.InvoiceAPCode
-											)pn2 on cn.Code = pl2.InvoiceAPCode
+
+                                            left join (select c.Id,c.Code,cl.RefDocId,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount
+                                                        from AdjustInvoices c
+                                                        left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
+                                                        where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
+                                                        group by c.Id,c.Code,cl.RefDocId,cl.RefDocCode) cn ON cn.RefDocId = i.Id
+                                            left join (select p.id,pl.DocCode,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+                                                        ,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
+                                                        from Payments p
+                                                        left join PaymentLines pl on p.Id = pl.PaymentId
+                                                        where pl.SystemCategoryId in (213) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+                                                        group by p.id,pl.DocCode,pl.DocId
+                                                        )pl1 on i.Id = pl1.DocId
+                                            LEFT JOIN (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
+                                                        ,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
+                                                        from Payments p
+                                                        left join PaymentLines pl on p.Id = pl.PaymentId
+                                                        where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+                                                        group by p.id,pl.InvoiceAPCode) pl2 ON pl2.InvoiceAPCode = i.Code
+                                            left join (select p.id,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+                                                        ,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
+                                                        from Payments p
+                                                        left join PaymentLines pl on p.Id = pl.PaymentId
+                                                        where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+                                                        group by p.id,pl.DocId
+                                                        )pn1 on cn.Id = pn1.DocId 
+                                            left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
+                                                        ,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
+                                                        from Payments p
+                                                        left join PaymentLines pl on p.Id = pl.PaymentId
+                                                        where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+                                                        group by p.id,pl.InvoiceAPCode
+                                                        )pn2 on pn2.InvoiceAPCode = cn.Code
+											where il.SystemCategoryId = 105 and i.DocStatus not in (-1) AND il.RefDocId2 = s.Id
+											group by il.RefDocId2,cn.AdjustInvoiceAmount,pl1.PayAmount1,pl2.PayAmount2,pn1.PayAmount1,pn2.PayAmount2
+                                            )a group by a.RefDocId2
+                                            ) il
 								where s.Date <= @Todate
 										and s.DocStatus not in (-1) 
 										and sl.SystemCategoryId = 129
@@ -707,9 +738,9 @@ from(
 			select s.LocationId,s.Id,105 Doctype,s.Code,s.Date,sl.SystemCategoryId,isnull(sul.SCAmount,0) SCAmount
 					,isnull(p.RetentionAmount,0) RetentionAmount,isnull(p.WHTAmount,0) WHTAmount,isnull(p.DeductionRecordDocAmount,0) DeductionRecordDocAmount
 					,isnull(v.AdjustCostAmount,0) AdjustCostAmount,isnull(il.InvoiceAmount,0) InvoiceAmount,isnull(il.SpecialDiscount,0) SpecialDiscount
-					,isnull(cn.AdjustInvoiceAmount,0) AdjustInvoiceAmount
-					,isnull(pl1.PayAmount1,(isnull(pl2.PayAmount2,0))) PayAmount
-					,isnull(pn1.PayAmount1,(isnull(pn2.PayAmount2,0))) PaycnAmount
+					,isnull(il.AdjustInvoiceAmount,0) AdjustInvoiceAmount
+					,isnull(il.PayAmount1,(isnull(il.PayAmount2,0))) PayAmount
+					,isnull(il.PaycnAmount1,(isnull(il.PaycnAmount2,0))) PaycnAmount
 								from SubContracts s
 								left join SubContractLines sl on s.Id = sl.SubContractId 
 								left join (select sl.SubContractId,SUM(sl.Amount) SCAmount
@@ -732,46 +763,50 @@ from(
 											where vl.SystemCategoryId = 105
 											group by v.SubContractId
 											) v on s.Id = v.SubContractId
-								left join (select i.Code,il.RefDocCode2,sum(il.Amount) InvoiceAmount,sum(il.SpecialDiscount) SpecialDiscount
+								OUTER APPLY (SELECT a.RefDocId2,SUM(a.InvoiceAmount) InvoiceAmount, SUM(a.SpecialDiscount) SpecialDiscount, SUM(a.AdjustInvoiceAmount) AdjustInvoiceAmount
+                                            ,SUM(a.PayAmount1) PayAmount1,SUM(a.PayAmount2) PayAmount2, SUM(a.PaycnAmount1) PaycnAmount1, SUM(a.PaycnAmount2) PaycnAmount2
+                                            from(
+                                                select il.RefDocId2,SUM(il.Amount) InvoiceAmount,SUM(il.SpecialDiscount) SpecialDiscount,ISNULL(cn.AdjustInvoiceAmount,0) AdjustInvoiceAmount
+											,ISNULL(pl1.PayAmount1,0)PayAmount1,ISNULL(pl2.PayAmount2,0)PayAmount2,ISNULL(pn1.PayAmount1,0) PaycnAmount1,ISNULL(pn2.PayAmount2,0)PaycnAmount2
 											from Invoices i
 											left join InvoiceLines il on i.Id = il.InvoiceId
-											where il.SystemCategoryId = 105 and i.DocStatus not in (-1)
-											group by i.Code,il.RefDocCode2
-											)il on s.Code = il.RefDocCode2
-								left join (select c.Code,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount
-											from AdjustInvoices c
-											left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
-											where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
-											group by c.Code,cl.RefDocCode
-											)cn on il.Code = cn.RefDocCode
-								left join (select p.id,pl.DocCode--,Isnull(sum(pl.DocAmount),0)  PayAmount1
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (213) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.DocCode
-											)pl1 on il.Code = pl1.DocCode 
-								left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.InvoiceAPCode
-											)pl2 on il.Code = pl2.InvoiceAPCode
-								left join (select p.id,pl.DocCode--,Isnull(sum(pl.DocAmount),0)  PayAmount1
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.DocCode
-											)pn1 on cn.Code = pn1.DocCode 
-								left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
-													,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
-											from Payments p
-											left join PaymentLines pl on p.Id = pl.PaymentId
-											where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
-											group by p.id,pl.InvoiceAPCode
-											)pn2 on cn.Code = pl2.InvoiceAPCode
+
+                                            left join (select c.Id,c.Code,cl.RefDocId,cl.RefDocCode,sum(cl.AdjustTaxBase) AdjustInvoiceAmount
+                                                        from AdjustInvoices c
+                                                        left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
+                                                        where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1)
+                                                        group by c.Id,c.Code,cl.RefDocId,cl.RefDocCode) cn ON cn.RefDocId = i.Id
+                                            left join (select p.id,pl.DocCode,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+                                                        ,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
+                                                        from Payments p
+                                                        left join PaymentLines pl on p.Id = pl.PaymentId
+                                                        where pl.SystemCategoryId in (213) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+                                                        group by p.id,pl.DocCode,pl.DocId
+                                                        )pl1 on i.Id = pl1.DocId
+                                            LEFT JOIN (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
+                                                        ,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
+                                                        from Payments p
+                                                        left join PaymentLines pl on p.Id = pl.PaymentId
+                                                        where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+                                                        group by p.id,pl.InvoiceAPCode) pl2 ON pl2.InvoiceAPCode = i.Code
+                                            left join (select p.id,pl.DocId--,Isnull(sum(pl.DocAmount),0)  PayAmount1
+                                                        ,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount1
+                                                        from Payments p
+                                                        left join PaymentLines pl on p.Id = pl.PaymentId
+                                                        where pl.SystemCategoryId in (39) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+                                                        group by p.id,pl.DocId
+                                                        )pn1 on cn.Id = pn1.DocId 
+                                            left join (select p.id,pl.InvoiceAPCode--,Isnull(sum(pl.DocAmount),0) PayAmount2
+                                                        ,Isnull(sum(pl.PayDocAmount),0) + Isnull(sum(pl.RetentionSetDocAmount),0)  PayAmount2
+                                                        from Payments p
+                                                        left join PaymentLines pl on p.Id = pl.PaymentId
+                                                        where pl.SystemCategoryId in (142) and p.DocStatus not in (-1) and p.DocTypeId in (50)
+                                                        group by p.id,pl.InvoiceAPCode
+                                                        )pn2 on pn2.InvoiceAPCode = cn.Code
+											where il.SystemCategoryId = 105 and i.DocStatus not in (-1) AND il.RefDocId2 = s.Id
+											group by il.RefDocId2,cn.AdjustInvoiceAmount,pl1.PayAmount1,pl2.PayAmount2,pn1.PayAmount1,pn2.PayAmount2
+                                            )a group by a.RefDocId2
+                                            ) il
 								where s.Date <= @Todate
 										and s.DocStatus not in (-1) 
 										and sl.SystemCategoryId = 131
@@ -1283,7 +1318,7 @@ from (
 )po 
 option(recompile);
 /************************************************************************************************************************************************************************/
-
+select * from #TempSCRemain WHERE LocationId = 143
 /*1-core*/
 SELECT o.Id
 		,o.Codesum
@@ -1354,14 +1389,14 @@ FROM(
 		,ISNULL(PORemain.PORemainAmount,0) + ISNULL(SCRemain.SCRemainAmount,0) [TotalRemainAmount(19)] /*(19) = (17)+(18)*/
 
 		--,ISNULL(BRMat.BudgetRemainMat,0) [BudgetRemainMat(20)] /*(20)*/
-		,ISNULL(BRMat.BlMatAmount,0) - ISNULL(mp.POAmount,0) - ISNULL(PORemain.PORemainAmount,0) [BudgetRemainMat(20)] /*(20) = (10)-(12)-(17)*/
+		,ISNULL(BRMat.BudgetRemainMat,0) /* - ISNULL(mp.POAmount,0) */ /* - ISNULL(PORemain.PORemainAmount,0) */ [BudgetRemainMat(20)] /*(20) = (10)-(12)-(17)*/
 
 		--,ISNULL(BRSub.BudgetRemainSub,0) [BudgetRemainSub(21)] /*(21)*/
-		,ISNULL(BRSub.BlSubAmount,0) - ISNULL(sp.POAmount,0) - ISNULL(SCRemain.SCRemainAmount,0) [BudgetRemainSub(21)] /*(21) = (11)-(13)-(18)*/
+		,ISNULL(BRSub.BudgetRemainSub,0) /* - ISNULL(sp.POAmount,0) */ /* - ISNULL(SCRemain.SCRemainAmount,0) */ [BudgetRemainSub(21)] /*(21) = (11)-(13)-(18)*/
 
 		--,ISNULL(BRMat.BudgetRemainMat,0) + ISNULL(BRSub.BudgetRemainSub,0) [BudgetRemain(22)] /*(22) = (20)+(21)*/
-		,(ISNULL(BRMat.BlMatAmount,0) - ISNULL(mp.POAmount,0) - ISNULL(PORemain.PORemainAmount,0)) /*(20)*/
-		 + (ISNULL(BRSub.BlSubAmount,0) - ISNULL(sp.POAmount,0) - ISNULL(SCRemain.SCRemainAmount,0)) /*(21)*/
+		,(ISNULL(BRMat.BlMatAmount,0) /* - ISNULL(mp.POAmount,0) *//*  - ISNULL(PORemain.PORemainAmount,0) */) /*(20)*/	
+		 + (ISNULL(BRSub.BlSubAmount,0) /* - ISNULL(sp.POAmount,0) */ /* - ISNULL(SCRemain.SCRemainAmount,0) */) /*(21)*/
 		 [BudgetRemain(22)] /*(22) = (20)+(21)*/
 
 		--,ISNULL((ISNULL(PORemain.PORemainAmount,0) + ISNULL(SCRemain.SCRemainAmount,0)) + (BRMat.BudgetRemainMat + BRSub.BudgetRemainSub),0)  [EstCostPaidAmount(23)] /*(23) =(19)+(22)*/

@@ -327,6 +327,8 @@ IF  OBJECT_ID(N'tempdb..#RECEIPT') IS NOT NULL
 			,p.Name PMName
 			,CONCAT(o.Code,' : ',o.Name) ProjectCodeandName
 			,ext.Id ExtOrgId,ext.Code ExtOrgCode,ext.Name ExtOrgName
+			,op.StartDate,op.EndDate /* เพิ่ม start date, End date ของ project */
+			
 			
 	Into #tempbudget
 	From Organizations o 
@@ -555,6 +557,8 @@ begin
 	,orgGroup.name name2
     ,cd.[Description] ContractStatus
     ,p.Name [Project Manager]
+	,op2.StartDate [StartDate2],op2.EndDate [EndDate2] /* เพิ่ม Start Date, EndDate ของ Org group */
+
 
 	 from 
 	 #tempGroup tg
@@ -575,6 +579,7 @@ begin
 	 left join Organizations orgGroup on tg.Id = orgGroup.Id
      LEFT JOIN (Select OrgId,dbo.GROUP_CONCAT_D(Name,' ,') Name From Persons Group By OrgId) p ON tb.Id = p.OrgId
      LEFt JOIN Organizations_ProjectConstruction op ON tb.Id = op.Id
+     LEFt JOIN Organizations_ProjectConstruction op2 ON orgGroup.Id = op2.Id
      LEFT JOIN CodeDescriptions cd ON op.ContractStatus = cd.[Value] WHERE cd.Name = 'ContractStatus'
 
 	order by tb.Code--tb.path
@@ -590,6 +595,8 @@ begin
 	,h.name name2
     ,cd.[Description] ContractStatus
     ,p.Name [Project Manager]
+	,op2.StartDate [StartDate2],op2.EndDate [EndDate2] /* เพิ่ม Start Date, EndDate ของ Org group */
+
 	 from #tempbudget tb
 	left join 
 	( select name1,code1,((Sum([CurrenctContract])-Sum([CurrenctBudget])) / nullif(Sum([CurrenctContract]),0))*100 grouppercent from  
@@ -600,6 +607,7 @@ begin
 	left join Organizations h on o.UnderTaxEntityId = h.id
      LEFT JOIN (Select OrgId,dbo.GROUP_CONCAT_D(Name,' ,') Name From Persons Group By OrgId) p ON tb.Id = p.OrgId
      LEFt JOIN Organizations_ProjectConstruction op ON tb.Id = op.Id
+     LEFt JOIN Organizations_ProjectConstruction op2 ON h.Id = op2.Id
      LEFT JOIN CodeDescriptions cd ON op.ContractStatus = cd.[Value] WHERE cd.Name = 'ContractStatus'
 
 	order by tb.Code--tb.path --tb.opa,tb.Parent,
