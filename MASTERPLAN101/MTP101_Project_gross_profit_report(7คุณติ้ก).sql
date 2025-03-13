@@ -948,165 +948,6 @@ select po.PaidProjectId
 			,SUM(po.POAmount) POAmount
 from (
 
-		select po.PaidProjectId
-					,case when po.TypeVat = 123 then sum(po.pamount)
-							  when po.TypeVat = 129 then sum(po.pamount) --* 100 / 107
-						else sum(po.pamount)
-						end [POTaxbase]
-						,case when po.TypeVat = 123 then sum(po.pamount) * 107 / 100
-							  when po.TypeVat = 129 then sum(po.pamount) * 107 / 100
-						else sum(po.pamount)
-						end [POAmount]	
-		from(
-
-				/*จ่ายค่าของ Invoice,billing,payment */
-				select pd.PaidProjectId,pd.Date,pd.RefDocCode,il.SystemCategoryId TypeVat,bu.SystemCategory,sum(pd.Amount) pamount
-				from Invoices i
-				left join InvoiceLines il on i.Id = il.InvoiceId
-				left join BillingAPLines bl on i.Code = bl.DocCode
-				--left join BillingAPs b on bl.BillingAPId = b.Id
-				--left join PaymentLines pl on b.Code = pl.DocCode
-				left join PaymentLines pl on bl.Id = pl.BillingAPLineId  /*2023-12-26 : ปรับเงื่อนไขใหม่*/
-				--left join Payments p on pl.PaymentId = p.Id
-				--left join PaidCostLines pd on p.Code = pd.RefDocCode
-				left join PaidCostLines pd on pl.Id = pd.RefDocLineId	/*2023-12-26 : ปรับเงื่อนไขใหม่*/
-				left join BudgetLines bu on pd.BudgetLineId = bu.Id
-				where  bu.SystemCategoryId = 99
-						and pd.RefDocTypeId = 50
-						and il.SystemCategoryId in (123,129,131)
-						and pd.Date <= @Todate
-						
-				group by pd.PaidProjectId,pd.Date,pd.RefDocCode,il.SystemCategoryId,bu.SystemCategory
-
-				union all
-				/*จ่ายค่าของ Invoice,payment */
-				select pd.PaidProjectId,pd.Date,pd.RefDocCode,il.SystemCategoryId TypeVat,bu.SystemCategory,sum(pd.Amount) pamount
-				from Invoices i
-				left join InvoiceLines il on i.Id = il.InvoiceId
-				left join PaymentLines pl on i.Code = pl.DocCode
-				--left join Payments p on pl.PaymentId = p.Id
-				--left join PaidCostLines pd on p.Code = pd.RefDocCode
-				left join PaidCostLines pd on pl.Id = pd.RefDocLineId	/*2023-12-26 : ปรับเงื่อนไขใหม่*/
-				left join BudgetLines bu on pd.BudgetLineId = bu.Id
-				where  bu.SystemCategoryId = 99
-						and pd.RefDocTypeId = 50
-						and il.SystemCategoryId in (123,129,131)
-						and pd.Date <= @Todate
-						
-				group by pd.PaidProjectId,pd.Date,pd.RefDocCode,il.SystemCategoryId,bu.SystemCategory
-
-				union all
-				/*จ่ายค่าของ AdjustInvoice,payment */
-				select pd.PaidProjectId,pd.Date,pd.RefDocCode,il.SystemCategoryId TypeVat,bu.SystemCategory,sum(pd.Amount) pamount
-				from AdjustInvoices i
-				left join AdjustInvoiceLines il on i.Id = il.AdjustInvoiceId
-				left join PaymentLines pl on i.Code = pl.DocCode
-				left join PaidCostLines pd on i.Code = pd.RefDocCode
-				left join BudgetLines bu on pd.BudgetLineId = bu.Id
-				where  bu.SystemCategoryId = 99
-						and il.SystemCategoryId in (123,129,131)
-						and pd.Date <= @Todate
-						
-				group by pd.PaidProjectId,pd.Date,pd.RefDocCode,il.SystemCategoryId,bu.SystemCategory
-
-				union all
-				/*จ่ายค่าของ WorkerExpenses */
-				select pd.PaidProjectId,pd.Date,pd.RefDocCode,Isnull(il.SystemCategoryId,131) TypeVat,bu.SystemCategory,sum(pd.Amount) pamount
-				from WorkerExpenses i
-				left join WorkerExpenseLines il on i.Id = il.WorkerExpenseId
-				--left join PaidCostLines pd on i.Code = pd.RefDocCode
-				left join PaidCostLines pd on il.Id = pd.RefDocLineId	/*2023-12-26 : ปรับเงื่อนไขใหม่*/
-				left join BudgetLines bu on pd.BudgetLineId = bu.Id
-				where  bu.SystemCategoryId = 99
-						and pd.RefDocTypeId = 97
-						and pd.Date <= @Todate
-						
-				group by pd.PaidProjectId,pd.Date,pd.RefDocCode,il.SystemCategoryId,bu.SystemCategory
-
-				union all
-				/*จ่ายค่าของ JV  */
-				select pd.PaidProjectId,pd.Date,pd.RefDocCode,131 TypeVat,bu.SystemCategory,sum(pd.Amount) pamount
-				from JournalVouchers i
-				left join PaidCostLines pd on i.Code = pd.RefDocCode and i.OrgId = pd.PaidProjectId
-				left join BudgetLines bu on pd.BudgetLineId = bu.Id
-				where  bu.SystemCategoryId = 99
-						and pd.RefDocTypeId = 64
-						and pd.Date <= @Todate
-						
-				group by pd.PaidProjectId,pd.Date,pd.RefDocCode,bu.SystemCategory
-
-				union all
-				/*จ่ายค่าของ OP  */
-				select pd.PaidProjectId,pd.Date,pd.RefDocCode,ISNULL(ol.SystemCategoryId,131) TypeVat,bu.SystemCategory,sum(pd.Amount) pamount
-				from OtherPayments i
-				left join OtherPaymentLines il on i.Id = il.OtherPaymentId
-				--left join PaidCostLines pd on i.Code = pd.RefDocCode
-				left join PaidCostLines pd on il.Id = pd.RefDocLineId	/*2023-12-26 : ปรับเงื่อนไขใหม่*/
-				left join BudgetLines bu on pd.BudgetLineId = bu.Id
-				left join (select ol.OtherPaymentId,ol.SystemCategoryId
-							from OtherPaymentLines ol
-							where ol.SystemCategoryId in (123,129)
-							) ol on pd.RefDocId = ol.OtherPaymentId
-				where  bu.SystemCategoryId = 99
-						and i.SubDocTypeId not in (629,630)
-						--and il.SystemCategoryId in (123,129,131)
-						and pd.RefDocTypeId = 43
-						and pd.Date <= @Todate
-						
-				group by pd.PaidProjectId,pd.Date,pd.RefDocCode,ol.SystemCategoryId,bu.SystemCategory
-
-				union all
-				/*ค่าของ OP ตั้งหนี้และจ่าย*/
-				select b.ProjectId,o.Date,pd.RefDocCode,oll.SystemCategoryId TypeVat,bl.SystemCategory,sum(pd.Amount) pamount
-				from Budgets b
-				left join BudgetLines bl on b.Id = bl.BudgetId
-				left join PaidCostLines pd on bl.Id = pd.BudgetLineId
-				inner join OtherPayments o on pd.RefDocCode = o.Code
-				inner join OtherPaymentLines ol on o.Code = ol.RefDocCode
-				inner join OtherPayments oo on ol.RefDocCode = oo.Code
-				inner join OtherPaymentLines oll on oo.Id = oll.OtherPaymentId
-				where bl.SystemCategoryId = 99
-						and oll.SystemCategoryId in (123,129,131)
-										and pd.Date <= @Todate
-										and pd.RefDocTypeId in (43)
-										and o.SubDocTypeId  in (629,630)
-				group by b.ProjectId,o.Date,pd.RefDocCode,oll.SystemCategoryId,bl.SystemCategory
-
-				union all
-				/*จ่ายค่าของ ProhibitedTax NOPayment  */
-				select pd.PaidProjectId,pd.Date,pd.RefDocCode,131 TypeVat,bu.SystemCategory,sum(pd.Amount) pamount
-				from Invoices i
-				left join ProhibitedTaxItems ph on i.Code = ph.SetDocCode
-				left join ProhibitedTaxes p on ph.ProhibitedTaxId = p.Id
-				inner join PaymentLines pl on ph.SetDocCode = pl.DocCode
-				left join PaidCostLines pd on p.Code = pd.RefDocCode 
-				left join BudgetLines bu on pd.BudgetLineId = bu.Id
-				where  bu.SystemCategoryId = 99
-						and pd.Date <= @Todate
-						
-				group by pd.PaidProjectId,pd.Date,pd.RefDocCode,bu.SystemCategory
-				)po
-				group by po.PaidProjectId,po.TypeVat
-		) po
-		group by po.PaidProjectId
-)po 
-option(recompile);
-/************************************************************************************************************************************************************************/
-/*#TempSCPaid*/
-IF OBJECT_ID(N'tempdb..#TempSCPaid') IS NOT NULL
-BEGIN
-    DROP TABLE #TempSCPaid;
-END;
-
-SELECT *
-INTO #TempSCPaid
-FROM
-(
-select po.PaidProjectId
-			,SUM(po.POTaxbase) POTaxbase
-			,SUM(po.POAmount) POAmount
-from (
-
 		select po.PaidProjectId,po.TypeVat
 					,sum(po.pamount) [POTaxbase]
 					,IIF(po.TypeVat != 131,sum(po.pamount) * 1.07,sum(po.pamount)) [POAmount]	
@@ -1187,6 +1028,24 @@ from (
 				where pcl.PaidProjectId = @ProjectId AND bl.SystemCategoryId = 99 AND pcl.RefDocTypeId = 43 and pcl.Date <= @Todate --AND pcl.RefDocId = 1713
 
 				group by pcl.PaidProjectId,pcl.Date,pcl.RefDocCode,vat.SystemCategoryId,vat.SystemCategory,acl.RefDocCode
+				
+				union all
+				/* รับเงินคืนจาก OR  */
+				SELECT pcl.PaidProjectId,pcl.Date,pcl.RefDocCode [PaidDocCode],NULL RefDocCode
+						,ISNULL(vat.SystemCategoryId,131) TypeVat
+						,ISNULL(vat.SystemCategory,'NoVat') SystemCategory,SUM(pcl.Amount) pamount
+				from PaidCostLines pcl
+				INNER JOIN BudgetLines bl ON pcl.BudgetLineId = bl.Id
+				INNER JOIN AccountCostLines acl ON acl.Id = pcl.AccountCostLineId
+				OUTER APPLY( 
+					SELECT SystemCategoryId, SystemCategory FROM OtherReceiveLines orl
+					WHERE orl.OtherReceiveId = acl.RefDocId AND orl.SystemCategoryId IN (123,129,131) AND acl.RefDocTypeId = 44
+					GROUP BY SystemCategoryId, SystemCategory /* เผื่อ invoice มีทำ multi vat */
+
+				) vat
+				where pcl.PaidProjectId = @ProjectId AND bl.SystemCategoryId = 99 AND pcl.RefDocTypeId = 44 and pcl.Date <= @Todate --AND pcl.RefDocId = 1713
+
+				group by pcl.PaidProjectId,pcl.Date,pcl.RefDocCode,vat.SystemCategoryId,vat.SystemCategory,acl.RefDocCode
 
 				union all
 				/*จ่ายค่าของ ProhibitedTax NOPayment  */
@@ -1198,6 +1057,137 @@ from (
 				left join PaidCostLines pd on p.Code = pd.RefDocCode 
 				left join BudgetLines bu on pd.BudgetLineId = bu.Id
 				where  bu.SystemCategoryId = 99
+						and pd.Date <= @Todate
+						
+				group by pd.PaidProjectId,pd.Date,pd.RefDocCode,bu.SystemCategory )po group by po.PaidProjectId,po.TypeVat
+		) po
+		group by po.PaidProjectId
+)po 
+option(recompile);
+/************************************************************************************************************************************************************************/
+/*#TempSCPaid*/
+IF OBJECT_ID(N'tempdb..#TempSCPaid') IS NOT NULL
+BEGIN
+    DROP TABLE #TempSCPaid;
+END;
+
+SELECT *
+INTO #TempSCPaid
+FROM
+(
+select po.PaidProjectId
+			,SUM(po.POTaxbase) POTaxbase
+			,SUM(po.POAmount) POAmount
+from (
+
+		select po.PaidProjectId,po.TypeVat
+					,sum(po.pamount) [POTaxbase]
+					,IIF(po.TypeVat != 131,sum(po.pamount) * 1.07,sum(po.pamount)) [POAmount]	
+		from(
+
+				SELECT pcl.PaidProjectId,pcl.Date,pcl.RefDocCode [PaidDocCode],acl.RefDocCode,vat.SystemCategoryId TypeVat,vat.SystemCategory,SUM(pcl.Amount) pamount
+				from PaidCostLines pcl
+				INNER JOIN BudgetLines bl ON pcl.BudgetLineId = bl.Id
+				INNER JOIN AccountCostLines acl ON acl.Id = pcl.AccountCostLineId
+				OUTER APPLY( 
+					SELECT SystemCategoryId, SystemCategory FROM InvoiceLines il
+					WHERE il.InvoiceId = acl.RefDocId AND il.SystemCategoryId IN (123,129,131) AND acl.RefDocTypeId IN (37,213) /* จับทั้ง INAP,INPA ที่ allocate เข้า budgetline ที่เป็น mat */
+					GROUP BY SystemCategoryId, SystemCategory /* เผื่อ invoice มีทำ multi vat */
+
+				) vat
+				where pcl.PaidProjectId = @ProjectId AND bl.SystemCategoryId = 105 AND pcl.RefDocTypeId = 50 and pcl.Date <= @Todate --AND pcl.RefDocId = 1713
+
+				group by pcl.PaidProjectId,pcl.Date,pcl.RefDocCode,vat.SystemCategoryId,vat.SystemCategory,acl.RefDocCode
+				
+				union all
+-- 				/*จ่ายค่าของ AdjustInvoice,payment */
+
+				SELECT ccl.CommittedProjectId [PaidProjectId],ccl.[Date],p.Code [PaidDocCode],ccl.RefDocCode,vat.SystemCategoryId [TypeVat],vat.SystemCategory,sum(ccl.Amount) pamount
+				from Payments p
+				INNER JOIN PaymentLines pl ON p.Id = pl.PaymentId
+				INNER JOIN CommittedCostLines ccl ON pl.DocId = ccl.RefDocId AND RefDocTypeId = 39
+				INNER JOIN BudgetLines bl ON ccl.BudgetLineId = bl.Id
+				OUTER APPLY( 
+					SELECT SystemCategoryId, SystemCategory FROM AdjustInvoiceLines il
+					WHERE il.AdjustInvoiceId = ccl.RefDocId AND il.SystemCategoryId IN (123,129,131) AND ccl.RefDocTypeId = 39
+					GROUP BY SystemCategoryId, SystemCategory 
+				) vat
+
+				where ccl.CommittedProjectId = @ProjectId AND bl.SystemCategoryId = 105 AND pl.SystemCategoryId = 39 and ccl.Date <= @Todate --AND pl.DocId = 7
+						
+				group by ccl.CommittedProjectId,ccl.[Date],p.Code,vat.SystemCategoryId,vat.SystemCategory,ccl.RefDocCode
+
+				union all
+				/*จ่ายค่าของ WorkerExpenses */
+				SELECT pcl.PaidProjectId,pcl.Date,pcl.RefDocCode [PaidDocCode],NULL RefDocCode
+						,ISNULL(vat.SystemCategoryId,131) TypeVat
+						,ISNULL(vat.SystemCategory,'NoVat') SystemCategory,SUM(pcl.Amount) pamount
+				from PaidCostLines pcl
+				LEFT JOIN BudgetLines bl ON pcl.BudgetLineId = bl.Id
+				OUTER APPLY( 
+					SELECT SystemCategoryId, SystemCategory FROM WorkerExpenseLines wel
+					WHERE wel.WorkerExpenseId = pcl.RefDocId AND wel.SystemCategoryId IN (123,129,131) 
+					GROUP BY SystemCategoryId, SystemCategory /* เผื่อ WE มีทำ multi vat */
+
+				) vat
+				where PaidProjectId = @ProjectId AND bl.SystemCategoryId = 105 AND pcl.RefDocTypeId = 97 and pcl.Date <= @Todate --AND pcl.RefDocId = 70
+
+				group by pcl.PaidProjectId,pcl.Date,pcl.RefDocCode,vat.SystemCategoryId,vat.SystemCategory
+
+				union all
+				/*จ่ายค่าของ JV  */
+				SELECT pcl.PaidProjectId,pcl.Date,pcl.RefDocCode [PaidDocCode],NULL RefDocCode,131 TypeVat,'NoVat' SystemCategory,SUM(pcl.Amount) pamount
+				from PaidCostLines pcl
+				INNER JOIN BudgetLines bl ON pcl.BudgetLineId = bl.Id
+				where pcl.PaidProjectId = @ProjectId AND bl.SystemCategoryId = 105 AND pcl.RefDocTypeId = 64 and pcl.Date <= @Todate --AND pcl.RefDocId = 1713
+				Group by pcl.PaidProjectId,pcl.Date,pcl.RefDocCode
+
+				union all
+				/*จ่ายค่าของ OP  */
+				SELECT pcl.PaidProjectId,pcl.Date,pcl.RefDocCode [PaidDocCode],NULL RefDocCode
+						,ISNULL(vat.SystemCategoryId,131) TypeVat
+						,ISNULL(vat.SystemCategory,'NoVat') SystemCategory,SUM(pcl.Amount) pamount
+				from PaidCostLines pcl
+				INNER JOIN BudgetLines bl ON pcl.BudgetLineId = bl.Id
+				INNER JOIN AccountCostLines acl ON acl.Id = pcl.AccountCostLineId
+				OUTER APPLY( 
+					SELECT SystemCategoryId, SystemCategory FROM OtherPaymentLines opl
+					WHERE opl.OtherPaymentId = acl.RefDocId AND opl.SystemCategoryId IN (123,129,131) AND acl.RefDocTypeId = 43
+					GROUP BY SystemCategoryId, SystemCategory /* เผื่อ invoice มีทำ multi vat */
+
+				) vat
+				where pcl.PaidProjectId = @ProjectId AND bl.SystemCategoryId = 105 AND pcl.RefDocTypeId = 43 and pcl.Date <= @Todate --AND pcl.RefDocId = 1713
+
+				group by pcl.PaidProjectId,pcl.Date,pcl.RefDocCode,vat.SystemCategoryId,vat.SystemCategory,acl.RefDocCode
+
+				union all
+				/* รับเงินคืนจาก OR  */
+				SELECT pcl.PaidProjectId,pcl.Date,pcl.RefDocCode [PaidDocCode],NULL RefDocCode
+						,ISNULL(vat.SystemCategoryId,131) TypeVat
+						,ISNULL(vat.SystemCategory,'NoVat') SystemCategory,SUM(pcl.Amount) pamount
+				from PaidCostLines pcl
+				INNER JOIN BudgetLines bl ON pcl.BudgetLineId = bl.Id
+				INNER JOIN AccountCostLines acl ON acl.Id = pcl.AccountCostLineId
+				OUTER APPLY( 
+					SELECT SystemCategoryId, SystemCategory FROM OtherReceiveLines orl
+					WHERE orl.OtherReceiveId = acl.RefDocId AND orl.SystemCategoryId IN (123,129,131) AND acl.RefDocTypeId = 44
+					GROUP BY SystemCategoryId, SystemCategory /* เผื่อ invoice มีทำ multi vat */
+
+				) vat
+				where pcl.PaidProjectId = @ProjectId AND bl.SystemCategoryId = 105 AND pcl.RefDocTypeId = 44 and pcl.Date <= @Todate --AND pcl.RefDocId = 1713
+
+				group by pcl.PaidProjectId,pcl.Date,pcl.RefDocCode,vat.SystemCategoryId,vat.SystemCategory,acl.RefDocCode
+
+				union all
+				/*จ่ายค่าของ ProhibitedTax NOPayment  */
+				select pd.PaidProjectId,pd.Date,pd.RefDocCode [PaidDocCode],NULL RefDocCode,131 TypeVat,bu.SystemCategory,sum(pd.Amount) pamount
+				from Invoices i
+				left join ProhibitedTaxItems ph on i.Code = ph.SetDocCode
+				left join ProhibitedTaxes p on ph.ProhibitedTaxId = p.Id
+				inner join PaymentLines pl on ph.SetDocCode = pl.DocCode
+				left join PaidCostLines pd on p.Code = pd.RefDocCode 
+				left join BudgetLines bu on pd.BudgetLineId = bu.Id
+				where  bu.SystemCategoryId = 105
 						and pd.Date <= @Todate
 						
 				group by pd.PaidProjectId,pd.Date,pd.RefDocCode,bu.SystemCategory )po group by po.PaidProjectId,po.TypeVat
