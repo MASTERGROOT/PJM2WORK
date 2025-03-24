@@ -822,8 +822,8 @@ FROM (
 		SELECT	
 		'2.01 VAT BUY' [Detail],
 		-- (t.Date) [TaxInvoiceDate] ,  ------------ ค.ศ.
-		FORMAT(t.Date, 'yyyy-MM','en') [yearMonth],
-		FORMAT(t.Date, 'MMMM','th') [Month],
+		FORMAT(t.SendTaxDate, 'yyyy-MM','en') [yearMonth],
+		FORMAT(t.SendTaxDate, 'MMMM','th') [Month],
 
 		CASE WHEN ISNULL(t.AvgTaxRate,-1) = -1
 			 THEN t.TaxBase * (CASE WHEN t.SetDocType = 'CreditNoteAP' THEN -1 WHEN t.SetDocTypeId = 149 AND ac.isDebit = 0 THEN -1 ELSE 1 END )
@@ -844,86 +844,86 @@ FROM (
 
 
 		FROM	dbo.TaxItems t
-				outer apply	(	
-								SELECT  iv.InvoiceId,iv.Id ,
-									CASE WHEN iv.Description = '' THEN iv.ItemMetaName ELSE iv.Description END [Description]
-								FROM    dbo.InvoiceLines iv
-								WHERE   iv.LineNumber = 1 
-								and
-								(iv.InvoiceId = t.SetDocId AND t.SetDocTypeId = 37)
-							) iv /*ON iv.InvoiceId = t.SetDocId AND t.SetDocTypeId = 37*/
-				outer apply	(	
-								SELECT  GeneralAccount,AdjustInvoiceId
-								FROM    dbo.AdjustInvoiceLines CNAP
-								inner join dbo.AdjustInvoices AJ39 on CNAP.AdjustInvoiceId = AJ39.Id
-								WHERE 
-								/*
-								CNAP.AdjustInvoiceId IN ( SELECT Id FROM dbo.AdjustInvoices WHERE  DocTypeId = 39 )
-								AND 
-								*/
-								CNAP.SystemCategoryId = 111 
-								and 
-								(CNAP.AdjustInvoiceId = t.SetDocId AND t.SetDocTypeId IN ( 39, 40 ))
-							) CNAP /*ON CNAP.AdjustInvoiceId = t.SetDocId AND t.SetDocTypeId IN ( 39, 40 )*/
-				outer apply	(	
-								SELECT	j.MadeByDocCode,j.Code JVCode
-										,MIN(jl.AccountCode) AccountCode
-										,MIN(convert(nvarchar(2000),jl.AccountName)) AccountName 
-								FROM	dbo.JournalVouchers j
-										inner JOIN dbo.JVLines jl ON jl.JournalVoucherId = j.Id AND jl.isDebit = 0 and jl.GeneralAccount = 192
-								WHERE	
-								/*
-								j.Id IN  (SELECT JournalVoucherId FROM dbo.JVLines WHERE GeneralAccount = 192)
-								AND 
-								*/
-								-- (
-								-- 	(CONVERT(DATE,j.MadeByDocDate)>= ISNULL(NULLIF(@FromInvDate,'1900-01-01'),@FromSendTaxDueDate)) 
-								-- 	OR 
-								-- 	ISNULL(NULLIF(@FromInvDate,'1900-01-01'),@FromSendTaxDueDate) IS NULL
-								-- )
-								-- and
-								/*j.MadeByDocCode = t.SetDocCode*/
-								(t.SetDocTypeId = j.MadeByTypeId and t.SetDocId = j.MadeByDocId)
-								GROUP BY j.MadeByDocCode,j.Code
-							)jj /*ON jj.MadeByDocCode = t.SetDocCode*/
-				LEFT JOIN dbo.AdjustInvoices ai	ON ai.id = t.SetDocId AND t.SetDocTypeId IN ( 39, 40 )
-				LEFT JOIN dbo.AcctElementSets ac ON ac.TaxItemGuId = t.guid And t.SetDocTypeId = 149
-				OUTER APPLY (
-					SELECT s.Id [SetId],sr.Zero [Zero] FROM dbo.AcctElementSets s
-					INNER JOIN dbo.AcctElementSets_RemainAcctElement sr ON s.Id	= sr.Id
-					WHERE s.TaxItemId = t.Id 
-					AND s.GeneralAccount = 192
-					GROUP BY s.Id,sr.Zero
-				) r
-				outer apply (
-							select sum(1) cnt from AcctElementSets s  with(forceseek)
-							where s.TaxItemId = t.Id 
-								and s.ReadyToUse = 1
-								and isnull(t.TaxAmount, 0) != 0
-				) s
-				outer apply (
-							select sum(1) cnt from JournalVouchers jv with(forceseek)
-							where jv.MadeByTypeId = t.SetDocTypeId 
-								and jv.MadeByDocId = t.SetDocId 
-								and jv.DocStatus in (4, 5)
-								and isnull(t.TaxAmount, 0) = 0
-				) jv
-		WHERE	t.TaxMetaCode = 'TH-01'
-				AND ((NULLIF(@startDate,'1900-01-01') IS NULL AND NULLIF(@endDate,'1900-01-01') IS NULL)
-						OR (CONVERT(NVARCHAR(10),t.Date,120) BETWEEN @startDate AND @endDate) 
-							)
-				AND ((t.OrgId IN (SELECT Id FROM #temporg)) OR @ProjectId IS NULL)
-				AND t.Status <> -1
-				AND 
-				(
-						exists (select 1 from dbo.ProhibitedTaxItems pht 
-						LEFT JOIN dbo.ProhibitedTaxes p ON pht.ProhibitedTaxId = p.Id
-						WHERE p.DocStatus <> -1 AND  pht.GeneralAccount = 192 AND pht.TaxItemId = t.Id AND r.Zero = 0) 
-						OR  
-						(not exists (select 1 from dbo.ProhibitedTaxItems pht 
-						LEFT JOIN dbo.ProhibitedTaxes p ON pht.ProhibitedTaxId = p.Id
-						WHERE p.DocStatus <> -1 AND pht.GeneralAccount = 192 AND pht.TaxItemId = t.Id))
-				)
+			outer apply	(	
+							SELECT  iv.InvoiceId,iv.Id ,
+								CASE WHEN iv.Description = '' THEN iv.ItemMetaName ELSE iv.Description END [Description]
+							FROM    dbo.InvoiceLines iv
+							WHERE   iv.LineNumber = 1 
+							and
+							(iv.InvoiceId = t.SetDocId AND t.SetDocTypeId = 37)
+						) iv /*ON iv.InvoiceId = t.SetDocId AND t.SetDocTypeId = 37*/
+			outer apply	(	
+							SELECT  GeneralAccount,AdjustInvoiceId
+							FROM    dbo.AdjustInvoiceLines CNAP
+							inner join dbo.AdjustInvoices AJ39 on CNAP.AdjustInvoiceId = AJ39.Id
+							WHERE 
+							/*
+							CNAP.AdjustInvoiceId IN ( SELECT Id FROM dbo.AdjustInvoices WHERE  DocTypeId = 39 )
+							AND 
+							*/
+							CNAP.SystemCategoryId = 111 
+							and 
+							(CNAP.AdjustInvoiceId = t.SetDocId AND t.SetDocTypeId IN ( 39, 40 ))
+						) CNAP /*ON CNAP.AdjustInvoiceId = t.SetDocId AND t.SetDocTypeId IN ( 39, 40 )*/
+			outer apply	(	
+							SELECT	j.MadeByDocCode,j.Code JVCode
+									,MIN(jl.AccountCode) AccountCode
+									,MIN(convert(nvarchar(2000),jl.AccountName)) AccountName 
+							FROM	dbo.JournalVouchers j
+									inner JOIN dbo.JVLines jl ON jl.JournalVoucherId = j.Id AND jl.isDebit = 0 and jl.GeneralAccount = 192
+							WHERE	
+							/*
+							j.Id IN  (SELECT JournalVoucherId FROM dbo.JVLines WHERE GeneralAccount = 192)
+							AND 
+							*/
+							/*j.MadeByDocCode = t.SetDocCode*/
+							(t.SetDocTypeId = j.MadeByTypeId and t.SetDocId = j.MadeByDocId)
+							GROUP BY j.MadeByDocCode,j.Code
+						)jj /*ON jj.MadeByDocCode = t.SetDocCode*/
+			LEFT JOIN dbo.AdjustInvoices ai	ON ai.id = t.SetDocId AND t.SetDocTypeId IN ( 39, 40 )
+			LEFT JOIN dbo.AcctElementSets ac ON ac.TaxItemGuId = t.guid And t.SetDocTypeId = 149
+			OUTER APPLY (
+				SELECT s.Id [SetId],sr.Zero [Zero] FROM dbo.AcctElementSets s
+				INNER JOIN dbo.AcctElementSets_RemainAcctElement sr ON s.Id	= sr.Id
+				WHERE s.TaxItemId = t.Id 
+				AND s.GeneralAccount = 192
+				GROUP BY s.Id,sr.Zero
+			) r
+			outer apply (
+						select sum(1) cnt from AcctElementSets s  with(forceseek)
+						where s.TaxItemId = t.Id 
+							and s.ReadyToUse = 1
+							and isnull(t.TaxAmount, 0) != 0
+			) s
+			outer apply (
+						select sum(1) cnt from JournalVouchers jv with(forceseek)
+						where jv.MadeByTypeId = t.SetDocTypeId 
+							and jv.MadeByDocId = t.SetDocId 
+							and jv.DocStatus in (4, 5)
+							and isnull(t.TaxAmount, 0) = 0
+			) jv
+			WHERE	t.TaxMetaCode = 'TH-01'
+					AND ((NULLIF(@StartDate,'1900-01-01') IS NULL AND NULLIF(@EndDate,'1900-01-01') IS NULL)
+							OR (CONVERT(NVARCHAR(10),t.SendTaxDate,120) BETWEEN @StartDate AND @EndDate) 
+								)
+					-- AND ((t.ExtOrgId = @ProjectId) OR @ProjectId IS NULL)
+					
+					
+					AND t.Status <> -1
+					
+					
+					-- AND ((NULLIF(@FromSendTaxDate,'1900-01-01') IS NULL) OR t.Status = 9)
+					AND ((t.OrgId IN (SELECT Id FROM #temporg)) OR @ProjectId IS NULL)
+					AND 
+					(
+							exists (select 1 from dbo.ProhibitedTaxItems pht 
+							LEFT JOIN dbo.ProhibitedTaxes p ON pht.ProhibitedTaxId = p.Id
+							WHERE p.DocStatus <> -1 AND  pht.GeneralAccount = 192 AND pht.TaxItemId = t.Id AND r.Zero = 0) 
+							OR  
+							(not exists (select 1 from dbo.ProhibitedTaxItems pht 
+							LEFT JOIN dbo.ProhibitedTaxes p ON pht.ProhibitedTaxId = p.Id
+							WHERE p.DocStatus <> -1 AND pht.GeneralAccount = 192 AND pht.TaxItemId = t.Id))
+					)
 
 
 		UNION ALL
@@ -1198,84 +1198,84 @@ FROM (
 -- select * from #Accouctchart4Vat
 -- select * from #Accouctchart4NoVat
 /********************CORE ********************************************/
--- SELECT  a.[No.],
--- 		a.[Total],
--- 		a.SortType,
--- 		a.GroupType,
--- 		a.Detail,
--- 		a.[var_detail],
--- 		a.[Date],
--- 		a.[Month],
--- 		a.[RD (%)],
--- 		a.[MTP (%)],
--- 		a.[Diff (MTP - RD)],
--- 		a.[ประมาณการรายได้],
--- 		a.[ผลต่าง+-], 
--- 		a.[ประมาณการต้นทุนที่ต้องใช้],
--- 		a.[ประมาณการต้นทุนโครงการใหม่],
--- 		ISNULL(a.[Total budget],0) + ISNULL(a.[ผลต่าง+-],0) [Total budget], --เอาอันนี้รวมกับใน total budget
--- 		a.Actual,
--- 		a.Diff
--- FROM (SELECT a.[No.],
--- 		a.[type] [Total],
--- 		a.SortType,
--- 		a.GroupType,
--- 		a.Detail,
--- 		v.Detail [var_detail],
--- 		a.yearMonth [Date],
--- 		a.[Month],
--- 		NULL [RD (%)],
--- 		NULL [MTP (%)],
--- 		NULL [Diff (MTP - RD)],
--- 		a.[ประมาณการรายได้],
--- 		IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL) [ผลต่าง+-], --เอาอันนี้รวมกับใน total budget
--- 		a.[ประมาณการต้นทุนที่ต้องใช้],
--- 		a.[ประมาณการต้นทุนโครงการใหม่],
--- 		a.[Total budget],
--- 		a.Actual,
--- 		a.Diff
--- FROM #CombineTable a 
--- LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AND v.NextMonth = a.[Month]) a
--- UNION ALL 
--- SELECT t.[No.]
--- 		,t.[type] [Total]
---         ,t.SortType
--- 		,'Total' [GroupType]
--- 		,t.Detail
--- 		,NULL [var_detail]
--- 		,t.TotalDate [Date]
--- 		,t.TotalMonth [Month]
--- 		,t.RD [RD (%)]
--- 		,t.MTP [MTP (%)]
--- 		,t.[Diff (MTP - RD)] [Diff (MTP - RD)]
--- 		,t.[ประมาณการรายได้]
--- 		,NULL [ผลต่าง+-]
--- 		,t.[ประมาณการต้นทุนที่ต้องใช้] 
--- 		,t.[ประมาณการต้นทุนโครงการใหม่]
--- 		,t.[Total budget]
--- 		,t.Actual
--- 		,t.Diff
--- FROM #TotalCol t
--- UNION ALL 
--- SELECT a.[No.],
--- 		NULL Total,
---         99 SortType,
--- 		a.GroupType,
--- 		NULL Detail,
--- 		NULL [var_detail],
--- 		a.[Date],
--- 		a.[Month],
--- 		a.SumRD [RD (%)],
--- 		a.SumMTP [MTP (%)],
--- 		a.[Sum MTP - RD] [Diff (MTP - RD)],
--- 		NULL [ประมาณการรายได้],
--- 		NULL [ผลต่าง+-],
--- 		NULL [ประมาณการต้นทุนที่ต้องใช้],
--- 		NULL [ประมาณการต้นทุนโครงการใหม่],
--- 		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL) [Total budget],
--- 		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL) [Actual],
--- 		NULL Diff		
--- FROM #NetProfit a
+SELECT  a.[No.],
+		a.[Total],
+		a.SortType,
+		a.GroupType,
+		a.Detail,
+		a.[var_detail],
+		a.[Date],
+		a.[Month],
+		a.[RD (%)],
+		a.[MTP (%)],
+		a.[Diff (MTP - RD)],
+		a.[ประมาณการรายได้],
+		a.[ผลต่าง+-], 
+		a.[ประมาณการต้นทุนที่ต้องใช้],
+		a.[ประมาณการต้นทุนโครงการใหม่],
+		ISNULL(a.[Total budget],0) + ISNULL(a.[ผลต่าง+-],0) [Total budget], --เอาอันนี้รวมกับใน total budget
+		a.Actual,
+		a.Diff
+FROM (SELECT a.[No.],
+		a.[type] [Total],
+		a.SortType,
+		a.GroupType,
+		a.Detail,
+		v.Detail [var_detail],
+		a.yearMonth [Date],
+		a.[Month],
+		NULL [RD (%)],
+		NULL [MTP (%)],
+		NULL [Diff (MTP - RD)],
+		a.[ประมาณการรายได้],
+		IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL) [ผลต่าง+-], --เอาอันนี้รวมกับใน total budget
+		a.[ประมาณการต้นทุนที่ต้องใช้],
+		a.[ประมาณการต้นทุนโครงการใหม่],
+		a.[Total budget],
+		a.Actual,
+		a.Diff
+FROM #CombineTable a 
+LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AND v.NextMonth = a.[Month]) a
+UNION ALL 
+SELECT t.[No.]
+		,t.[type] [Total]
+        ,t.SortType
+		,'Total' [GroupType]
+		,t.Detail
+		,NULL [var_detail]
+		,t.TotalDate [Date]
+		,t.TotalMonth [Month]
+		,t.RD [RD (%)]
+		,t.MTP [MTP (%)]
+		,t.[Diff (MTP - RD)] [Diff (MTP - RD)]
+		,t.[ประมาณการรายได้]
+		,NULL [ผลต่าง+-]
+		,t.[ประมาณการต้นทุนที่ต้องใช้] 
+		,t.[ประมาณการต้นทุนโครงการใหม่]
+		,t.[Total budget]
+		,t.Actual
+		,t.Diff
+FROM #TotalCol t
+UNION ALL 
+SELECT a.[No.],
+		NULL Total,
+        99 SortType,
+		a.GroupType,
+		NULL Detail,
+		NULL [var_detail],
+		a.[Date],
+		a.[Month],
+		a.SumRD [RD (%)],
+		a.SumMTP [MTP (%)],
+		a.[Sum MTP - RD] [Diff (MTP - RD)],
+		NULL [ประมาณการรายได้],
+		NULL [ผลต่าง+-],
+		NULL [ประมาณการต้นทุนที่ต้องใช้],
+		NULL [ประมาณการต้นทุนโครงการใหม่],
+		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL) [Total budget],
+		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL) [Actual],
+		NULL Diff		
+FROM #NetProfit a
 
 
 /************************************************************************************************************************************************************************/
