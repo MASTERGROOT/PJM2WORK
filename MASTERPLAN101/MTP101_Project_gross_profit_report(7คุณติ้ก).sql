@@ -612,20 +612,20 @@ FROM(
 		,ISNULL(PORemain.PORemainTaxbase,0) + ISNULL(SCRemain.SCRemainTaxbase,0) [TotalRemainTaxbase(19)] /*(19)*/
 
 		--,ISNULL(BRMat.BudgetRemainMat,0) [BudgetRemainMat(20)] /*(20)*/
-		,ISNULL(BRMat.BlMatAmount,0) - ISNULL(mp.POTaxbase,0) - ISNULL(PORemain.PORemainTaxbase,0) [BudgetRemainMat(20)] /*(20) = (10)-(12)-(17)*/
+		,ISNULL(BRMat.BlMatAmount,0) - /* ISNULL(mp.POTaxbase,0) - */ ISNULL(PORemain.ActualTaxbase,0) [BudgetRemainMat(20)] /*(20) = (10)-(12)-(17)*/
 
 		--,ISNULL(BRSub.BudgetRemainSub,0) [BudgetRemainSub(21)] /*(21)*/
-		,ISNULL(BRSub.BlSubAmount,0) - ISNULL(sp.SCTaxbase,0) - ISNULL(SCRemain.SCRemainTaxbase,0) [BudgetRemainSub(21)] /*(21) = (11)-(13)-(18)*/
+		,ISNULL(BRSub.BlSubAmount,0) - /* ISNULL(sp.SCTaxbase,0) - */ ISNULL(SCRemain.ActualTaxbase,0) [BudgetRemainSub(21)] /*(21) = (11)-(13)-(18)*/
 
 		--,ISNULL(BRMat.BudgetRemainMat,0) + ISNULL(BRSub.BudgetRemainSub,0) [BudgetRemain(22)] /*(22) = (20)+(21)*/
-		,(ISNULL(BRMat.BlMatAmount,0) - ISNULL(mp.POTaxbase,0) - ISNULL(PORemain.PORemainTaxbase,0)) /*(20)*/
-		 + (ISNULL(BRSub.BlSubAmount,0) - ISNULL(sp.SCTaxbase,0) - ISNULL(SCRemain.SCRemainTaxbase,0)) /*(21)*/
+		,(ISNULL(BRMat.BlMatAmount,0) - /* ISNULL(mp.POTaxbase,0) - */ ISNULL(PORemain.ActualTaxbase,0)) /*(20)*/
+		 + (ISNULL(BRSub.BlSubAmount,0) - /* ISNULL(sp.SCTaxbase,0) - */ ISNULL(SCRemain.ActualTaxbase,0)) /*(21)*/
 		 [BudgetRemain(22)] /*(22) = (20)+(21)*/
 
 		--,ISNULL((ISNULL(PORemain.PORemainTaxbase,0) + ISNULL(SCRemain.SCRemainTaxbase,0)) + (BRMat.BudgetRemainMat + BRSub.BudgetRemainSub),0) [EstCostPaidTaxbase(23)] /*(23) =(19)+(22)*/
 		,(ISNULL(PORemain.PORemainTaxbase,0) + ISNULL(SCRemain.SCRemainTaxbase,0))  /*(19)*/
-		  +( (ISNULL(BRMat.BlMatAmount,0) - ISNULL(mp.POTaxbase,0) - ISNULL(PORemain.PORemainTaxbase,0)) 
-		     + (ISNULL(BRSub.BlSubAmount,0) - ISNULL(sp.SCTaxbase,0) - ISNULL(SCRemain.SCRemainTaxbase,0)) ) /*(22)*/
+		  +( (ISNULL(BRMat.BlMatAmount,0) - /* ISNULL(mp.POTaxbase,0) - */ ISNULL(PORemain.ActualTaxbase,0)) 
+		     + (ISNULL(BRSub.BlSubAmount,0) - /* ISNULL(sp.SCTaxbase,0) - */ ISNULL(SCRemain.ActualTaxbase,0)) ) /*(22)*/
 		  [EstCostPaidTaxbase(23)] /*(23) =(19)+(22)*/
 
 
@@ -639,8 +639,8 @@ FROM(
 		,((ISNULL(m.TaxBase,0) + ISNULL(ir.IrTaxBase,0) + ISNULL(ac.BFTaxbase,0) + ISNULL(orm.TaxBase,0) + ISNULL(s.TaxBase,0) + ISNULL(irv.IrVoTaxBase,0) + ISNULL(ors.TaxBase,0)) - ((ISNULL(mp.POTaxbase,0) + ISNULL(sp.SCTaxbase,0)))) /*(15)*/
 			+ (((ISNULL(orgP.ContractAmount,0)* 100 / 107) + ISNULL(pvo.VOSUM,0)) - (ISNULL(m.TaxBase,0) + ISNULL(ir.IrTaxBase,0) + ISNULL(ac.BFTaxbase,0) + ISNULL(orm.TaxBase,0) + ISNULL(s.TaxBase,0) + ISNULL(irv.IrVoTaxBase,0) + ISNULL(ors.TaxBase,0))) /*(16)*/
 			- ( (ISNULL(PORemain.PORemainTaxbase,0) + ISNULL(SCRemain.SCRemainTaxbase,0))
-				+ ( (ISNULL(BRMat.BlMatAmount,0) - ISNULL(mp.POTaxbase,0) - ISNULL(PORemain.PORemainTaxbase,0)) 
-				+ (ISNULL(BRSub.BlSubAmount,0) - ISNULL(sp.SCTaxbase,0) - ISNULL(SCRemain.SCRemainTaxbase,0)) )) /*(23)*/ 
+				+ ( (ISNULL(BRMat.BlMatAmount,0) - /* ISNULL(mp.POTaxbase,0) - */ ISNULL(PORemain.ActualTaxbase,0)) 
+				+ (ISNULL(BRSub.BlSubAmount,0) - /* ISNULL(sp.SCTaxbase,0) - */ ISNULL(SCRemain.ActualTaxbase,0)) )) /*(23)*/ 
 			[Est Gross profit Taxbase(24)] /*(24) = (15)+(16)-(23)*/
 
 
@@ -658,9 +658,9 @@ FROM(
 								(( ((ISNULL(m.TaxBase,0) + ISNULL(ir.IrTaxBase,0) + ISNULL(ac.BFTaxbase,0) + ISNULL(orm.TaxBase,0) + ISNULL(s.TaxBase,0) + ISNULL(irv.IrVoTaxBase,0) + ISNULL(ors.TaxBase,0)) - ((ISNULL(mp.POTaxbase,0) + ISNULL(sp.SCTaxbase,0))))  /*(15)*/
 									+ (((ISNULL(orgP.ContractAmount,0)* 100 / 107) + ISNULL(pvo.VOSUM,0)) - (ISNULL(m.TaxBase,0) + ISNULL(ir.IrTaxBase,0) + ISNULL(ac.BFTaxbase,0) + ISNULL(orm.TaxBase,0) + ISNULL(s.TaxBase,0) + ISNULL(irv.IrVoTaxBase,0) + ISNULL(ors.TaxBase,0))) /*(16)*/
 									- ( (ISNULL(PORemain.PORemainTaxbase,0) + ISNULL(SCRemain.SCRemainTaxbase,0))
-										+ ( (ISNULL(BRMat.BlMatAmount,0) - ISNULL(mp.POTaxbase,0) - ISNULL(PORemain.PORemainTaxbase,0)) 
-										+ (ISNULL(BRSub.BlSubAmount,0) - ISNULL(sp.SCTaxbase,0) - ISNULL(SCRemain.SCRemainTaxbase,0)) ))) /*(23)*/
-							/ ((ISNULL(orgP.ContractAmount,0) * 100 / 107) + ISNULL(pvo.VOSUM,0))) ,0),2)/*(6)*/ 
+										+ ( (ISNULL(BRMat.BlMatAmount,0) - /* ISNULL(mp.POTaxbase,0) - */ ISNULL(PORemain.ActualTaxbase,0)) 
+										+ (ISNULL(BRSub.BlSubAmount,0) - /* ISNULL(sp.SCTaxbase,0) - */ ISNULL(SCRemain.ActualTaxbase,0)) ))) /*(23)*/
+							/ ((ISNULL(orgP.ContractAmount,0) * 100 / 107) + ISNULL(pvo.VOSUM,0))) ,0),2)/*(6)*/
 			END [% Est Gross profit Taxbase(25)] /*(25) = (24) / (6) */
 
 
@@ -677,8 +677,8 @@ FROM(
 		,( ((ISNULL(m.TaxBase,0) + ISNULL(ir.IrTaxBase,0) + ISNULL(ac.BFTaxbase,0) + ISNULL(orm.TaxBase,0) + ISNULL(s.TaxBase,0) + ISNULL(irv.IrVoTaxBase,0) + ISNULL(ors.TaxBase,0)) - ((ISNULL(mp.POTaxbase,0) + ISNULL(sp.SCTaxbase,0))))  /*(15)*/
 			+ (((ISNULL(orgP.ContractAmount,0)* 100 / 107) + ISNULL(pvo.VOSUM,0)) - (ISNULL(m.TaxBase,0) + ISNULL(ir.IrTaxBase,0) + ISNULL(ac.BFTaxbase,0) + ISNULL(orm.TaxBase,0) + ISNULL(s.TaxBase,0) + ISNULL(irv.IrVoTaxBase,0) + ISNULL(ors.TaxBase,0))) /*(16)*/
 			- ( (ISNULL(PORemain.PORemainTaxbase,0) + ISNULL(SCRemain.SCRemainTaxbase,0))
-				+ ( (ISNULL(BRMat.BlMatAmount,0) - ISNULL(mp.POTaxbase,0) - ISNULL(PORemain.PORemainTaxbase,0)) 
-				+ (ISNULL(BRSub.BlSubAmount,0) - ISNULL(sp.SCTaxbase,0) - ISNULL(SCRemain.SCRemainTaxbase,0)) ))) /*(23)*/ 
+				+ ( (ISNULL(BRMat.BlMatAmount,0) - /* ISNULL(mp.POTaxbase,0) - */ ISNULL(PORemain.ActualTaxbase,0)) 
+				+ (ISNULL(BRSub.BlSubAmount,0) - /* ISNULL(sp.SCTaxbase,0) - */ ISNULL(SCRemain.ActualTaxbase,0)) ))) /*(23)*/ 
 			- ISNULL(jl.JvAmount,0) /*(26)*/
 		      [Est Gross profit and loss minus internal rent(27)] /*(27) = (15)+(16)-(23)-(26)*/
 
@@ -696,8 +696,8 @@ FROM(
 				ELSE  (( ((ISNULL(m.TaxBase,0) + ISNULL(ir.IrTaxBase,0) + ISNULL(ac.BFTaxbase,0) + ISNULL(orm.TaxBase,0) + ISNULL(s.TaxBase,0) + ISNULL(irv.IrVoTaxBase,0) + ISNULL(ors.TaxBase,0)) - ((ISNULL(mp.POTaxbase,0) + ISNULL(sp.SCTaxbase,0))))  /*(15)*/
 							+ (((ISNULL(orgP.ContractAmount,0)* 100 / 107) + ISNULL(pvo.VOSUM,0)) - (ISNULL(m.TaxBase,0) + ISNULL(ir.IrTaxBase,0) + ISNULL(ac.BFTaxbase,0) + ISNULL(orm.TaxBase,0) + ISNULL(s.TaxBase,0) + ISNULL(irv.IrVoTaxBase,0) + ISNULL(ors.TaxBase,0))) /*(16)*/
 							- ( (ISNULL(PORemain.PORemainTaxbase,0) + ISNULL(SCRemain.SCRemainTaxbase,0))
-								+ ( (ISNULL(BRMat.BlMatAmount,0) - ISNULL(mp.POTaxbase,0) - ISNULL(PORemain.PORemainTaxbase,0)) 
-								+ (ISNULL(BRSub.BlSubAmount,0) - ISNULL(sp.SCTaxbase,0) - ISNULL(SCRemain.SCRemainTaxbase,0)) ))) /*(23)*/ 
+								+ ( (ISNULL(BRMat.BlMatAmount,0) - /* ISNULL(mp.POTaxbase,0) - */ ISNULL(PORemain.ActualTaxbase,0)) 
+								+ (ISNULL(BRSub.BlSubAmount,0) - /* ISNULL(sp.SCTaxbase,0) - */ ISNULL(SCRemain.ActualTaxbase,0)) ))) /*(23)*/ 
 							- ISNULL(jl.JvAmount,0))
 					/ ((ISNULL(orgP.ContractAmount,0)* 100 / 107) + ISNULL(pvo.VOSUM,0)) /*(6)*/
 				END [% Est Gross profit and loss minus internal rent(28)] /*(28) = (27) / (6)*/
@@ -743,11 +743,11 @@ left join #TempPOPaid mp on org.Id = mp.PaidProjectId
 left join #TempSCPaid sp on org.Id = sp.PaidProjectId
 /*TempPORemain*/
 -- left join #TempPORemain PORemain on org.Id = PORemain.LocationId
-LEFT JOIN (SELECT rm.LocationId,rm.PORemainTaxbase - pd.POTaxbase [PORemainTaxbase],rm.PORemainAmount - pd.POAmount [PORemainAmount] 
+LEFT JOIN (SELECT rm.LocationId,rm.PORemainTaxbase - pd.POTaxbase [PORemainTaxbase],rm.PORemainAmount - pd.POAmount [PORemainAmount] ,rm.PORemainAmount [ActualAmount], rm.PORemainTaxbase [ActualTaxbase]
 			FROM #TempPORemain rm INNER JOIN #TempPOPaid pd ON pd.PaidProjectId = rm.LocationId ) PORemain ON org.Id = PORemain.LocationId
 /*TempSCRemain*/
 -- left join #TempSCRemain SCRemain on org.Id = SCRemain.LocationId
-LEFT JOIN (SELECT rm.LocationId,rm.SCRemainTaxbase - pd.SCTaxbase [SCRemainTaxbase],rm.scRemainAmount - pd.SCAmount [SCRemainAmount] 
+LEFT JOIN (SELECT rm.LocationId,rm.SCRemainTaxbase - pd.SCTaxbase [SCRemainTaxbase],rm.scRemainAmount - pd.SCAmount [SCRemainAmount] ,rm.SCRemainAmount [ActualAmount], rm.SCRemainTaxbase [ActualTaxbase]
 			FROM #TempSCRemain rm INNER JOIN #TempSCPaid pd ON pd.PaidProjectId = rm.LocationId ) SCRemain ON org.Id = SCRemain.LocationId
 /*BudgetMatRemain*/
 left join (select bm.ProjectId,bm.Date,bm.BlMatAmount,bm.UseMatAmount
