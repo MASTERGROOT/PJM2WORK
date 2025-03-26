@@ -750,7 +750,7 @@ LEFT JOIN (SELECT rm.LocationId,rm.PORemainTaxbase - pd.POTaxbase [PORemainTaxba
 LEFT JOIN (SELECT rm.LocationId,rm.SCRemainTaxbase - pd.SCTaxbase [SCRemainTaxbase],rm.scRemainAmount - pd.SCAmount [SCRemainAmount] 
 			FROM #TempSCRemain rm INNER JOIN #TempSCPaid pd ON pd.PaidProjectId = rm.LocationId ) SCRemain ON org.Id = SCRemain.LocationId
 /*BudgetMatRemain*/
-left join (select bm.ProjectId,bm.Date,(bm.BlMatAmount * 100 / 107) BlMatAmount,bm.UseMatAmount,((bm.BlMatAmount * 100 / 107)-bm.UseMatAmount) [BudgetRemainMat]
+left join (select bm.ProjectId,bm.Date,bm.BlMatAmount,bm.UseMatAmount
 			from (
 					select r.ProjectId,r.Date,r.Id,SUM(rl.CompleteAmount) BlMatAmount,bl.SystemCategoryId,SUM(isnull(c.Amount,0)) UseMatAmount
 					,SUM(rl.CompleteAmount) - SUM(isnull(c.Amount,0)) [BudgetRemainMat]
@@ -768,7 +768,7 @@ left join (select bm.ProjectId,bm.Date,(bm.BlMatAmount * 100 / 107) BlMatAmount,
 					)bm 
 			)BRMat on org.Id = BRMat.ProjectId
 /*BudgetSubRemain*/
-left join (select bs.ProjectId,bs.Date,bs.BlSubAmount,bs.UseSubAmount,bs.BlSubAmount-bs.UseSubAmount [BudgetRemainSub]
+left join (select bs.ProjectId,bs.Date,bs.BlSubAmount,bs.UseSubAmount
 			from (
 					select r.ProjectId,r.Date,r.Id,SUM(rl.CompleteAmount) BlSubAmount,bl.SystemCategoryId,SUM(isnull(c.Amount,0)) UseSubAmount
 					,SUM(rl.CompleteAmount) - SUM(isnull(c.Amount,0)) [BudgetRemainMat]
