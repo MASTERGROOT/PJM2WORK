@@ -3,8 +3,8 @@
 /*รายได้แต่ละโครงการ - ผู้บริหาร*/
 /* คุณกร รวม VAT  */
 
-DECLARE @p0 DATETIME = '2025-02-28'
-DECLARE @p1 nvarchar(500) = '143'--'1931'--'1107,1152' --''--
+DECLARE @p0 DATETIME = '2025-08-05'
+DECLARE @p1 nvarchar(500) = '204'--'1931'--'1107,1152' --''--
 DECLARE @p2 BIT = 0
 
 DECLARE @Todate DATETIME = @p0
@@ -20,7 +20,30 @@ INSERT INTO @OrgId(Id)     /*Save More OrgId Or Single OrgId Not Include Child t
             FROM   dbo.fn_organizationDepends() orgD
 			where (@incChild = 1 and orgD.OrgId in (select ncode from dbo.fn_listCode(@ProjectId)))
 			or (isnull(@incChild,0) = 0 and  orgD.OrgId in (select ncode from dbo.fn_listCode(@ProjectId)) and orgD.OrgId = orgD.ChildrenId)
-            
+/************************************************************************************************************************************************************************/
+/*#Tempbudget*/
+IF OBJECT_ID(N'tempdb..#Tempbudget') IS NOT NULL
+BEGIN
+    DROP TABLE #Tempbudget;
+END;
+
+SELECT *
+INTO #Tempbudget
+FROM
+(
+
+select *
+from (
+		select ProjectId,Id,Date
+				, ROW_NUMBER () over (partition by ProjectId,BudgetId order by ProjectId,BudgetId,Date DESC) rvNo
+				, Code
+				, Description
+		from RevisedBudgets
+		--where Date <= @Todate
+) rv
+where rv.rvNo  = 1
+)r 
+option(recompile);
 
 /************************************************************************************************************************************************************************/
 /*#TempPORemain*/
@@ -1000,30 +1023,6 @@ from(
 		)sc group by sc.LocationId,sc.SystemCategoryId
 	)sc group by sc.LocationId
 )sc
-option(recompile);
-/************************************************************************************************************************************************************************/
-/*#Tempbudget*/
-IF OBJECT_ID(N'tempdb..#Tempbudget') IS NOT NULL
-BEGIN
-    DROP TABLE #Tempbudget;
-END;
-
-SELECT *
-INTO #Tempbudget
-FROM
-(
-
-select *
-from (
-		select ProjectId,Id,Date
-				, ROW_NUMBER () over (partition by ProjectId,BudgetId order by ProjectId,BudgetId,Date DESC) rvNo
-				, Code
-				, Description
-		from RevisedBudgets
-		--where Date <= @Todate
-) rv
-where rv.rvNo  = 1
-)r 
 option(recompile);
 /************************************************************************************************************************************************************************/
 /*#TempPOPaid*/
