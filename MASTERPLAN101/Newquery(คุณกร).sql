@@ -242,25 +242,25 @@ SELECT *
 INTO #TempCost
 FROM (
 		SELECT ccl.CommittedProjectId LocationId,ccl.RefDocId Id,ccl.RefDocCode Code,ccl.RefDocTypeId Doctype,ccl.[Date],ccl.RefDocLineId CommitLineId,bl.SystemCategoryId,bl.SystemCategory,Doc.VatTypeId,Doc.VatType
-				,IIF(ccl.RefDocTypeId = 64,0.00,NULLIF(ccl.Amount/Doc.SubTotal,0.00)) pt,0.00 DPAmount,0.00 RTAmount,IIF(ccl.RefDocTypeId = 64,0.00,NULLIF(ccl.Amount/Doc.SubTotal,0.00))*Doc.WHT CommitWHT
-				,IIF((doc.VatTypeId = 123 AND doc.CalcVat = 1),ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0)) AS CommitAmount
-				,CASE WHEN (Doc.VatTypeId = 129 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)*100/107
+				,IIF(ccl.RefDocTypeId = 64,1.00,NULLIF(ccl.Amount/Doc.SubTotal,0.00)) pt,0.00 DPAmount,0.00 RTAmount,IIF(ccl.RefDocTypeId = 64,1.00,NULLIF(ccl.Amount/Doc.SubTotal,0.00))*Doc.WHT CommitWHT
+				,IIF((doc.VatTypeId = 123 AND doc.CalcVat = 1),ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0)) * IIF(Doc.isDebit = 1,1,-1)  AS CommitAmount
+				,CASE WHEN (Doc.VatTypeId = 129 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)*100/107 
 						WHEN (Doc.VatTypeId = 123 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)
 						ELSE 0
-					END CommitTaxBase
+					END * IIF(Doc.isDebit = 1,1,-1) CommitTaxBase
 					,CASE WHEN (Doc.VatTypeId = 129 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)*7/107
 						WHEN (Doc.VatTypeId = 123 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0) * 7/100
 						ELSE 0
-					END CommitTaxAmount
-				,0.00 AdjustAmount,0.00 AdjustTaxBase,0.00 AdjustTaxAmount,NULL RefDocId2,NULL RefDocCode2,NULL RefDocLineId2,0.00 InvoiceAmount,0.00 InvoiceTaxBase,0.00 InvoiceTaxAmount,0.00 InvoiceDPAmount,0.00 InvoiceRTAmount
+					END * IIF(Doc.isDebit = 1,1,-1) CommitTaxAmount
+				,0.00 AdjustAmount,0.00 AdjustTaxBase,0.00 AdjustTaxAmount,NULL RefDocId2,CAST(NULL AS NVARCHAR(20)) RefDocCode2,NULL RefDocLineId2,0.00 InvoiceAmount,0.00 InvoiceTaxBase,0.00 InvoiceTaxAmount,0.00 InvoiceDPAmount,0.00 InvoiceRTAmount
 				,0.00 InvoiceAdjustAmount,0.00 InvoiceAdjustTaxBase,0.00 InvoiceAdjustTaxAmount
-				,pcl.Amount PayAmount, 0.00 RetentionSetAmount, DocPaid.DeductAmount DeductAmount, IIF(pcl.RefDocTypeId = 64,0.00,NULLIF(pcl.Amount/DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
+				,pcl.Amount * IIF(DocPaid.isDebit = 1,1,-1) PayAmount, 0.00 RetentionSetAmount, DocPaid.DeductAmount DeductAmount, IIF(pcl.RefDocTypeId = 64,0.00,NULLIF(pcl.Amount/DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
 		from CommittedCostLines ccl
 		LEFT JOIN BudgetLines bl ON bl.Id = ccl.BudgetLineId
 		LEFT JOIN PaidCostLines pcl ON pcl.CommittedCostLineId = ccl.Id
 		OUTER APPLY (
 			SELECT op.Id DocId,opl.Id DocLineId,opl.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(op.WhtAmount,0) WHT,ISNULL(dd.DeductAmount,0) DeductAmount,ISNULL(st.StAmount,0) SubTotal
-					,opl.CalcVat
+					,opl.CalcVat,isDebit
 				from OtherPayments op
 				LEFT JOIN OtherPaymentLines opl ON opl.OtherPaymentId = op.Id
 				LEFT JOIN ( SELECT OtherPaymentId,SystemCategoryId VatTypeId, SystemCategory VatType FROM OtherPaymentLines WHERE SystemCategoryId IN (123,129,131) GROUP BY OtherPaymentId,SystemCategoryId,SystemCategory
@@ -274,7 +274,7 @@ FROM (
 				UNION ALL
 
 				SELECT wel.WorkerExpenseId DocId,wel.Id DocLineId,wel.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(wht.WHT,0) WHT,0.00 DeductAmount,ISNULL(st.SubTotal,0) SubTotal
-						,wel.CalcVat
+						,wel.CalcVat,1 isDebit
 				FROM workerexpenselines wel 
 				LEFT JOIN ( SELECT WorkerExpenseId,SystemCategoryId VatTypeId, SystemCategory VatType FROM WorkerExpenseLines WHERE SystemCategoryId IN (123,129,131) GROUP BY WorkerExpenseId,SystemCategoryId,SystemCategory
 					) vat ON vat.WorkerExpenseId = wel.WorkerExpenseId
@@ -289,14 +289,14 @@ FROM (
 				UNION ALL
 
 				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,129 VatTypeId,'IncVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal
-						, 1 CalcVat
+						, 1 CalcVat, isDebit
 				FROM journalvouchers jv
 				LEFT JOIN JVLines jvl ON jv.Id = jvl.JournalVoucherId
 				WHERE jvl.guid = ccl.RefDocLineGuid --jvl.Id = ccl.RefDocLineId AND ccl.RefDocTypeId = 64 AND jvl.IsDebit = 1
 		) Doc
 		OUTER APPLY (
 			SELECT op.Id DocId,opl.Id DocLineId,opl.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(op.WhtAmount,0) WHT,ISNULL(dd.DeductAmount,0) DeductAmount,ISNULL(st.StAmount,0) SubTotal
-					,opl.CalcVat
+					,opl.CalcVat,isDebit
 				from OtherPayments op
 				LEFT JOIN OtherPaymentLines opl ON opl.OtherPaymentId = op.Id
 				LEFT JOIN ( SELECT OtherPaymentId,SystemCategoryId VatTypeId, SystemCategory VatType FROM OtherPaymentLines WHERE SystemCategoryId IN (123,129,131) GROUP BY OtherPaymentId,SystemCategoryId,SystemCategory
@@ -310,7 +310,7 @@ FROM (
 				UNION ALL
 
 				SELECT wel.WorkerExpenseId DocId,wel.Id DocLineId,wel.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(wht.WHT,0) WHT,0.00 DeductAmount,ISNULL(st.SubTotal,0) SubTotal
-						,wel.CalcVat
+						,wel.CalcVat,1 isDebit
 				FROM workerexpenselines wel 
 				LEFT JOIN ( SELECT WorkerExpenseId,SystemCategoryId VatTypeId, SystemCategory VatType FROM WorkerExpenseLines WHERE SystemCategoryId IN (123,129,131) GROUP BY WorkerExpenseId,SystemCategoryId,SystemCategory
 					) vat ON vat.WorkerExpenseId = wel.WorkerExpenseId
@@ -325,7 +325,7 @@ FROM (
 				UNION ALL
 
 				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,129 VatTypeId,'IncVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal
-						, 1 CalcVat
+						, 1 CalcVat,isDebit
 				FROM journalvouchers jv
 				LEFT JOIN JVLines jvl ON jv.Id = jvl.JournalVoucherId
 				WHERE jvl.guid = pcl.RefDocLineGuid--jvl.Id = ccl.RefDocLineId AND ccl.RefDocTypeId = 64 AND jvl.IsDebit = 1
@@ -342,13 +342,13 @@ CREATE INDEX IX_TempCost_CommitLineId ON #TempCost(CommitLineId)
 IF OBJECT_ID('tempDB..#PoRemain', 'U') IS NOT NULL
 DROP TABLE #PoRemain
 -- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
-	SELECT LocationId,(SUM(POAmount)-SUM(AdjustPOAmount)-SUM(InvoiceAdjustAmount)) - SUM(PayAmount) PORemain
+	SELECT LocationId,(SUM(POAmount)-ISNULL(SUM(AdjustPOAmount),0)-ISNULL(SUM(InvoiceAdjustAmount),0)) - ISNULL(SUM(PayAmount),0) PORemain
 	,SUM(POAmount) POAmount,SUM(POTaxBase) POTaxBase,SUM(POTaxAmount) POTaxAmount
-	,SUM(AdjustPOAmount) AdjustPOAmount,SUM(AdjustPOTaxBase) AdjustPOTaxBase,SUM(AdjustPOTaxAmount) AdjustPOTaxAmount
-	,SUM(InvoiceAmount) InvoiceAmount,SUM(InvoiceTaxBase) InvoiceTaxBase,SUM(InvoiceTaxAmount) InvoiceTaxAmount
-	,SUM(InvoiceDPAmount) InvoiceDPAmount,SUM(InvoiceRTAmount) InvoiceRTAmount
-	,SUM(InvoiceAdjustAmount) InvoiceAdjustAmount,SUM(InvoiceAdjustTaxBase) InvoiceAdjustTaxBase,SUM(InvoiceAdjustTaxAmount) InvoiceAdjustTaxAmount
-	,SUM(PayAmount) PayAmount,SUM(RetentionSetAmount) RetentionSetAmount,SUM(DeductAmount) DeductAmount,SUM(WHT) WHT
+	,ISNULL(SUM(AdjustPOAmount),0) AdjustPOAmount,ISNULL(SUM(AdjustPOTaxBase),0) AdjustPOTaxBase,ISNULL(SUM(AdjustPOTaxAmount),0) AdjustPOTaxAmount
+	,ISNULL(SUM(InvoiceAmount),0) InvoiceAmount,ISNULL(SUM(InvoiceTaxBase),0) InvoiceTaxBase,ISNULL(SUM(InvoiceTaxAmount),0) InvoiceTaxAmount
+	,ISNULL(SUM(InvoiceDPAmount),0) InvoiceDPAmount,ISNULL(SUM(InvoiceRTAmount),0) InvoiceRTAmount
+	,ISNULL(SUM(InvoiceAdjustAmount),0) InvoiceAdjustAmount,ISNULL(SUM(InvoiceAdjustTaxBase),0) InvoiceAdjustTaxBase,ISNULL(SUM(InvoiceAdjustTaxAmount),0) InvoiceAdjustTaxAmount
+	,ISNULL(SUM(PayAmount),0) PayAmount,ISNULL(SUM(RetentionSetAmount),0) RetentionSetAmount,ISNULL(SUM(DeductAmount),0) DeductAmount,ISNULL(SUM(WHT),0) WHT
 	INTO #PoRemain
 	FROM (
 		SELECT * 
@@ -364,7 +364,13 @@ DROP TABLE #PoRemain
 				WHERE il.RefDocLineId2 = p.PolineId AND il.refdoctypeId2 = 22
 				GROUP BY il.RefDocId2,il.RefDocCode2,il.RefDocLineId2
 			) ilpv
-
+		UNION ALL
+		SELECT LocationId,Id,Code,Doctype,[Date],CommitLineId PolineId,VatTypeId,VatType,CommitAmount POAmount,CommitTaxBase POTaxBase,CommitTaxAmount POTaxAmount
+			,AdjustAmount AdjustPOAmount,AdjustTaxBase AdjustPOTaxBase,AdjustTaxAmount AdjustPOTaxAmount
+			,RefDocId2,RefDocCode2,RefDocLineId2,InvoiceAmount,InvoiceTaxBase,InvoiceTaxAmount,InvoiceDPAmount,InvoiceRTAmount
+			,InvoiceAdjustAmount,InvoiceAdjustTaxBase,InvoiceAdjustTaxAmount,PayAmount,RetentionSetAmount,DeductAmount,WHT
+		FROM #TempCost
+		WHERE SystemCategoryId = 99
 	) poRemain
 	GROUP BY LocationId
 
@@ -396,11 +402,17 @@ DROP TABLE #SCRemain
 					WHERE il.RefDocLineId2 = s.SCLineId AND il.refdoctypeId2 = 105
 					GROUP BY il.RefDocId2,il.RefDocCode2,il.RefDocLineId2
 		)ilpv
+		UNION ALL
+		SELECT LocationId,Id,Code,Doctype,[Date],CommitLineId PolineId,VatTypeId,VatType,pt,DPAmount SCDepositAmount,RTAmount SCRetentionAmount,CommitWHT SCWHT
+		,CommitAmount SCAmount,CommitTaxBase SCTaxBase,CommitTaxAmount SCTaxAmount
+			,AdjustAmount AdjustSCAmount,AdjustTaxBase AdjustSCTaxBase,AdjustTaxAmount AdjustSCTaxAmount
+			,RefDocId2,RefDocCode2,RefDocLineId2,InvoiceAmount,InvoiceTaxBase,InvoiceTaxAmount,InvoiceDPAmount,InvoiceRTAmount
+			,InvoiceAdjustAmount,InvoiceAdjustTaxBase,InvoiceAdjustTaxAmount,PayAmount,RetentionSetAmount,DeductAmount,WHT
+		FROM #TempCost
+		WHERE SystemCategoryId = 105
 	) scRemain
 	GROUP BY LocationId
 	option(recompile);
-
-
 
 
 
