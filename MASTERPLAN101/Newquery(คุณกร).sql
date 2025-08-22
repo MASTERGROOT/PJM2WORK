@@ -1,5 +1,5 @@
 DECLARE @p0 DATETIME = '2025-08-05'
-DECLARE @p1 nvarchar(500) = '143'--'1931'--'1107,1152' --''--
+DECLARE @p1 nvarchar(500) = '204'--'1931'--'1107,1152' --''--
 DECLARE @p2 BIT = 0
 
 DECLARE @Todate DATETIME = @p0
@@ -17,6 +17,29 @@ INSERT INTO @OrgId(Id)     /*Save More OrgId Or Single OrgId Not Include Child t
 			where (@incChild = 1 and orgD.OrgId in (select ncode from dbo.fn_listCode(@ProjectId)))
 			or (isnull(@incChild,0) = 0 and  orgD.OrgId in (select ncode from dbo.fn_listCode(@ProjectId)) and orgD.OrgId = orgD.ChildrenId)
 
+/*#Tempbudget*/
+IF OBJECT_ID(N'tempdb..#Tempbudget') IS NOT NULL
+BEGIN
+    DROP TABLE #Tempbudget;
+END;
+
+SELECT *
+INTO #Tempbudget
+FROM
+(
+
+select *
+from (
+		select ProjectId,Id,Date
+				, ROW_NUMBER () over (partition by ProjectId,BudgetId order by ProjectId,BudgetId,Date DESC) rvNo
+				, Code
+				, Description
+		from RevisedBudgets
+		--where Date <= @Todate
+) rv
+where rv.rvNo  = 1
+)r 
+option(recompile);
 /************************************************************************************************************************************************************************/
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#TempPo', 'U') IS NOT NULL
@@ -414,10 +437,6 @@ DROP TABLE #SCRemain
 	GROUP BY LocationId
 	option(recompile);
 
-
-
-
-
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#TempPo', 'U') IS NOT NULL
 DROP TABLE #TempPo
@@ -441,3 +460,8 @@ DROP TABLE #PoRemain
 IF OBJECT_ID('tempDB..#SCRemain', 'U') IS NOT NULL
 DROP TABLE #SCRemain
 
+/*#Tempbudget*/
+IF OBJECT_ID(N'tempdb..#Tempbudget') IS NOT NULL
+BEGIN
+    DROP TABLE #Tempbudget;
+END;
