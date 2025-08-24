@@ -2,9 +2,9 @@
 /*รายได้แต่ละโครงการ - ผู้บริหาร*/
 /* คุณกร รวม VAT  */
 
--- DECLARE @p0 DATETIME = '2025-08-22'
--- DECLARE @p1 nvarchar(500) = '204'--'1931'--'1107,1152' --''--
--- DECLARE @p2 BIT = 0
+DECLARE @p0 DATETIME = '2025-08-22'
+DECLARE @p1 nvarchar(500) = '204'--'1931'--'1107,1152' --''--
+DECLARE @p2 BIT = 0
 
 DECLARE @Todate DATETIME = @p0
 DECLARE @ProjectId nvarchar(500) = @p1
@@ -157,12 +157,26 @@ IF OBJECT_ID('tempDB..#TempInvoice', 'U') IS NOT NULL
 DROP TABLE #TempInvoice
 -- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
 
-	SELECT *
+	SELECT il.id,il.Code,il.RefDocId2,il.RefDocCode2,il.RefDocTypeId2,il.RefDocType2
+			,il.BudgetTypeId,il.BudgetType,il.RefDocLineId2,il.VatTypeId,il.VatType
+			,CAST(il.InvoiceAmount AS DECIMAL(20,10))/SUM(ISNULL(il.InvoiceAmount ,0.00)) OVER (PARTITION BY il.Id)  Invpt 
+			,il.CalcVat
+			,il.InvoiceAmount,il.InvoiceTaxBase,il.InvoiceTaxAmount
+			,il.InvoiceDPAmount * CAST(il.InvoiceAmount AS DECIMAL(20,10))/SUM(ISNULL(il.InvoiceAmount ,0.00)) OVER (PARTITION BY il.Id) InvoiceDPAmount
+			,il.InvoiceDPTaxbase * CAST(il.InvoiceAmount AS DECIMAL(20,10))/SUM(ISNULL(il.InvoiceAmount ,0.00)) OVER (PARTITION BY il.Id) InvoiceDPTaxbase
+			,il.InvoiceDPTaxAmount * CAST(il.InvoiceAmount AS DECIMAL(20,10))/SUM(ISNULL(il.InvoiceAmount ,0.00)) OVER (PARTITION BY il.Id) InvoiceDPTaxAmount
+			,il.InvoiceRTAmount * CAST(il.InvoiceAmount AS DECIMAL(20,10))/SUM(ISNULL(il.InvoiceAmount ,0.00)) OVER (PARTITION BY il.Id) InvoiceRTAmount
+			,il.InvoiceWHT * CAST(il.InvoiceAmount AS DECIMAL(20,10))/SUM(ISNULL(il.InvoiceAmount ,0.00)) OVER (PARTITION BY il.Id) InvoiceWHT
+			,il.InvoiceAdjustAmount * CAST(il.InvoiceAmount AS DECIMAL(20,10))/SUM(ISNULL(il.InvoiceAmount ,0.00)) OVER (PARTITION BY il.Id) InvoiceAdjustAmount
+			,il.InvoiceAdjustTaxBase * CAST(il.InvoiceAmount AS DECIMAL(20,10))/SUM(ISNULL(il.InvoiceAmount ,0.00)) OVER (PARTITION BY il.Id) InvoiceAdjustTaxBase
+			,il.InvoiceAdjustTaxAmount * CAST(il.InvoiceAmount AS DECIMAL(20,10))/SUM(ISNULL(il.InvoiceAmount ,0.00)) OVER (PARTITION BY il.Id) InvoiceAdjustTaxAmount
 	INTO #TempInvoice
 	FROM (
-		SELECT i.Id,i.Code,il.RefDocId2,il.RefDocCode2,il.RefDocTypeId2,il.RefDocType2,bl.SystemCategoryId BudgetTypeId,bl.SystemCategory BudgetType
+		SELECT i.Id,i.Code,il.RefDocId2,il.RefDocCode2,il.RefDocTypeId2,il.RefDocType2
+				,ISNULL(bl.SystemCategoryId,CASE WHEN RefDocTypeId2 = 22 THEN 99 WHEN RefDocTypeId2 = 105 THEN 100 ELSE NULL END) BudgetTypeId
+				,ISNULL(bl.SystemCategory,CASE WHEN RefDocTypeId2 = 22 THEN 'Material' WHEN RefDocTypeId2 = 105 THEN 'SubContract' ELSE NULL END) BudgetType
 				,ISNULL(il.RefDocLineId2,pal.RefDocLineId)RefDocLineId2,vat.VatTypeId,vat.VatType
-				,pt.Invpt
+				/* ,pt.Invpt */,il.CalcVat
 				,CASE WHEN (vat.VatTypeId = 123 AND il.CalcVat = 1) THEN ISNULL((il.Amount - il.SpecialDiscount)*107/100,0)
 					WHEN (vat.VatTypeId = 129 AND il.CalcVat = 1) THEN ISNULL((il.Amount - il.SpecialDiscount) ,0)
 					ELSE ISNULL((il.Amount - il.SpecialDiscount) ,0) END InvoiceAmount
@@ -173,22 +187,23 @@ DROP TABLE #TempInvoice
 					WHEN (vat.VatTypeId = 129 AND il.CalcVat = 1) THEN ISNULL((il.Amount - il.SpecialDiscount) * 7/107,0)
 					ELSE 0 END InvoiceTaxAmount
 
-				,ISNULL(dp.DPAmount,0) * pt.Invpt InvoiceDPAmount
-				,ISNULL(dp.DPTaxbase,0) * pt.Invpt InvoiceDPTaxbase
-				,ISNULL(dp.DPTaxAmount,0) * pt.Invpt InvoiceDPTaxAmount 
-				,ISNULL(rt.RTAmount,0) * pt.Invpt InvoiceRTAmount
-				,ISNULL(cn.InvoiceAdjustAmount,0) * pt.Invpt InvoiceAdjustAmount
-				,ISNULL(cn.InvoiceAdjustTaxBase,0) * pt.Invpt InvoiceAdjustTaxBase
-				,ISNULL(cn.InvoiceAdjustTaxAmount,0) * pt.Invpt InvoiceAdjustTaxAmount
+				,ISNULL(dp.DPAmount,0) /* * pt.Invpt */ InvoiceDPAmount
+				,ISNULL(dp.DPTaxbase,0) /* * pt.Invpt */ InvoiceDPTaxbase
+				,ISNULL(dp.DPTaxAmount,0) /* * pt.Invpt */ InvoiceDPTaxAmount 
+				,ISNULL(rt.RTAmount,0) /* * pt.Invpt */ InvoiceRTAmount
+				,ISNULL(wht.WHT,0) /* * pt.Invpt */ InvoiceWHT
+				,ISNULL(cn.InvoiceAdjustAmount,0) /* * pt.Invpt */ InvoiceAdjustAmount
+				,ISNULL(cn.InvoiceAdjustTaxBase,0) /* * pt.Invpt */ InvoiceAdjustTaxBase
+				,ISNULL(cn.InvoiceAdjustTaxAmount,0) /* * pt.Invpt */ InvoiceAdjustTaxAmount
 		FROM Invoices i
 		left join InvoiceLines il on i.Id = il.InvoiceId
 		LEFT JOIN AccountCostLines acl ON acl.RefdoclineId = il.Id AND acl.RefDocTypeId IN (37,213)
 		LEFT JOIN Budgetlines bl ON bl.Id = acl.BudgetLineId
 		LEFT JOIN ProgressAcceptanceLines pal ON pal.Id = il.RefDocLineId AND pal.ProgressAcceptanceId = il.refdocid AND il.RefDocTypeId IN (209,210)
-		LEFT JOIN (
-			SELECT Id InvLineId,NULLIF((ISNULL(Amount,0)/ SUM(CASE WHEN SystemCategoryId IN (99,100,105) THEN Amount END)
-				OVER (PARTITION BY invoiceid)),0) Invpt from InvoiceLines where SystemCategoryId IN (99,100,105)
-		) pt ON pt.InvLineId = il.Id
+		-- LEFT JOIN (
+		-- 	SELECT Id InvLineId,NULLIF((ISNULL(Amount,0)/ SUM(CASE WHEN SystemCategoryId IN (99,100,105) THEN Amount END)
+		-- 		OVER (PARTITION BY invoiceid)),0) Invpt from InvoiceLines where SystemCategoryId IN (99,100,105)
+		-- ) pt ON pt.InvLineId = il.Id
 		LEFT JOIN (
 			select InvoiceId,SUM(Amount) DPAmount,SUM(TaxBase) DPTaxbase,SUM(TaxAmount) DPTaxAmount from InvoiceLines where SystemCategoryId = 54 GROUP BY InvoiceId
 		) dp ON i.Id = dp.InvoiceId
@@ -196,8 +211,12 @@ DROP TABLE #TempInvoice
 			select InvoiceId,SUM(Amount) RTAmount from InvoiceLines where SystemCategoryId = 48 GROUP BY InvoiceId
 		) rt ON i.Id = rt.InvoiceId
 		LEFT JOIN (
-			select InvoiceId,SystemCategoryId VatTypeId,SystemCategory VatType from InvoiceLines where SystemCategoryId IN (123,129,131) GROUP BY InvoiceId,SystemCategoryId,SystemCategory
+			select InvoiceId,SystemCategoryId 
+			VatTypeId,SystemCategory VatType from InvoiceLines where SystemCategoryId IN (123,129,131) GROUP BY InvoiceId,SystemCategoryId,SystemCategory
 		) vat ON i.Id = vat.InvoiceId
+		LEFT JOIN (
+				SELECT InvoiceId,SUM(Amount) WHT from InvoiceLines where SystemCategoryId = 138 GROUP BY InvoiceId
+				) wht ON wht.InvoiceId = i.Id
 		left join (
 			select c.Id,cl.RefDocId,cl.RefDocCode
 			,CASE WHEN c.DocTypeId = 39 THEN ISNULL(SUM(cl.AdjustTaxBase),0)*-1
@@ -221,9 +240,6 @@ DROP TABLE #TempInvoice
 	CREATE INDEX IX_TempInvoice_Id ON #TempInvoice(Id)
 	CREATE INDEX IX_TempInvoice_RefDocTypeId2 ON #TempInvoice(RefDocTypeId2)
 
--- select * from #TempInvoice where refdocId2 IS NULL--refdoctypeId2 = 22 AND BudgetTypeId = 105
-
-
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#TempPV', 'U') IS NOT NULL
 DROP TABLE #TempPV
@@ -237,7 +253,8 @@ DROP TABLE #TempPV
 				,IIF(acset.DocTypeId IN (39,40),pvcn.RefDocCode,acset.IvCode) IvCode
 				,IIF(acset.DocTypeId IN (39,40),pvcn.RefDocTypeId,acset.DocTypeId) AcsetDocTypeId
 				,IIF(acset.DocTypeId IN (39,40),pvcn.RefDocType,acset.DocType) AcsetDocType,pt.Pvpt
-				,IIF(pl.DocTypeId IN (39,40),(pvcn.AdjustAmount/ISNULL(pl.PayAmount,0))*ISNULL(pl.PayAmount,0),ISNULL(pl.PayAmount,0)) PayAmount
+				,IIF(pl.DocTypeId IN (39,40),(pvcn.AdjustAmount/ISNULL(pl.PayAmount,0))*ISNULL(pl.PayAmount,0),ISNULL(pl.PayAmount,0)) 
+				+ IIF(pl.DocTypeId IN (39,40),(pvcn.AdjustAmount/ISNULL(pl.PayAmount,0))*ISNULL(pl.RetentionSetAmount,0),ISNULL(pl.RetentionSetAmount,0)) PayAmount
 				,IIF(pl.DocTypeId IN (39,40),(pvcn.AdjustAmount/ISNULL(pl.PayAmount,0))*ISNULL(pl.RetentionSetAmount,0),ISNULL(pl.RetentionSetAmount,0)) RetentionSetAmount
 				,IIF(pl.DocTypeId IN (39,40),(pvcn.AdjustAmount/ISNULL(pl.PayAmount,0))*(ISNULL(dd.DeductAmount,0) * pt.Pvpt),ISNULL(dd.DeductAmount,0) * pt.Pvpt) DeductAmount
 				,IIF(pl.DocTypeId IN (39,40),(pvcn.AdjustAmount/ISNULL(pl.PayAmount,0))*(ISNULL(wht.WHT,0) * pt.Pvpt),ISNULL(wht.WHT,0) * pt.Pvpt) WHT
@@ -299,7 +316,7 @@ FROM (
 				,IIF((doc.VatTypeId = 123 AND doc.CalcVat = 1),ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0)) * IIF(Doc.isDebit = 1,1,-1)  AS CommitAmount
 				,CASE WHEN (Doc.VatTypeId = 129 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)*100/107 
 						WHEN (Doc.VatTypeId = 123 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)
-						ELSE 0
+						ELSE ISNULL(ccl.Amount,0)
 					END * IIF(Doc.isDebit = 1,1,-1) CommitTaxBase
 					,CASE WHEN (Doc.VatTypeId = 129 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)*7/107
 						WHEN (Doc.VatTypeId = 123 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0) * 7/100
@@ -307,7 +324,16 @@ FROM (
 					END * IIF(Doc.isDebit = 1,1,-1) CommitTaxAmount
 				,0.00 AdjustAmount,0.00 AdjustTaxBase,0.00 AdjustTaxAmount,NULL RefDocId2,CAST(NULL AS NVARCHAR(20)) RefDocCode2,NULL RefDocLineId2,0.00 InvoiceAmount,0.00 InvoiceTaxBase,0.00 InvoiceTaxAmount,0.00 InvoiceDPAmount,0.00 InvoiceRTAmount
 				,0.00 InvoiceAdjustAmount,0.00 InvoiceAdjustTaxBase,0.00 InvoiceAdjustTaxAmount
-				,pcl.Amount * IIF(DocPaid.isDebit = 1,1,-1) PayAmount, 0.00 RetentionSetAmount, IIF(pcl.RefDocTypeId = 64,1.00,NULLIF(pcl.Amount/DocPaid.SubTotal,0.00))*DocPaid.DeductAmount DeductAmount, IIF(pcl.RefDocTypeId = 64,1.00,NULLIF(pcl.Amount/DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
+				,IIF((DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0)) * IIF(DocPaid.isDebit = 1,1,-1)  AS PayAmount
+				,CASE WHEN (DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0)*100/107 
+						WHEN (DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0)
+						ELSE ISNULL(pcl.Amount,0)
+					END * IIF(DocPaid.isDebit = 1,1,-1) PayTaxBase
+					,CASE WHEN (DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0)*7/107
+						WHEN (DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0) * 7/100
+						ELSE 0
+					END * IIF(DocPaid.isDebit = 1,1,-1) AS PayTaxAmount
+				,0.00 RetentionSetAmount, IIF(pcl.RefDocTypeId = 64,1.00,NULLIF(pcl.Amount/DocPaid.SubTotal,0.00))*DocPaid.DeductAmount DeductAmount, IIF(pcl.RefDocTypeId = 64,1.00,NULLIF(pcl.Amount/DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
 		from CommittedCostLines ccl
 		LEFT JOIN BudgetLines bl ON bl.Id = ccl.BudgetLineId
 		LEFT JOIN PaidCostLines pcl ON pcl.CommittedCostLineId = ccl.Id
@@ -403,7 +429,8 @@ DROP TABLE #PoRemain
 	,ISNULL(SUM(InvoiceDPAmount),0) InvoiceDPAmount,ISNULL(SUM(InvoiceRTAmount),0) InvoiceRTAmount
 	,ISNULL(SUM(InvoiceAdjustAmount),0) InvoiceAdjustAmount,ISNULL(SUM(InvoiceAdjustTaxBase),0) InvoiceAdjustTaxBase,ISNULL(SUM(InvoiceAdjustTaxAmount),0) InvoiceAdjustTaxAmount
 	,ISNULL(SUM(NetPayAmount),0) + (ISNULL(nonRef.NonRefPayAmount,0)+ISNULL(nonRef.NonRefDeductAmount,0)-ISNULL(nonRef.NonRefRetentionSetAmount,0)-ISNULL(nonRef.NonRefWHT,0)) NetPayAmount
-	,ISNULL(SUM(PayAmount),0) PayAmount,ISNULL(SUM(RetentionSetAmount),0) RetentionSetAmount,ISNULL(SUM(DeductAmount),0) DeductAmount,ISNULL(SUM(WHT),0) WHT
+	,ISNULL(SUM(PayAmount),0) PayAmount,ISNULL(SUM(PayTaxBase),0) PayTaxBase,ISNULL(SUM(PayTaxAmount),0) PayTaxAmount
+	,ISNULL(SUM(RetentionSetAmount),0) RetentionSetAmount,ISNULL(SUM(DeductAmount),0) DeductAmount,ISNULL(SUM(WHT),0) WHT
 	,ISNULL(nonRef.nonRefNetPayAmount,0) NonRefPoNetPayAmount
 	,ISNULL(nonRef.NonRefPayAmount,0) NonRefPoPayAmount,ISNULL(nonRef.NonRefRetentionSetAmount,0) NonRefPoRetentionSetAmount,ISNULL(nonRef.NonRefDeductAmount,0) NonRefPoDeductAmount,ISNULL(nonRef.NonRefWHT,0) NonRefPoWHT
 	INTO #PoRemain
@@ -420,6 +447,10 @@ DROP TABLE #PoRemain
 					,SUM(il.InvoiceAdjustAmount)InvoiceAdjustAmount,SUM(il.InvoiceAdjustTaxBase)InvoiceAdjustTaxBase,SUM(il.InvoiceAdjustTaxAmount) InvoiceAdjustTaxAmount
 					,SUM(il.Invpt*pv.PayAmount) + SUM(il.Invpt*pv.DeductAmount) - SUM(il.Invpt*pv.RetentionSetAmount) - SUM(il.Invpt*pv.WHT) NetPayAmount
 					,SUM(il.Invpt*pv.PayAmount) PayAmount
+					,SUM(CASE WHEN (il.VatTypeId IN (123,129) AND il.CalcVat = 1) THEN il.Invpt*pv.PayAmount * 100/107
+					ELSE il.Invpt*pv.PayAmount END) PayTaxBase
+					,SUM(CASE WHEN (il.VatTypeId IN (123,129) AND il.CalcVat = 1) THEN (il.Invpt*pv.PayAmount) * 7/107
+					ELSE 0 END) PayTaxAmount
 					,SUM(il.Invpt*pv.RetentionSetAmount) RetentionSetAmount,SUM(il.Invpt*pv.DeductAmount) DeductAmount
 					,SUM(il.Invpt*pv.WHT) WHT
 				from #TempInvoice il
@@ -434,7 +465,7 @@ DROP TABLE #PoRemain
 			,AdjustAmount AdjustPOAmount,AdjustTaxBase AdjustPOTaxBase,AdjustTaxAmount AdjustPOTaxAmount
 			,RefDocId2,RefDocCode2,RefDocLineId2,InvoiceAmount,InvoiceTaxBase,InvoiceTaxAmount,InvoiceDPAmount,InvoiceRTAmount
 			,InvoiceAdjustAmount,InvoiceAdjustTaxBase,InvoiceAdjustTaxAmount
-			,PayAmount + DeductAmount - RetentionSetAmount - WHT [NetPayAmount],PayAmount,RetentionSetAmount,DeductAmount,WHT
+			,PayAmount + DeductAmount - RetentionSetAmount - WHT [NetPayAmount],PayAmount,PayTaxBase,PayTaxAmount,RetentionSetAmount,DeductAmount,WHT
 		FROM #TempCost
 		WHERE BudgetTypeId = 99
 	) poRemain
@@ -467,7 +498,8 @@ DROP TABLE #SCRemain
 		,ISNULL(SUM(InvoiceDPAmount),0) InvoiceDPAmount,ISNULL(SUM(InvoiceRTAmount),0) InvoiceRTAmount
 		,ISNULL(SUM(InvoiceAdjustAmount),0) InvoiceAdjustAmount,ISNULL(SUM(InvoiceAdjustTaxBase),0) InvoiceAdjustTaxBase,ISNULL(SUM(InvoiceAdjustTaxAmount),0) InvoiceAdjustTaxAmount
 		,ISNULL(SUM(NetPayAmount),0) + (ISNULL(nonRef.NonRefPayAmount,0)+ISNULL(nonRef.NonRefDeductAmount,0)-ISNULL(nonRef.NonRefRetentionSetAmount,0)-ISNULL(nonRef.NonRefWHT,0)) NetPayAmount
-		,ISNULL(SUM(PayAmount),0) PayAmount,ISNULL(SUM(RetentionSetAmount),0) RetentionSetAmount,ISNULL(SUM(DeductAmount),0) DeductAmount,ISNULL(SUM(WHT),0) WHT
+		,ISNULL(SUM(PayAmount),0) PayAmount,ISNULL(SUM(PayTaxBase),0) PayTaxBase,ISNULL(SUM(PayTaxAmount),0) PayTaxAmount
+		,ISNULL(SUM(RetentionSetAmount),0) RetentionSetAmount,ISNULL(SUM(DeductAmount),0) DeductAmount,ISNULL(SUM(WHT),0) WHT
 		,ISNULL(nonRef.nonRefNetPayAmount,0) NonRefScNetPayAmount
 		,ISNULL(nonRef.NonRefPayAmount,0) NonRefScPayAmount,ISNULL(nonRef.NonRefRetentionSetAmount,0) NonRefScRetentionSetAmount,ISNULL(nonRef.NonRefDeductAmount,0) NonRefScDeductAmount,ISNULL(nonRef.NonRefWHT,0) NonRefScWHT
 	INTO #SCRemain
@@ -484,6 +516,10 @@ DROP TABLE #SCRemain
 					,SUM(il.InvoiceAdjustAmount)InvoiceAdjustAmount,SUM(il.InvoiceAdjustTaxBase)InvoiceAdjustTaxBase,SUM(il.InvoiceAdjustTaxAmount) InvoiceAdjustTaxAmount
 					,SUM(il.Invpt*pv.PayAmount) + SUM(il.Invpt*pv.DeductAmount) - SUM(il.Invpt*pv.RetentionSetAmount) - SUM(il.Invpt*pv.WHT) NetPayAmount
 					,SUM(il.Invpt*pv.PayAmount) PayAmount
+					,SUM(CASE WHEN (il.VatTypeId IN (123,129) AND il.CalcVat = 1) THEN il.Invpt*pv.PayAmount * 100/107
+					ELSE il.Invpt*pv.PayAmount END) PayTaxBase
+					,SUM(CASE WHEN (il.VatTypeId IN (123,129) AND il.CalcVat = 1) THEN (il.Invpt*pv.PayAmount) * 7/107
+					ELSE 0 END) PayTaxAmount
 					,SUM(il.Invpt*pv.RetentionSetAmount) RetentionSetAmount,SUM(il.Invpt*pv.DeductAmount) DeductAmount
 					,SUM(il.Invpt*pv.WHT) WHT
 				from #TempInvoice il
@@ -498,7 +534,7 @@ DROP TABLE #SCRemain
 			,AdjustAmount AdjustSCAmount,AdjustTaxBase AdjustSCTaxBase,AdjustTaxAmount AdjustSCTaxAmount
 			,RefDocId2,RefDocCode2,RefDocLineId2,InvoiceAmount,InvoiceTaxBase,InvoiceTaxAmount,InvoiceDPAmount,InvoiceRTAmount
 			,InvoiceAdjustAmount,InvoiceAdjustTaxBase,InvoiceAdjustTaxAmount
-			,PayAmount + DeductAmount - RetentionSetAmount - WHT [NetPayAmount],PayAmount,RetentionSetAmount,DeductAmount,WHT
+			,PayAmount + DeductAmount - RetentionSetAmount - WHT [NetPayAmount],PayAmount,PayTaxBase,PayTaxAmount,RetentionSetAmount,DeductAmount,WHT
 		FROM #TempCost
 		WHERE BudgetTypeId = 105
 	) scRemain
@@ -517,8 +553,6 @@ DROP TABLE #SCRemain
 	) nonRef /* มาจากเอกสาร CN ลอยที่มีการทำ PV เเละจัดสรรเข้างบที่เป็น Sub */
 	GROUP BY LocationId,nonRef.NonRefNetPayAmount,nonRef.NonRefPayAmount,nonRef.NonRefRetentionSetAmount,nonRef.NonRefDeductAmount,nonRef.NonRefWHT
 	option(recompile);
-
-
 
 
 /************************************************************************************************************************************************************************/
@@ -543,7 +577,8 @@ SELECT o.Id
 		,o.POInvoiceAmount,o.POInvoiceTaxBase,o.POInvoiceTaxAmount
 		,o.POInvoiceDPAmount,o.POInvoiceRTAmount
 		,o.POInvoiceAdjustAmount,o.POInvoiceAdjustTaxBase,o.POInvoiceAdjustTaxAmount
-		,o.PayPOAmount,o.PODeductAmount
+		,o.PayPOAmount,o.PayPOTaxBase,o.PayPOTaxAmount
+		,o.PODeductAmount
 		,o.PayPORetention,o.PayPOWHT
 		,o.NonRefPoNetPayAmount
 		,o.NonRefPoPayAmount,o.NonRefPoDeductAmount
@@ -552,7 +587,8 @@ SELECT o.Id
 		,o.SCInvoiceAmount,o.SCInvoiceTaxBase,o.SCInvoiceTaxAmount
 		,o.SCInvoiceDPAmount,o.SCInvoiceRTAmount
 		,o.SCInvoiceAdjustAmount,o.SCInvoiceAdjustTaxBase,o.SCInvoiceAdjustTaxAmount
-		,o.PaySCAmount,o.SCDeductAmount
+		,o.PaySCAmount,o.PaySCTaxBase,o.PaySCTaxAmount
+		,o.SCDeductAmount
 		,o.PaySCRetention,o.PaySCWHT
 		,o.NonRefScNetPayAmount
 		,o.NonRefScPayAmount,o.NonRefScDeductAmount
@@ -602,7 +638,8 @@ FROM(
 		,ISNULL(po.InvoiceAmount,0) POInvoiceAmount,ISNULL(po.InvoiceTaxBase,0) POInvoiceTaxBase,ISNULL(po.InvoiceTaxAmount,0) POInvoiceTaxAmount
 		,ISNULL(po.InvoiceDPAmount,0) POInvoiceDPAmount,ISNULL(po.InvoiceRTAmount,0) POInvoiceRTAmount
 		,ISNULL(po.InvoiceAdjustAmount,0) POInvoiceAdjustAmount,ISNULL(po.InvoiceAdjustTaxBase,0) POInvoiceAdjustTaxBase,ISNULL(po.InvoiceAdjustTaxAmount,0) POInvoiceAdjustTaxAmount
-		,ISNULL(po.PayAmount,0) PayPOAmount,ISNULL(po.DeductAmount,0) PODeductAmount
+		,ISNULL(po.PayAmount,0) PayPOAmount,ISNULL(po.PayTaxBase,0) PayPOTaxBase,ISNULL(po.PayTaxAmount,0) PayPOTaxAmount
+		,ISNULL(po.DeductAmount,0) PODeductAmount
 		,ISNULL(po.RetentionSetAmount,0) PayPORetention,ISNULL(po.WHT,0) PayPOWHT
 		,isnull(po.NonRefPoNetPayAmount,0) NonRefPoNetPayAmount
 		,ISNULL(po.NonRefPoPayAmount,0) NonRefPoPayAmount,ISNULL(po.NonRefPoDeductAmount,0) NonRefPoDeductAmount
@@ -611,7 +648,8 @@ FROM(
 		,ISNULL(sc.InvoiceAmount,0) SCInvoiceAmount,ISNULL(sc.InvoiceTaxBase,0) SCInvoiceTaxBase,ISNULL(sc.InvoiceTaxAmount,0) SCInvoiceTaxAmount
 		,ISNULL(sc.InvoiceDPAmount,0) SCInvoiceDPAmount,ISNULL(sc.InvoiceRTAmount,0) SCInvoiceRTAmount
 		,ISNULL(sc.InvoiceAdjustAmount,0) SCInvoiceAdjustAmount,ISNULL(sc.InvoiceAdjustTaxBase,0) SCInvoiceAdjustTaxBase,ISNULL(sc.InvoiceAdjustTaxAmount,0) SCInvoiceAdjustTaxAmount
-		,ISNULL(sc.PayAmount,0) PaySCAmount,ISNULL(sc.DeductAmount,0) SCDeductAmount
+		,ISNULL(sc.PayAmount,0) PaySCAmount,ISNULL(sc.PayTaxBase,0) PaySCTaxBase,ISNULL(sc.PayTaxAmount,0) PaySCTaxAmount
+		,ISNULL(sc.DeductAmount,0) SCDeductAmount
 		,ISNULL(sc.RetentionSetAmount,0) PaySCRetention,ISNULL(sc.WHT,0) PaySCWHT
 		,ISNULL(sc.NonRefScNetPayAmount,0) NonRefScNetPayAmount
 		,ISNULL(sc.NonRefScPayAmount,0) NonRefScPayAmount,ISNULL(sc.NonRefScDeductAmount,0) NonRefScDeductAmount
