@@ -173,7 +173,7 @@ DROP TABLE #TempInvoice
 	INTO #TempInvoice
 	FROM (
 		SELECT i.Id,i.Code,il.RefDocId2,il.RefDocCode2,il.RefDocTypeId2,il.RefDocType2
-				,ISNULL(bl.SystemCategoryId,CASE WHEN RefDocTypeId2 = 22 THEN 99 WHEN RefDocTypeId2 = 105 THEN 100 ELSE NULL END) BudgetTypeId
+				,ISNULL(bl.SystemCategoryId,CASE WHEN RefDocTypeId2 = 22 THEN 99 WHEN RefDocTypeId2 = 105 THEN 105 ELSE NULL END) BudgetTypeId
 				,ISNULL(bl.SystemCategory,CASE WHEN RefDocTypeId2 = 22 THEN 'Material' WHEN RefDocTypeId2 = 105 THEN 'SubContract' ELSE NULL END) BudgetType
 				,ISNULL(il.RefDocLineId2,pal.RefDocLineId)RefDocLineId2,vat.VatTypeId,vat.VatType
 				/* ,pt.Invpt */,il.CalcVat
@@ -454,7 +454,11 @@ DROP TABLE #PoRemain
 					,SUM(il.Invpt*pv.RetentionSetAmount) RetentionSetAmount,SUM(il.Invpt*pv.DeductAmount) DeductAmount
 					,SUM(il.Invpt*pv.WHT) WHT
 				from #TempInvoice il
-				LEFT JOIN #TempPV pv ON il.Id = pv.IvId
+				LEFT JOIN (
+					SELECT IvId,SUM(PayAmount) PayAmount,SUM(DeductAmount) DeductAmount,SUM(RetentionSetAmount) RetentionSetAmount,SUM(WHT) WHT
+					FROM #TempPV 
+					GROUP BY IvId
+				) pv ON il.Id = pv.IvId
 				WHERE il.RefDocLineId2 = p.PolineId AND il.refdoctypeId2 = p.Doctype
 				GROUP BY il.RefDocId2,il.RefDocCode2,il.RefDocLineId2
 			) ilpv
@@ -523,7 +527,11 @@ DROP TABLE #SCRemain
 					,SUM(il.Invpt*pv.RetentionSetAmount) RetentionSetAmount,SUM(il.Invpt*pv.DeductAmount) DeductAmount
 					,SUM(il.Invpt*pv.WHT) WHT
 				from #TempInvoice il
-				LEFT JOIN #TempPV pv ON il.Id = pv.IvId
+				LEFT JOIN (
+					SELECT IvId,SUM(PayAmount) PayAmount,SUM(DeductAmount) DeductAmount,SUM(RetentionSetAmount) RetentionSetAmount,SUM(WHT) WHT
+					FROM #TempPV 
+					GROUP BY IvId
+				) pv ON il.Id = pv.IvId
 				WHERE il.RefDocLineId2 = p.SClineId AND il.refdoctypeId2 = p.Doctype
 				GROUP BY il.RefDocId2,il.RefDocCode2,il.RefDocLineId2
 			) ilpv
