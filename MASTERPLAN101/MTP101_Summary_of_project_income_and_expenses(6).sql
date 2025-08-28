@@ -2,7 +2,7 @@
 /*รายได้แต่ละโครงการ - ผู้บริหาร*/
 /* คุณกร รวม VAT  */
 
-DECLARE @p0 DATETIME = '2025-08-22'
+DECLARE @p0 DATETIME = '2025-07-31'
 DECLARE @p1 nvarchar(500) = '204'--'1931'--'1107,1152' --''--
 DECLARE @p2 BIT = 0
 
@@ -55,13 +55,13 @@ DROP TABLE #TempPo
 	FROM (
 		SELECT p.LocationId,p.Id,p.Code,22 DocType,p.Date,pl.Id PolineId,ISNULL(bl.SystemCategoryId,99) BudgetTypeId,ISNULL(bl.SystemCategory,'Material') BudgetType,vat.VatTypeId,vat.VatType
 			,1.00 pt,0.00 PODepositAmount,0.00 PORetentionAmount,0.00 POWHT
-			,IIF((vat.VatTypeId = 123 AND pl.CalcVat = 1),ISNULL(pl.Amount-pl.SpecialDiscount,0)*107/100,ISNULL(pl.Amount-pl.SpecialDiscount,0)) AS POAmount
-			,CASE WHEN (vat.VatTypeId = 129 AND pl.CalcVat = 1) THEN ISNULL(pl.Amount-pl.SpecialDiscount,0)*100/107
-				WHEN (vat.VatTypeId = 123 AND pl.CalcVat = 1) THEN ISNULL(pl.Amount-pl.SpecialDiscount,0)
-				ELSE ISNULL(pl.Amount-pl.SpecialDiscount,0)
+			,IIF((vat.VatTypeId = 123 AND pl.CalcVat = 1),ISNULL(pl.Amount-pl.SpecialDiscount+ISNULL(difcm.Amount,0),0)*107/100,ISNULL(pl.Amount-pl.SpecialDiscount+ISNULL(difcm.Amount,0),0)) AS POAmount
+			,CASE WHEN (vat.VatTypeId = 129 AND pl.CalcVat = 1) THEN ISNULL(pl.Amount-pl.SpecialDiscount+ISNULL(difcm.Amount,0),0)*100/107
+				WHEN (vat.VatTypeId = 123 AND pl.CalcVat = 1) THEN ISNULL(pl.Amount-pl.SpecialDiscount+ISNULL(difcm.Amount,0),0)
+				ELSE ISNULL(pl.Amount-pl.SpecialDiscount+ISNULL(difcm.Amount,0),0)
 			END POTaxBase
-			,CASE WHEN (vat.VatTypeId = 129 AND pl.CalcVat = 1) THEN ISNULL(pl.Amount-pl.SpecialDiscount,0)*7/107
-				WHEN (vat.VatTypeId = 123 AND pl.CalcVat = 1) THEN ISNULL(pl.Amount-pl.SpecialDiscount,0) * 7/100
+			,CASE WHEN (vat.VatTypeId = 129 AND pl.CalcVat = 1) THEN ISNULL(pl.Amount-pl.SpecialDiscount+ISNULL(difcm.Amount,0),0)*7/107
+				WHEN (vat.VatTypeId = 123 AND pl.CalcVat = 1) THEN ISNULL(pl.Amount-pl.SpecialDiscount+ISNULL(difcm.Amount,0),0) * 7/100
 				ELSE 0
 			END POTaxAmount
 			,ISNULL(adjPo.AdjustPOAmount,0)AdjustPOAmount,ISNULL(adjPo.AdjustPOTaxBase,0)AdjustPOTaxBase,ISNULL(adjPo.AdjustPOTaxAmount,0)AdjustPOTaxAmount
@@ -72,6 +72,18 @@ DROP TABLE #TempPo
 		LEFT JOIN (
 			select POId,SystemCategoryId VatTypeId,SystemCategory VatType from POLines where SystemCategoryId IN (123,129,131) GROUP BY POId,SystemCategoryId,SystemCategory
 		) vat ON vat.POId = p.Id
+        outer apply
+				(
+					SELECT 
+						SUM(difcm.amount)amount
+						,difcm.CommittedCostLineId 
+					FROM CommittedCostLines difcm 
+					WHERE 
+					difcm.CommittedCostLineId =  ccl.id
+					-- and
+					-- difcm.date <=@Todate --and difcm.AllocationType in (3,4)
+					GROUP by difcm.CommittedCostLineId
+				) difcm /*on difcm.CommittedCostLineId =  c.id*/
 		OUTER APPLY (
 			SELECT apl.POId,apl.POLineId,adjvat.VatTypeId,adjvat.VatType
 			,IIF((adjvat.VatTypeId = 123 AND apl.CalcVat = 1),ISNULL(apl.AdjustAmount,0)*107/100,ISNULL(apl.AdjustAmount,0)) AS AdjustPOAmount
@@ -107,13 +119,13 @@ DROP TABLE #TempSC
 	FROM (
 		SELECT sc.LocationId,sc.Id,sc.Code,105 DocType,sc.[Date],scl.Id SCLineId,ISNULL(bl.SystemCategoryId,99) BudgetTypeId,ISNULL(bl.SystemCategory,'SubContract') BudgetType,vat.VatTypeId,vat.VatType
 		,scl.Amount/sc.SubTotal pt,(scl.Amount/sc.SubTotal)*sc.DepositAmount SCDepositAmount,(scl.Amount/sc.SubTotal)*sc.RetentionAmount SCRetentionAmount,(scl.Amount/sc.SubTotal)*sc.WHTAmount SCWHT
-				,IIF(vat.VatTypeId = 123,ISNULL(scl.Amount-scl.SpecialDiscountAmount,0)*107/100,ISNULL(scl.Amount-scl.SpecialDiscountAmount,0)) AS SCAmount
-				,CASE WHEN vat.VatTypeId = 129 THEN ISNULL(scl.Amount-scl.SpecialDiscountAmount,0)*100/107
-				WHEN vat.VatTypeId = 123 THEN ISNULL(scl.Amount-scl.SpecialDiscountAmount,0)
-				ELSE ISNULL(scl.Amount-scl.SpecialDiscountAmount,0)
+				,IIF(vat.VatTypeId = 123,ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0)*107/100,ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0)) AS SCAmount
+				,CASE WHEN vat.VatTypeId = 129 THEN ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0)*100/107
+				WHEN vat.VatTypeId = 123 THEN ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0)
+				ELSE ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0)
 			END SCTaxBase
-			,CASE WHEN vat.VatTypeId = 129 THEN ISNULL(scl.Amount-scl.SpecialDiscountAmount,0)*7/107
-				WHEN vat.VatTypeId = 123 THEN ISNULL(scl.Amount-scl.SpecialDiscountAmount,0) * 7/100
+			,CASE WHEN vat.VatTypeId = 129 THEN ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0)*7/107
+				WHEN vat.VatTypeId = 123 THEN ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0) * 7/100
 				ELSE 0
 			END SCTaxAmount
 			,ISNULL(vo.AdjustSCAmount,0) AdjustSCAmount,ISNULL(vo.AdjustSCTaxBase,0) AdjustSCTaxBase,ISNULL(vo.AdjustSCTaxAmount,0) AdjustSCTaxAmount
@@ -124,6 +136,18 @@ DROP TABLE #TempSC
 		LEFT JOIN (
 			SELECT SubContractId,SystemCategoryId VatTypeId,SystemCategory VatType FROM SubContractLines  where SystemCategoryId IN (123,129,131) GROUP BY SubContractId,SystemCategoryId,SystemCategory
 		) vat ON vat.SubContractId = sc.Id
+        outer apply
+				(
+					SELECT 
+						SUM(difcm.amount)amount
+						,difcm.CommittedCostLineId 
+					FROM CommittedCostLines difcm 
+					WHERE 
+					difcm.CommittedCostLineId =  ccl.id
+					-- and
+					-- difcm.date <=@Todate --and difcm.AllocationType in (3,4)
+					GROUP by difcm.CommittedCostLineId
+				) difcm /*on difcm.CommittedCostLineId =  c.id*/
 		OUTER APPLY (
 				SELECT vol.RefDocId SCId,vol.RefDocLineId SCLineId,volvat.VatTypeId,volvat.VatType
 			,IIF(volvat.VatTypeId = 123,ISNULL(vol.AdjustDocLineAmount,0)*107/100,ISNULL(vol.AdjustDocLineAmount,0)) AS AdjustSCAmount
@@ -312,28 +336,28 @@ SELECT *
 INTO #TempCost
 FROM (
 		SELECT ccl.CommittedProjectId LocationId,ccl.RefDocId Id,ccl.RefDocCode Code,ccl.RefDocTypeId Doctype,ccl.[Date],ccl.RefDocLineId CommitLineId,bl.SystemCategoryId BudgetTypeId,bl.SystemCategory BudgetType,Doc.VatTypeId,Doc.VatType
-				,IIF(ccl.RefDocTypeId = 64,1.00,NULLIF(ccl.Amount/Doc.SubTotal,0.00)) pt,0.00 DPAmount,0.00 RTAmount,IIF(ccl.RefDocTypeId = 64,1.00,NULLIF(ccl.Amount/Doc.SubTotal,0.00))*Doc.WHT CommitWHT
-				,IIF((doc.VatTypeId = 123 AND doc.CalcVat = 1),ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0)) * IIF(Doc.isDebit = 1,1,-1)  AS CommitAmount
+				,IIF(ccl.RefDocTypeId = 64,1.00,ccl.Amount/NULLIF(Doc.SubTotal,0.00)) pt,0.00 DPAmount,0.00 RTAmount,IIF(ccl.RefDocTypeId = 64,1.00,ccl.Amount/NULLIF(Doc.SubTotal,0.00))*Doc.WHT CommitWHT
+				,IIF((doc.VatTypeId = 123 AND doc.CalcVat = 1),ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0))  AS CommitAmount
 				,CASE WHEN (Doc.VatTypeId = 129 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)*100/107 
 						WHEN (Doc.VatTypeId = 123 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)
 						ELSE ISNULL(ccl.Amount,0)
-					END * IIF(Doc.isDebit = 1,1,-1) CommitTaxBase
+					END CommitTaxBase
 					,CASE WHEN (Doc.VatTypeId = 129 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)*7/107
 						WHEN (Doc.VatTypeId = 123 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0) * 7/100
 						ELSE 0
-					END * IIF(Doc.isDebit = 1,1,-1) CommitTaxAmount
+					END CommitTaxAmount
 				,0.00 AdjustAmount,0.00 AdjustTaxBase,0.00 AdjustTaxAmount,NULL RefDocId2,CAST(NULL AS NVARCHAR(20)) RefDocCode2,NULL RefDocLineId2,0.00 InvoiceAmount,0.00 InvoiceTaxBase,0.00 InvoiceTaxAmount,0.00 InvoiceDPAmount,0.00 InvoiceRTAmount
 				,0.00 InvoiceAdjustAmount,0.00 InvoiceAdjustTaxBase,0.00 InvoiceAdjustTaxAmount
-				,IIF((DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0)) * IIF(DocPaid.isDebit = 1,1,-1)  AS PayAmount
+				,IIF((DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))  AS PayAmount
 				,CASE WHEN (DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0)*100/107 
 						WHEN (DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0)
 						ELSE ISNULL(pcl.Amount,0)
-					END * IIF(DocPaid.isDebit = 1,1,-1) PayTaxBase
+					END PayTaxBase
 					,CASE WHEN (DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0)*7/107
 						WHEN (DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0) * 7/100
 						ELSE 0
-					END * IIF(DocPaid.isDebit = 1,1,-1) AS PayTaxAmount
-				,0.00 RetentionSetAmount, IIF(pcl.RefDocTypeId = 64,1.00,NULLIF(pcl.Amount/DocPaid.SubTotal,0.00))*DocPaid.DeductAmount DeductAmount, IIF(pcl.RefDocTypeId = 64,1.00,NULLIF(pcl.Amount/DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
+					END AS PayTaxAmount
+				,0.00 RetentionSetAmount, IIF(pcl.RefDocTypeId = 64,1.00,pcl.Amount/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.DeductAmount DeductAmount, IIF(pcl.RefDocTypeId = 64,1.00,pcl.Amount/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
 		from CommittedCostLines ccl
 		LEFT JOIN BudgetLines bl ON bl.Id = ccl.BudgetLineId
 		LEFT JOIN PaidCostLines pcl ON pcl.CommittedCostLineId = ccl.Id
@@ -627,10 +651,10 @@ FROM(
 		,org.Code [Code(2)] /*(2)*/
 		,org.Name [Name(3)]/*(2)*/
 		,orgP.ContractNO [OriginalContractNO] 
-		,ISNULL(orgP.ContractAmount,0) [OriginalContractAmount(4)] /*(4)*/
+		,ISNULL(orgP.ContractAmount,0) + ISNULL(ir.IrAmount,0) [OriginalContractAmount(4)] /*(4)*/
 		,pvo.VOcontractdate [VODate]
-		,ISNULL(pvo.VOSUM,0) [VOAmount(5)] /*(5)*/
-		,(ISNULL(orgP.ContractAmount,0) + ISNULL(pvo.VOSUM,0)) [CurrentContractAmount(6)]  /*(6) = (4)+(5)*/
+		,ISNULL(pvo.VOSUM,0) + ISNULL(irv.IrVoAmount,0) [VOAmount(5)] /*(5)*/
+		,(ISNULL(orgP.ContractAmount,0) + ISNULL(pvo.VOSUM,0) + ISNULL(ir.IrAmount,0)+ ISNULL(irv.IrVoAmount,0)) [CurrentContractAmount(6)]  /*(6) = (4)+(5)*/
 		,m.ContractNO
 		,ISNULL(m.Amount,0) + ISNULL(ir.IrAmount,0) + ISNULL(ac.BFAmount,0) + ISNULL(orm.ORMAmount,0) [RVOriginalContract Amount(7)] /*(7)*/
 
