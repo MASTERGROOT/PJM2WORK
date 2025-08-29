@@ -3,22 +3,30 @@
 /* คุณกร รวม VAT  */
 
 DECLARE @p0 DATETIME = '2025-07-31'
-DECLARE @p1 nvarchar(500) = 1/* '204' */--'1931'--'1107,1152' --''--
-DECLARE @p2 BIT = 1
+DECLARE @p1 nvarchar(500) = NULL/* '204' */--'1931'--'1107,1152' --''--
+DECLARE @p2 BIT = 0
 
 DECLARE @Todate DATETIME = @p0
 DECLARE @ProjectId nvarchar(500) = @p1
 DECLARE @IncChild BIT = @p2
 
 /************************************************************************************************************************************************************************/
-DECLARE @OrgId TABLE (Id int not null);
 
-INSERT INTO @OrgId(Id)     /*Save More OrgId Or Single OrgId Not Include Child to Temp.*/
-            
-            SELECT   distinct orgD.ChildrenId       
-            FROM   dbo.fn_organizationDepends() orgD
-			where (@incChild = 1 and orgD.OrgId in (select ncode from dbo.fn_listCode(@ProjectId)))
-			or (isnull(@incChild,0) = 0 and  orgD.OrgId in (select ncode from dbo.fn_listCode(@ProjectId)) and orgD.OrgId = orgD.ChildrenId)
+DECLARE @OrgId TABLE (Id int)	 /*Save OrgId to Temp.*/
+INSERT INTO @Orgid(Id)
+
+SELECT	o.Id
+FROM		dbo.Organizations o WITH (NOLOCK)
+WHERE		EXISTS (
+						SELECT	1
+						FROM		dbo.Organizations pj WITH (NOLOCK)
+						WHERE		pj.Id in (SELECT ncode FROM dbo.fn_listCode(@ProjectId)) 
+									AND ((@IncChild = 1 AND o.Path LIKE pj.Path +'%')
+											OR (@IncChild = 0 AND o.Id = pj.Id)
+												)
+			)
+
+OPTION (RECOMPILE)
 /************************************************************************************************************************************************************************/
 /*#Tempbudget*/
 IF OBJECT_ID(N'tempdb..#Tempbudget') IS NOT NULL
@@ -105,7 +113,7 @@ DROP TABLE #TempPo
 		WHERE p.DocStatus not in (-1) 
 								and pl.SystemCategoryId IN (99,100,105) 
 	) po
-	WHERE po.Date <= @Todate and po.LocationId IN (select Id from @OrgId)
+	WHERE po.Date <= @Todate and ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = po.LocationId)) OR @ProjectId is NULL)
 	-- GROUP BY po.LocationId
 	option(recompile);
 	CREATE INDEX IX_TempPo_LocationId ON #TempPo(LocationId)
@@ -169,7 +177,7 @@ DROP TABLE #TempSC
 		) vo
 		WHERE sc.DocStatus != -1 AND scl.SystemCategoryId IN (99,100,105) --AND sc.Id = 6755--1027
 	) sc
-	WHERE sc.[Date] <= @Todate AND sc.LocationId IN (select Id from @OrgId)
+	WHERE sc.[Date] <= @Todate AND ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = sc.LocationId)) OR @ProjectId is NULL)
 	option(recompile);
 
 	CREATE INDEX IX_TempSC_LocationId ON #TempSC(LocationId)
@@ -393,7 +401,7 @@ FROM (
 
 				UNION ALL
 
-				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,129 VatTypeId,'IncVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal
+				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,131 VatTypeId,'NoVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal
 						, 1 CalcVat, isDebit
 				FROM journalvouchers jv
 				LEFT JOIN JVLines jvl ON jv.Id = jvl.JournalVoucherId
@@ -429,7 +437,7 @@ FROM (
 
 				UNION ALL
 
-				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,129 VatTypeId,'IncVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal
+				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,131 VatTypeId,'NoVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal
 						, 1 CalcVat,isDebit
 				FROM journalvouchers jv
 				LEFT JOIN JVLines jvl ON jv.Id = jvl.JournalVoucherId
@@ -437,7 +445,7 @@ FROM (
 		) DocPaid
 		WHERE ccl.RefDocTypeId IN (64,43,97)
 ) cost
-	WHERE cost.[Date] <= @Todate AND cost.LocationId IN (select Id from @OrgId)
+	WHERE cost.[Date] <= @Todate AND ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = cost.LocationId)) OR @ProjectId is NULL)
 	option(recompile);
 CREATE INDEX IX_TempCost_LocationId ON #TempCost(LocationId)
 CREATE INDEX IX_TempCost_CommitLineId ON #TempCost(CommitLineId)
@@ -601,7 +609,7 @@ SELECT o.Id
 		,o.VODate
 		,o.[VOAmount(5)]
 		,o.[CurrentContractAmount(6)]
-		,o.ContractNO
+		-- ,o.ContractNO
 		,o.[RVOriginalContract Amount(7)]
 		,o.[RVVOContract Amount(8)]
 		,o.[RVTotal Amount(9)]	
