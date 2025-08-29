@@ -3,8 +3,8 @@
 /* คุณกร รวม VAT  */
 
 DECLARE @p0 DATETIME = '2025-07-31'
-DECLARE @p1 nvarchar(500) = '204'--'1931'--'1107,1152' --''--
-DECLARE @p2 BIT = 0
+DECLARE @p1 nvarchar(500) = 1/* '204' */--'1931'--'1107,1152' --''--
+DECLARE @p2 BIT = 1
 
 DECLARE @Todate DATETIME = @p0
 DECLARE @ProjectId nvarchar(500) = @p1
@@ -105,7 +105,7 @@ DROP TABLE #TempPo
 		WHERE p.DocStatus not in (-1) 
 								and pl.SystemCategoryId IN (99,100,105) 
 	) po
-	WHERE po.Date <= @Todate and po.LocationId IN (select ncode from dbo.fn_listCode(@ProjectId))
+	WHERE po.Date <= @Todate and po.LocationId IN (select Id from @OrgId)
 	-- GROUP BY po.LocationId
 	option(recompile);
 	CREATE INDEX IX_TempPo_LocationId ON #TempPo(LocationId)
@@ -169,7 +169,7 @@ DROP TABLE #TempSC
 		) vo
 		WHERE sc.DocStatus != -1 AND scl.SystemCategoryId IN (99,100,105) --AND sc.Id = 6755--1027
 	) sc
-	WHERE sc.[Date] <= @Todate AND sc.LocationId IN (select ncode from dbo.fn_listCode(@ProjectId))
+	WHERE sc.[Date] <= @Todate AND sc.LocationId IN (select Id from @OrgId)
 	option(recompile);
 
 	CREATE INDEX IX_TempSC_LocationId ON #TempSC(LocationId)
@@ -437,7 +437,7 @@ FROM (
 		) DocPaid
 		WHERE ccl.RefDocTypeId IN (64,43,97)
 ) cost
-	WHERE cost.[Date] <= @Todate AND cost.LocationId IN (select ncode from dbo.fn_listCode(@ProjectId))
+	WHERE cost.[Date] <= @Todate AND cost.LocationId IN (select Id from @OrgId)
 	option(recompile);
 CREATE INDEX IX_TempCost_LocationId ON #TempCost(LocationId)
 CREATE INDEX IX_TempCost_CommitLineId ON #TempCost(CommitLineId)
