@@ -199,8 +199,8 @@ DROP TABLE #TempInvoice
 	INTO #TempInvoice
 	FROM (
 		SELECT i.Id,i.Code,il.RefDocId2,il.RefDocCode2,il.RefDocTypeId2,il.RefDocType2
-				,ISNULL(bl.SystemCategoryId,CASE WHEN RefDocTypeId2 = 22 THEN 99 WHEN RefDocTypeId2 = 105 THEN 105 ELSE NULL END) BudgetTypeId
-				,ISNULL(bl.SystemCategory,CASE WHEN RefDocTypeId2 = 22 THEN 'Material' WHEN RefDocTypeId2 = 105 THEN 'SubContract' ELSE NULL END) BudgetType
+				,ISNULL(bl.SystemCategoryId,CASE WHEN (RefDocTypeId2 = 22 OR i.DocTypeId = 37) THEN 99 WHEN (RefDocTypeId2 = 105 OR i.DocTypeId = 213) THEN 105 ELSE NULL END) BudgetTypeId
+				,ISNULL(bl.SystemCategory,CASE WHEN (RefDocTypeId2 = 22 OR i.DocTypeId = 37) THEN 'Material' WHEN (RefDocTypeId2 = 105 OR i.DocTypeId = 213) THEN 'SubContract' ELSE NULL END) BudgetType
 				,ISNULL(il.RefDocLineId2,pal.RefDocLineId)RefDocLineId2,vat.VatTypeId,vat.VatType
 				/* ,pt.Invpt */,il.CalcVat
 				,CASE WHEN (vat.VatTypeId = 123 AND il.CalcVat = 1) THEN ISNULL((il.Amount - il.SpecialDiscount)*107/100,0)
