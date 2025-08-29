@@ -80,8 +80,8 @@ DROP TABLE #TempPo
 					FROM CommittedCostLines difcm 
 					WHERE 
 					difcm.CommittedCostLineId =  ccl.id
-					-- and
-					-- difcm.date <=@Todate --and difcm.AllocationType in (3,4)
+					and
+					difcm.date <=@Todate --and difcm.AllocationType in (3,4)
 					GROUP by difcm.CommittedCostLineId
 				) difcm /*on difcm.CommittedCostLineId =  c.id*/
 		OUTER APPLY (
@@ -95,11 +95,12 @@ DROP TABLE #TempPo
 				WHEN (adjvat.VatTypeId = 123 AND apl.CalcVat = 1) THEN ISNULL(apl.AdjustAmount,0) * 7/100
 				ELSE 0
 			END AdjustPOTaxAmount
-			FROM AdjustPOLines apl
+			FROM AdjustPOes ap
+			LEFT JOIN AdjustPOLines apl ON ap.Id = apl.AdjustPOId
 			LEFT JOIN (
 				select AdjustPOId,SystemCategoryId VatTypeId,SystemCategory VatType from AdjustPOLines where SystemCategoryId IN (123,129,131) GROUP BY AdjustPOId,SystemCategoryId,SystemCategory
 			) adjvat ON adjvat.AdjustPOId = apl.AdjustPOId
-			WHERE pl.Id = apl.POLineId AND p.Id = apl.POId
+			WHERE pl.Id = apl.POLineId AND p.Id = apl.POId AND ap.[Date] <= @Todate
 			) adjPo 
 		WHERE p.DocStatus not in (-1) 
 								and pl.SystemCategoryId IN (99,100,105) 
@@ -117,7 +118,7 @@ DROP TABLE #TempSC
 	SELECT *
 	INTO #TempSC
 	FROM (
-		SELECT sc.LocationId,sc.Id,sc.Code,105 DocType,sc.[Date],scl.Id SCLineId,ISNULL(bl.SystemCategoryId,99) BudgetTypeId,ISNULL(bl.SystemCategory,'SubContract') BudgetType,vat.VatTypeId,vat.VatType
+		SELECT sc.LocationId,sc.Id,sc.Code,105 DocType,sc.[Date],scl.Id SCLineId,ISNULL(bl.SystemCategoryId,105) BudgetTypeId,ISNULL(bl.SystemCategory,'SubContract') BudgetType,vat.VatTypeId,vat.VatType
 		,scl.Amount/sc.SubTotal pt,(scl.Amount/sc.SubTotal)*sc.DepositAmount SCDepositAmount,(scl.Amount/sc.SubTotal)*sc.RetentionAmount SCRetentionAmount,(scl.Amount/sc.SubTotal)*sc.WHTAmount SCWHT
 				,IIF(vat.VatTypeId = 123,ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0)*107/100,ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0)) AS SCAmount
 				,CASE WHEN vat.VatTypeId = 129 THEN ISNULL(scl.Amount-scl.SpecialDiscountAmount+ISNULL(difcm.Amount,0),0)*100/107
@@ -144,8 +145,8 @@ DROP TABLE #TempSC
 					FROM CommittedCostLines difcm 
 					WHERE 
 					difcm.CommittedCostLineId =  ccl.id
-					-- and
-					-- difcm.date <=@Todate --and difcm.AllocationType in (3,4)
+					and
+					difcm.date <=@Todate --and difcm.AllocationType in (3,4)
 					GROUP by difcm.CommittedCostLineId
 				) difcm /*on difcm.CommittedCostLineId =  c.id*/
 		OUTER APPLY (
@@ -159,11 +160,12 @@ DROP TABLE #TempSC
 				WHEN volvat.VatTypeId = 123 THEN ISNULL(vol.AdjustDocLineAmount,0) * 7/100
 				ELSE 0
 			END AdjustSCTaxAmount
-			FROM VariationOrderLines vol
+			FROM VariationOrders vo
+			LEFT JOIN VariationOrderLines vol ON vo.Id = vol.VariationOrderId
 			LEFT JOIN (
 				select VariationOrderId,SystemCategoryId VatTypeId,SystemCategory VatType from VariationOrderLines where SystemCategoryId IN (123,129,131) GROUP BY VariationOrderId,SystemCategoryId,SystemCategory
 			) volvat ON volvat.VariationOrderId = vol.VariationOrderId
-			WHERE scl.Id = vol.RefDocLineId AND scl.SubContractId = vol.RefDocId
+			WHERE scl.Id = vol.RefDocLineId AND scl.SubContractId = vol.RefDocId and vo.[Date] <= @Todate
 		) vo
 		WHERE sc.DocStatus != -1 AND scl.SystemCategoryId IN (99,100,105) --AND sc.Id = 6755--1027
 	) sc
@@ -221,7 +223,7 @@ DROP TABLE #TempInvoice
 				,ISNULL(cn.InvoiceAdjustTaxAmount,0) /* * pt.Invpt */ InvoiceAdjustTaxAmount
 		FROM Invoices i
 		left join InvoiceLines il on i.Id = il.InvoiceId
-		LEFT JOIN AccountCostLines acl ON acl.RefdoclineId = il.Id AND acl.RefDocTypeId IN (37,213)
+		LEFT JOIN AccountCostLines acl ON acl.RefdoclineId = il.Id AND acl.RefDocTypeId IN (37,213) AND acl.[Date] <= @Todate
 		LEFT JOIN Budgetlines bl ON bl.Id = acl.BudgetLineId
 		LEFT JOIN ProgressAcceptanceLines pal ON pal.Id = il.RefDocLineId AND pal.ProgressAcceptanceId = il.refdocid AND il.RefDocTypeId IN (209,210)
 		-- LEFT JOIN (
@@ -254,10 +256,10 @@ DROP TABLE #TempInvoice
 				END InvoiceAdjustAmount
 			from AdjustInvoices c
 			left join AdjustInvoiceLines cl on c.Id = cl.AdjustInvoiceId
-			where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1) AND cl.RefDocTypeId = 37
+			where cl.SystemCategoryId in (152,153) and c.DocStatus not in (-1) AND cl.RefDocTypeId = 37 AND c.[Date] <= @Todate
 			group by c.Id,cl.RefDocId,cl.RefDocCode,c.DocType,c.DocTypeId
 		) cn ON cn.RefDocId = i.Id
-		WHERE il.SystemCategoryId IN (99,100,105) and i.DocStatus not in (-1) --AND il.refdocid2 IN (select distinct id from #TempPo)
+		WHERE il.SystemCategoryId IN (99,100,105) and i.DocStatus not in (-1) AND i.[Date] <= @Todate --AND il.refdocid2 IN (select distinct id from #TempPo)
 	) il
 	option(recompile);
 	CREATE INDEX IX_TempInvoice_RefDocLineId2 ON #TempInvoice(RefDocLineId2)
@@ -320,7 +322,7 @@ DROP TABLE #TempPV
 		LEFT JOIN (
 				SELECT PaymentId, SUM(DocAmount) WHTBase,SUM(PayAmount) WHT from PaymentLines where SystemCategoryId = 138 GROUP BY PaymentId
 				) wht ON wht.PaymentId = p.ID
-		where pl.SystemCategoryId IN (37,39,40,44,50,147,149,213,142) AND p.DocStatus NOT IN (-1) --and pl.PaymentId IN (1995)
+		where pl.SystemCategoryId IN (37,39,40,44,50,147,149,213,142) AND p.DocStatus NOT IN (-1) AND p.[Date] <= @Todate --and pl.PaymentId IN (1995)
 	) pv
 	option(recompile);
 	CREATE INDEX IX_TempPV_PaymentId ON #TempPV(PaymentId)
@@ -360,7 +362,7 @@ FROM (
 				,0.00 RetentionSetAmount, IIF(pcl.RefDocTypeId = 64,1.00,pcl.Amount/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.DeductAmount DeductAmount, IIF(pcl.RefDocTypeId = 64,1.00,pcl.Amount/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
 		from CommittedCostLines ccl
 		LEFT JOIN BudgetLines bl ON bl.Id = ccl.BudgetLineId
-		LEFT JOIN PaidCostLines pcl ON pcl.CommittedCostLineId = ccl.Id
+		LEFT JOIN PaidCostLines pcl ON pcl.CommittedCostLineId = ccl.Id AND pcl.[Date] <= @Todate
 		OUTER APPLY (
 			SELECT op.Id DocId,opl.Id DocLineId,opl.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(op.WhtAmount,0) WHT,ISNULL(dd.DeductAmount,0) DeductAmount,ISNULL(st.StAmount,0) SubTotal
 					,opl.CalcVat,isDebit
