@@ -4,16 +4,16 @@
 /****** Object:  Synonym [dbo].[BankAccountsPloy]    Script Date: 1/5/2021 17:51:47 ******/
 
 /* Ploy Database .84 */
-CREATE SYNONYM [dbo].[BankAccountsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[BankAccounts]
-CREATE SYNONYM [dbo].[CustomersPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[Customers]
-CREATE SYNONYM [dbo].[ProjectsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[Projects]
-CREATE SYNONYM [dbo].[QuotationLinesPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[QuotationLines]
-CREATE SYNONYM [dbo].[QuotationsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[Quotations]
-CREATE SYNONYM [dbo].[ReceiptsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[Receipts]
-CREATE SYNONYM [dbo].[REUnitsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[REUnits]
-CREATE SYNONYM [dbo].[UnitPlansPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[UnitPlans]
-CREATE SYNONYM [dbo].[VariationDealsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[VariationDeals]
-CREATE SYNONYM [dbo].[ReceiptLinesPloy] FOR [PLOY-PD-SQL.PRIV,15433].[ThenestpropertyPLOY].[dbo].[ReceiptLines]
+CREATE SYNONYM [dbo].[BankAccountsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[BankAccounts]
+CREATE SYNONYM [dbo].[CustomersPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[Customers]
+CREATE SYNONYM [dbo].[ProjectsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[Projects]
+CREATE SYNONYM [dbo].[QuotationLinesPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[QuotationLines]
+CREATE SYNONYM [dbo].[QuotationsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[Quotations]
+CREATE SYNONYM [dbo].[ReceiptsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[Receipts]
+CREATE SYNONYM [dbo].[REUnitsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[REUnits]
+CREATE SYNONYM [dbo].[UnitPlansPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[UnitPlans]
+CREATE SYNONYM [dbo].[VariationDealsPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[VariationDeals]
+CREATE SYNONYM [dbo].[ReceiptLinesPloy] FOR [PLOY-PD-SQL.PRIV,15433].[OxygenPLOY].[dbo].[ReceiptLines]
 GO
 /* Ploy Database .84 */
 -- CREATE SYNONYM [dbo].[BankAccountsPloy] FOR [PJM2SQLDB01.ON.LK].[ThenestpropertyPloy].[dbo].[BankAccounts]

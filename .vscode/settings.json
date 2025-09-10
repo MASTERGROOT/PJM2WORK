@@ -1,0 +1,6 @@
+{
+    "dataworkspace.excludedProjects": [
+        "test/test.sqlproj",
+        "FCD/DatabaseProjectFcdManee/DatabaseProjectFcdManee.sqlproj"
+    ]
+}
