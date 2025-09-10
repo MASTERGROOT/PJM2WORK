@@ -1,18 +1,16 @@
-/*==> Ref:d:\programmanee\prototype-thsd\notpublish\customprinting\reportcommands\mtp101_tax_planning_report.sql ==>*/
- 
 
-DECLARE @p0 DATE = '2024-01-01'
-DECLARE @p1 DATE = '2024-12-31'
-DECLARE @p2 NVARCHAR(MAX)  = '1' 
-DECLARE @p3 NVARCHAR(10) = '1' /*0.51*/
-DECLARE @p4 NVARCHAR(10)  = '1' /*0.80*/
+-- DECLARE @p0 DATE = '2025-01-01'
+-- DECLARE @p1 DATE = '2025-01-31'
+-- DECLARE @p2 NVARCHAR(MAX)  = '1' 
+-- DECLARE @p3 DECIMAL(10,2) = 0.51 /*0.51*/
+-- DECLARE @p4 DECIMAL(10,2)  = 0.49 /*0.80*/
 
 
 DECLARE @startDate DATE = @p0
 DECLARE @endDate DATE = @p1
 DECLARE @ProjectId NVARCHAR(MAX) = @p2
-DECLARE @SalaryRate NVARCHAR(10) = @p3
-DECLARE @FareRate NVARCHAR(10)  = @p4
+DECLARE @SalaryRate DECIMAL(10,2) = @p3
+DECLARE @FareRate DECIMAL(10,2)  = @p4
 
 SET ANSI_WARNINGS OFF
 /******************** Temp Project ********************/
@@ -31,7 +29,6 @@ SET ANSI_WARNINGS OFF
 
 
 
---select * from #temporg --test #temporg
 
 /******************** Temp #Revenue ประมาณการรายได้ ********************/
 
@@ -227,27 +224,35 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,'2' Sort
 		,'Actual' [GroupType]
 		,'2.09 เงินเดือน ปันส่วน' [Detail]
-		,a.Date
-		,((sum(a.DeAmount)  - sum(a.CreAmount)) * Isnull(@SalaryRate,1)) [AmtSalaryRate]
+		,a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
+		,sum(a.DeAmount) DeAmount,sum(a.CreAmount) CreAmount
+		,((sum(a.DeAmount)  - sum(a.CreAmount))) [AmtSalaryRate]
 Into #SalaryRate
 from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
+			,a.MadeByDocCode
 			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.AccountCode,a.AccountName
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 		from(select j.OrgId
 					,j.OrgCode
 					,j.OrgName
+					,j.MadeByDocCode
 					,j.Date
 					,jv.DocAmount
+					,jv.AccountCode
+					,jv.AccountName
 					,jv.JournalVoucherId
 					,jv.isDebit
 				from JournalVouchers j
 				left join JVLines jv on j.Id = jv.JournalVoucherId
-				where jv.AccountCode = '61010001'
+				-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+				where jv.AccountCode = '61010001'/* coa.AnalysisCode1 = 'เงินเดือน ปันส่วน' */
 						--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
+						and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 						and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 						and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 						and j.DocStatus not in (-1)
@@ -257,9 +262,9 @@ from
 							,a.OrgCode
 							,a.OrgName
 							,a.Date
-							,a.isDebit
+							,a.isDebit,a.MadeByDocCode,a.AccountCode,a.AccountName
 )a 
-group by a.Date
+group by a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
 
 /******************** Temp #FareRate 2.07 ค่าเดินทาง+น้ำมัน ปันส่วน Vat********************/
   IF OBJECT_ID(N'tempdb..#FareRate', N'U') IS NOT NULL
@@ -271,27 +276,35 @@ select	 'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		 ,'2' Sort
 		 ,'Actual' [GroupType]	
 		 ,'2.11 ค่าเดินทาง+น้ำมัน ปันส่วน Vat' [Detail]
-		 ,a.Date
-		 ,((sum(a.DeAmount)  - sum(a.CreAmount)) * Isnull(@FareRate,1)) [AmtFareRate]
+		 ,a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
+		 ,sum(a.DeAmount) DeAmount,sum(a.CreAmount) CreAmount
+		 ,((sum(a.DeAmount)  - sum(a.CreAmount))) [AmtFareRate]
 Into #FareRate
 from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
+			,a.MadeByDocCode
 			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.AccountCode,a.AccountName
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0)[DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0)[CreAmount]
 		from(select j.OrgId
 					,j.OrgCode
 					,j.OrgName
+					,j.MadeByDocCode
 					,j.Date
 					,jv.DocAmount
+					,jv.AccountCode
+					,jv.AccountName
 					,jv.JournalVoucherId
 					,jv.isDebit
 		from JournalVouchers j
 		left join JVLines jv on j.Id = jv.JournalVoucherId
-		where jv.AccountCode in ('61030001','61030002','61030003','61030004')
+		-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+		where jv.AccountCode in ('61030001','61030002','61030003','61030004')/* coa.AnalysisCode1 = 'ค่าเดินทาง+น้ำมัน ปันส่วน' */
 				--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
+				and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 				and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 				and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 				and j.DocStatus not in (-1)		
@@ -299,12 +312,12 @@ from
 				
 		)a
 		group by a.OrgId
-				,a.OrgCode
-				,a.OrgName
-				,a.Date
-				,a.isDebit
-)a
-group by a.Date
+							,a.OrgCode
+							,a.OrgName
+							,a.Date
+							,a.isDebit,a.MadeByDocCode,a.AccountCode,a.AccountName
+)a 
+group by a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
 
 /******************** Temp #OnSiteDepreciation 2.06 ค่าเสื่อมราคาหน้างาน********************/
   IF OBJECT_ID(N'tempdb..#OnSiteDepreciation', N'U') IS NOT NULL
@@ -316,39 +329,47 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,'2' Sort
 		,'Actual' [GroupType]
 		,'2.10 ค่าเสื่อมราคาหน้างาน' [Detail]
-		,a.Date
+		,a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
+		,sum(a.DeAmount) DeAmount,sum(a.CreAmount) CreAmount
 		,((sum(a.DeAmount)  - sum(a.CreAmount))) [AmtOnSiteDepreciation]
 Into #OnSiteDepreciation
 from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
+			,a.MadeByDocCode
 			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.AccountCode,a.AccountName
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 		from(select j.OrgId
 					,j.OrgCode
 					,j.OrgName
+					,j.MadeByDocCode
 					,j.Date
 					,jv.DocAmount
+					,jv.AccountCode
+					,jv.AccountName
 					,jv.JournalVoucherId
 					,jv.isDebit
 					from JournalVouchers j
 		left join JVLines jv on j.Id = jv.JournalVoucherId
-		where jv.AccountCode in ('61110006')
+		-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+		where jv.AccountCode in ('61110006')/* coa.AnalysisCode1 = 'ค่าเสื่อมราคาหน้างาน' */
 				--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
+				and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 				and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 				and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 				and j.DocStatus not in (-1)
 
 		)a
 		group by a.OrgId
-				,a.OrgCode
-				,a.OrgName
-				,a.Date
-				,a.isDebit
-)a
-group by a.Date
+							,a.OrgCode
+							,a.OrgName
+							,a.Date
+							,a.isDebit,a.MadeByDocCode,a.AccountCode,a.AccountName
+)a 
+group by a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
 
 /******************** Temp #ManagementWithOutVat 2.10 บริหารไม่มี Vat********************/
   IF OBJECT_ID(N'tempdb..#ManagementWithOutVat', N'U') IS NOT NULL
@@ -360,38 +381,46 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,'3' Sort
 		,'Actual' [GroupType]
 		,'2.14 บริหารไม่มี Vat' [Detail]
-		,a.Date
-		,((sum(a.DeAmount)  - sum(a.CreAmount)) * 0.49) [AmtManagementWithOutVat]
+		,a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
+		,sum(a.DeAmount) DeAmount,sum(a.CreAmount) CreAmount
+		,((sum(a.DeAmount)  - sum(a.CreAmount))) [AmtManagementWithOutVat]
 Into #ManagementWithOutVat
 from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
+			,a.MadeByDocCode
 			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.AccountCode,a.AccountName
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 	from(select j.OrgId
-				,j.OrgCode
-				,j.OrgName
-				,j.Date
-				,jv.DocAmount
-				,jv.JournalVoucherId
-				,jv.isDebit
+					,j.OrgCode
+					,j.OrgName
+					,j.MadeByDocCode
+					,j.Date
+					,jv.DocAmount
+					,jv.AccountCode
+					,jv.AccountName
+					,jv.JournalVoucherId
+					,jv.isDebit
 				from JournalVouchers j
 				left join JVLines jv on j.Id = jv.JournalVoucherId
-				where jv.AccountCode = '61010001'
+				-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+				where jv.AccountCode = '61010001'/* coa.AnalysisCode1 = 'บริหารไม่มี Vat' */
 						--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
+						and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 						and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 						and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 						and j.DocStatus not in (-1)
 				)a
 			group by a.OrgId
-					,a.OrgCode
-					,a.OrgName
-					,a.Date
-					,a.isDebit
-)a
-group by a.Date
+							,a.OrgCode
+							,a.OrgName
+							,a.Date
+							,a.isDebit,a.MadeByDocCode,a.AccountCode,a.AccountName
+)a 
+group by a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
 
 /******************** Temp #ManageVat 2.09 บริหาร Vat********************/
   IF OBJECT_ID(N'tempdb..#ManageVat', N'U') IS NOT NULL
@@ -403,38 +432,48 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,'3' Sort
 		,'Actual' [GroupType]	
 		,'2.13 บริหาร Vat' [Detail]
-		,a.Date
+		,a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
+		,sum(a.DeAmount) DeAmount,sum(a.CreAmount) CreAmount
 		,ISNULL((sum(a.DeAmount)  - sum(a.CreAmount)),0) [AmtManageVat]
 Into #ManageVat
 from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
+			,a.MadeByDocCode
 			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.AccountCode,a.AccountName
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 		from(select j.OrgId
 					,j.OrgCode
 					,j.OrgName
+					,j.MadeByDocCode
 					,j.Date
 					,jv.DocAmount
+					,jv.AccountCode
+					,jv.AccountName
 					,jv.JournalVoucherId
 					,jv.isDebit
 					from JournalVouchers j
 					left join JVLines jv on j.Id = jv.JournalVoucherId
+					-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
 					where (jv.AccountCode between '60000000' and '61130006')
+					AND jv.AccountCode NOT IN (/* '60030002','60030003', */'60000000','60010000','60010001','60010002','60010003','60010004','60010005','60010006','60010007','60010008','60010009','60010010','60010011','60010012','60010013','60010014','60010015','60010016','60010017','60010018','60010019','60010020','60010021','60010022','60010023','60020001','60020002','60030001','60030002','60030003','60030004','60030005','60030006','60030007','61010001','61030001','61030002','61030003','61110006')
+					/* coa.AnalysisCode1 = 'บริหาร Vat' */
 							--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
+							and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 							and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 							and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 							and j.DocStatus not in (-1)
 					)a
 		group by a.OrgId
-				,a.OrgCode
-				,a.OrgName
-				,a.Date
-				,a.isDebit
-)a
-group by a.Date
+							,a.OrgCode
+							,a.OrgName
+							,a.Date
+							,a.isDebit,a.MadeByDocCode,a.AccountCode,a.AccountName
+)a 
+group by a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
 
 /******************** Temp #AdvertisingExpensesVat 2.08 ค่าโฆษณา Vat********************/
   IF OBJECT_ID(N'tempdb..#AdvertisingExpensesVat', N'U') IS NOT NULL
@@ -446,38 +485,47 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,'3' Sort
 		,'Actual' [GroupType]	
 		,'2.12 ค่าโฆษณา Vat' [Detail]
-		,a.Date
+		,a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
+		,sum(a.DeAmount) DeAmount,sum(a.CreAmount) CreAmount
 		,ISNULL((sum(a.DeAmount)  - sum(a.CreAmount)),0) [AmtAdvertisingExpensesVat]
 Into #AdvertisingExpensesVat
 from
 	(select a.OrgId
 			,a.OrgCode
 			,a.OrgName
+			,a.MadeByDocCode
 			,a.[Date]--FORMAT(a.Date ,'yyyyMM')  [Date]
+			,a.AccountCode,a.AccountName
 			,IIF(a.isDebit = 1 ,sum(DocAmount),0) [DeAmount]
 			,IIF(a.isDebit = 0 ,sum(DocAmount),0) [CreAmount]
 from(select j.OrgId
-			,j.OrgCode
-			,j.OrgName
-			,j.Date
-			,jv.DocAmount
-			,jv.JournalVoucherId
-			,jv.isDebit
+					,j.OrgCode
+					,j.OrgName
+					,j.MadeByDocCode
+					,j.Date
+					,jv.DocAmount
+					,jv.AccountCode
+					,jv.AccountName
+					,jv.JournalVoucherId
+					,jv.isDebit
 			from JournalVouchers j
 			left join JVLines jv on j.Id = jv.JournalVoucherId
-			where jv.AccountCode in ('60020002','60030002','60030003','60030007')
+			-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
+			where jv.AccountCode in ('60020002','60030002','60030003','60030007')/* coa.AnalysisCode1 = 'ค่าโฆษณา' */
 					--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
+					and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 					and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 					and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 					and j.DocStatus not in (-1)
 			)a
 			group by a.OrgId
-					,a.OrgCode
-					,a.OrgName
-					,a.Date
-					,a.isDebit
-)a
-group by a.Date
+							,a.OrgCode
+							,a.OrgName
+							,a.Date
+							,a.isDebit,a.MadeByDocCode,a.AccountCode,a.AccountName
+)a 
+group by a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
+
 /******************** Temp #Subcontract 2.03 ค่าแรงมี Vat / 2.04 ค่าแรงไม่มี Vat********************/
   IF OBJECT_ID(N'tempdb..#Subcontract', N'U') IS NOT NULL
     BEGIN
@@ -491,18 +539,19 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,Case when a.vat = 'Vat' then '2.05 ค่าแรงมี Vat'
 				else '2.06 ค่าแรงไม่มี Vat'
 			end [Detail]
-		,a.Date
+		,a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
 		,isnull(sum(a.Amount),0) [AmtSubcontract]
 Into #Subcontract
 from(
-select	jv.Amount
+select	IIF(jv.isDebit = 1,jv.Amount,jv.Amount * -1) Amount /* ดึงมาทั้ง dr cr เเล้วให้มัน Net กัน */
 		,j.[Date]--FORMAT(j.Date ,'yyyyMM')  [Date]
-		,j.OrgCode
+		,j.OrgCode,j.MadeByDocCode,jv.AccountCode,jv.AccountName
 		,Case when i.SystemCategoryId in (123,129) then 'Vat'
 				else 'NoVat'
 			end vat
 from  JournalVouchers j
 left join JVLines jv on j.Id = jv.JournalVoucherId
+INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
 left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
 			from Invoices i
 			left join InvoiceLines il on i.Id = il.InvoiceId
@@ -524,60 +573,19 @@ left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
 
 			) i on  j.MadeByDocCode = i.Code
 
-where AccountCode IN (51010002,51040005,51040007,51040008,51050102,51050103,51050104,51050105,51070102,51070302,51080002,51090206,51130101,51140002
+where /* jv.AccountCode IN (51010002,51040005,51040007,51040008,51050102,51050103,51050104,51050105,51070102,51070302,51080002,51090206,51130101,51140002
 						,51150101,51150201,51150302,51160001,51170003,51170201,51170202,51170203,51170204,51170303,51170403,51170404,51170405
 						,51170406,51180001,51190101,51210101,51210102,51220001,51230002,51240001,51250002,51272001,51272002,52060001,52060021
 						,52060022,52080001,52090104,52090205,52090206,52110002,52120004,52130002,52150002,52170002,52180003,52180004,55040402
-						,55050203,55110001,55110002,55120001,55130004,55140001)
+						,55050203,55110001,55110002,55120001,55130004,55140001) */coa.AnalysisCode1 = 'แรง'
 		and j.DocStatus in (4,5)
-		and jv.isDebit = 1
+		-- and jv.isDebit = 1
 		--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
+		and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 		and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 		and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
-)a group by a.Date,a.vat
+)a group by a.Date,a.vat,a.MadeByDocCode,a.AccountCode,a.AccountName
 
-
-select	jv.Amount
-		,j.[Date]--FORMAT(j.Date ,'yyyyMM')  [Date]
-		,j.OrgCode
-		,Case when i.SystemCategoryId in (123,129) then 'Vat'
-				else 'NoVat'
-			end vat
-		,j.MadeByDocCode
-		,jv.AccountCode
-from  JournalVouchers j
-left join JVLines jv on j.Id = jv.JournalVoucherId
-left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
-			from Invoices i
-			left join InvoiceLines il on i.Id = il.InvoiceId
-			where il.SystemCategoryId in (123,129,131)
-
-			union all
-
-			select DISTINCT i.Id,i.Code,il.SystemCategoryId
-			from OtherPayments i
-			left join OtherPaymentLines il on i.Id = il.OtherPaymentId
-			where il.SystemCategoryId in (123,129,131)
-
-			union all
-
-			select DISTINCT i.Id,i.Code,il.SystemCategoryId
-			from WorkerExpenses i
-			left join WorkerExpenseLines il on i.Id = il.WorkerExpenseId
-			where il.SystemCategoryId in (123,129,131)
-
-			) i on  j.MadeByDocCode = i.Code
-
-where AccountCode IN (51010002,51040005,51040007,51040008,51050102,51050103,51050104,51050105,51070102,51070302,51080002,51090206,51130101,51140002
-						,51150101,51150201,51150302,51160001,51170003,51170201,51170202,51170203,51170204,51170303,51170403,51170404,51170405
-						,51170406,51180001,51190101,51210101,51210102,51220001,51230002,51240001,51250002,51272001,51272002,52060001,52060021
-						,52060022,52080001,52090104,52090205,52090206,52110002,52120004,52130002,52150002,52170002,52180003,52180004,55040402
-						,55050203,55110001,55110002,55120001,55130004,55140001)
-		and j.DocStatus in (4,5)
-		and jv.isDebit = 1
-		--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
-		and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
-		and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 /******************** Temp #Material 2.01 ค่าของมี Vat / 2.02 ค่าของไม่มี Vat********************/
   IF OBJECT_ID(N'tempdb..#Material', N'U') IS NOT NULL
     BEGIN
@@ -591,20 +599,19 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,Case when a.vat = 'Vat' then '2.01 ค่าของมี Vat'
 				else '2.02 ค่าของไม่มี Vat'
 			end [Detail]
-		,a.Date
+		,a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
 		,isnull(sum(a.Amount),0) [AmtMaterial]
 Into #Material
 from(
-select jv.Amount
+select IIF(jv.isDebit = 1,jv.Amount,jv.Amount * -1) Amount /* ดึงมาทั้ง dr cr เเล้วให้มัน Net กัน */
 		,j.[Date]--FORMAT(j.Date ,'yyyyMM')  [Date]
-		,j.OrgCode
+		,j.OrgCode,j.MadeByDocCode,jv.AccountCode,jv.AccountName
 		,Case when i.SystemCategoryId in (123,129) then 'Vat'
 				else 'NoVat'
 			end vat
-		,j.MadeByType
-		,j.MadeByDocCode
 from  JournalVouchers j
 left join JVLines jv on j.Id = jv.JournalVoucherId
+INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
 left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
 			from Invoices i
 			left join InvoiceLines il on i.Id = il.InvoiceId
@@ -634,24 +641,26 @@ left join (select DISTINCT i.Id,i.Code,il.SystemCategoryId
 			where il.SystemCategoryId in (123,129,131)
 					and i.DocStatus not in (-1)
 			) i on  j.MadeByDocCode = i.Code
-where AccountCode IN (51010001,51010005,51010006,51020002,51020003,51020007,51020010,51020011,51020012,51020014,51020016,51030001,51030002,51030003,51030004
+where /* AccountCode IN (51010001,51010005,51010006,51020002,51020003,51020007,51020010,51020011,51020012,51020014,51020016,51030001,51030002,51030003,51030004
 						,51030005,51030006,51030007,51030009,51030010,51030011,51030012,51040001,51040002,51040004,51040006,51050101,51050202,51050203
 						,51050204,51050206,51050207,51050208,51070101,51070301,51080001,51080003,51090101,51090203,51090204,51090301,51100001,51110001
 						,51120101,51120201,51120202,51120204,51120206,51130202,51130205,51140001,51150301,51170001,51170002,51170101,51170103,51170104
 						,51170301,51170401,51170402,51170503,51190003,51190004,51210001,51210002,51210003,51210004,51210104,51230001,51250001,51271001
 						,52020001,52040001,52040002,52050003,52070001,52090101,52090102,52090201,52100001,52110001,52120003,52140203,52160001,52170001
-						,52180001,54020101,54060001,55010001,55040401,55050201,55050202,55060001,55080001,52190001)
+						,52180001,54020101,54060001,55010001,55040401,55050201,55050202,55060001,55080001,52190001) */
+						coa.AnalysisCode1 = 'ของ'
 		and j.DocStatus in (4,5)
-		and jv.isDebit = 1
+		-- and jv.isDebit = 1
 		--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
+		and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 		and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 		and (jv.OrgId in (select Id from #temporg) or @ProjectId is NULL)
-)a group by a.Date,a.vat
+)a group by a.Date,a.vat,a.MadeByDocCode,a.AccountCode,a.AccountName
 
-/******************** Temp #Accouctchart4Vat รายได้ผัง4 Vat / รายได้ผัง4ไม่มี Vat********************/
-  IF OBJECT_ID(N'tempdb..#Accouctchart4Vat', N'U') IS NOT NULL
+/******************** Temp #Accouctchart4Profit 1.01 ประมาณการรายได้********************/
+  IF OBJECT_ID(N'tempdb..#Accouctchart4Profit', N'U') IS NOT NULL
     BEGIN
-        DROP TABLE #Accouctchart4Vat;
+        DROP TABLE #Accouctchart4Profit;
     END;
 
 /*รายได้ผัง4 Vat*/
@@ -661,30 +670,38 @@ select	'รายได้' [รายได้]
 		,/*Case when a.vat = 'Vat' then '1.01 ประมาณการรายได้'
 				else '1.02 Vatขาย'--'รายได้ผัง4ไม่มี Vat'
 			end*/'1.01 ประมาณการรายได้' [Detail]
-		,a.Date
+		,a.Date,a.DocCode,a.AccountCode,a.AccountName
+		,SUM(CASE WHEN a.isDebit = 1 THEN a.Amount ELSE 0 END) [DeAmount],SUM(CASE WHEN a.isDebit = 0 THEN a.Amount ELSE 0 END) [CreAmount]
 		,SUM(CASE WHEN a.isDebit = 0 THEN a.Amount ELSE 0 END) - SUM(CASE WHEN a.isDebit = 1 THEN a.Amount ELSE 0 END) [AmtMaterial]
-		-- ,a.AccountCode 
-Into #Accouctchart4Vat
+Into #Accouctchart4Profit
 from(
 select DISTINCT s.Amount
 				,s.DocDate [Date]--FORMAT(s.DocDate ,'yyyyMM')  [Date]
 				,s.OrgCode
 				,s.DocType
-				,s.DocCode,s.isDebit,s.AccountCode
+				,s.DocCode,s.isDebit,s.AccountCode,s.AccountName
 from AcctElementSets s
+-- INNER JOIN ChartOfAccounts coa ON coa.Id = s.AccountId
+OUTER APPLY (
+	select j.Id,jl.Id JVLineId,j.Code,j.JournalId,j.JournalCode
+    from JournalVouchers j
+    LEFT JOIN JVLines jl ON j.Id = jl.JournalVoucherId
+	where jl.Id = s.JVLineId
+) j
 where s.AccountCode LIKE '4%'/*IN (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
 						,41000601,41000102,41000202,41000302,41000402,41000502,41000602,41000700
-						,41000701,41000702,41000703,41000704,41000705,41000707,41000708)*/
+						,41000701,41000702,41000703,41000704,41000705,41000707,41000708)*/ /* coa.AnalysisCode1 = 'ประมาณการรายได้' */
 		-- and s.isDebit = 0
+		AND j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 		and (s.DocDate BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 		and (s.OrgId in (select Id from #temporg) or @ProjectId is NULL)
 		--and i.SystemCategoryId in (123,129)
-)a group by a.Date,a.isDebit/* ,a.AccountCode */
+)a group by a.Date,a.isDebit,a.DocCode,a.AccountCode,a.AccountName
 
-/******************** Temp #Accouctchart4NoVat  รายได้ผัง4ไม่มี Vat********************/
-  IF OBJECT_ID(N'tempdb..#Accouctchart4NoVat', N'U') IS NOT NULL
+/******************** Temp #Accouctchart4Vat  1.02 Vatขาย********************/
+  IF OBJECT_ID(N'tempdb..#Accouctchart4Vat', N'U') IS NOT NULL
     BEGIN
-        DROP TABLE #Accouctchart4NoVat;
+        DROP TABLE #Accouctchart4Vat;
     END;
 
 /*รายได้ผัง4ไม่มี Vat*/
@@ -694,29 +711,34 @@ select	'รายได้' [รายได้]
 		,/* Case when a.vat = 'Vat' then 'รายได้ผัง4 Vat'
 				else '1.02 Vatขาย'
 			end  */'1.02 Vatขาย'[Detail]
-		,a.Date
+		,a.Date,a.DocCode,a.AccountCode,a.AccountName
+		,ISNULL(SUM(a.CreAmount),0) [CreAmount]
+		,ISNULL(SUM(a.DeAmount),0) [DeAmount]
 		,isnull(sum(a.Amount),0) [AmtMaterial]/* , a.AcctCode */
-Into #Accouctchart4NoVat
+Into #Accouctchart4Vat
 from(
 select CASE WHEN ISNULL(s.isDebit,jl.isDebit) <> ga.minusWhenDebit THEN ISNULL(s.Amount,jl.Amount) ELSE ISNULL(s.Amount,jl.Amount)*-1 END [Amount]
+				,CASE WHEN ISNULL(s.isDebit,jl.isDebit) <> ga.minusWhenDebit THEN ISNULL(s.Amount,jl.Amount) ELSE 0 END [CreAmount]
+				,CASE WHEN ISNULL(s.isDebit,jl.isDebit) <> ga.minusWhenDebit THEN 0 ELSE ISNULL(s.Amount,jl.Amount)*-1 END [DeAmount]
 				,ISNULL(s.DocDate,j.[Date]) [Date]--FORMAT(s.DocDate ,'yyyyMM')  [Date]
 				,s.OrgCode
 				,s.DocType
-				,s.DocCode,ISNULL(s.AccountCode,jl.AccountCode) [AcctCode]
+				,s.DocCode,ISNULL(s.AccountCode,jl.AccountCode) [AccountCode],ISNULL(s.AccountName,jl.AccountName) [AccountName]
 FROM	    dbo.JVLines jl WITH (nolock)
-			   INNER JOIN dbo.JournalVouchers j WITH (NOLOCK) ON jl.JournalVoucherId = j.Id AND ISNULL(j.DocStatus,0) <> -1									
+			   INNER JOIN dbo.JournalVouchers j WITH (NOLOCK) ON jl.JournalVoucherId = j.Id AND ISNULL(j.DocStatus,0) <> -1	and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี								
 			   LEFT JOIN dbo.GeneralAccountEntities ga WITH (NOLOCK) ON ga.EnumKey = jl.GeneralAccount
 			   LEFT JOIN dbo.Organizations o WITH (NOLOCK) ON IIF(ISNULL(jl.OrgId,0) IN (0,-1),j.OrgId,jl.OrgId) = o.Id
 			   LEFT JOIN dbo.AcctElementSets s WITH (NOLOCK) ON s.JVLineId = jl.Id --AND jl.MadeByDocTypeId = 149
+			   -- INNER JOIN ChartOfAccounts coa ON coa.Id = jl.AccountId
 where jl.AccountCode LIKE '21250100'/* (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
 						,41000601,41000102,41000202,41000302,41000402,41000502,41000602,41000700
-						,41000701,41000702,41000703,41000704,41000705,41000707,41000708) */
+						,41000701,41000702,41000703,41000704,41000705,41000707,41000708) *//* coa.AnalysisCode1 = 'Vatขาย' */
 		-- and s.isDebit = 0
 		and (CONVERT(DATE,ISNULL(NULLIF(s.DocDate,''),j.Date)) BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
 		and (ISNULL(s.OrgId,j.OrgId) in (select Id from #temporg) or @ProjectId is NULL) 
 		AND s.DocType IS NOT NULL
 		-- and i.SystemCategoryId not in (123,129)
-)a group by a.Date/* ,a.AcctCode */
+)a group by a.Date,a.DocCode,a.AccountCode,a.AccountName
 
 /*********************************************************************/
 /********************Combine Temp****************************************/
@@ -756,12 +778,12 @@ FROM
 		,FORMAT(a.[Date], 'yyyy-MM','en') [yearMonth]
 		,FORMAT(a.[Date],'MMMM','th') [Month]
 		-- ,NULL [Diff.1]
-		,IIF(a.GroupType = 'ประมาณการรายได้',a.Amount,NULL) [ประมาณการรายได้]
+		,ISNULL(IIF(a.GroupType = 'ประมาณการรายได้',a.Amount,NULL),0) [ประมาณการรายได้]
 		-- ,NULL [ผลต่าง+-]
-		,IIF(a.GroupType = 'ประมาณการต้นทุนที่ต้องใช้',a.Amount,NULL) [ประมาณการต้นทุนที่ต้องใช้]
-		,IIF(a.GroupType = 'ประมาณการต้นทุนโครงการใหม่',a.Amount,NULL) [ประมาณการต้นทุนโครงการใหม่]
-		,IIF(a.GroupType = 'ประมาณการSum',a.Amount,IIF(a.GroupType = 'ประมาณการรายได้',a.Amount,NULL)) [Total budget]
-		,IIF(a.GroupType = 'Actual',a.Amount,NULL) [Actual]
+		,ISNULL(IIF(a.GroupType = 'ประมาณการต้นทุนที่ต้องใช้',a.Amount,NULL),0) [ประมาณการต้นทุนที่ต้องใช้]
+		,ISNULL(IIF(a.GroupType = 'ประมาณการต้นทุนโครงการใหม่',a.Amount,NULL),0) [ประมาณการต้นทุนโครงการใหม่]
+		,ISNULL(IIF(a.GroupType = 'ประมาณการSum',a.Amount,IIF(a.GroupType = 'ประมาณการรายได้',a.Amount,NULL)),0) [Total budget]
+		,ISNULL(IIF(a.GroupType = 'Actual',a.Amount,NULL),0) [Actual]
 		,DATEADD(MONTH,1,FORMAT(a.[Date], 'yyyy-MM-dd','en')) [NextDate]
 		-- ,CAST(YEAR(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar) + '-0' + CAST(MONTH(DATEADD(MONTH,1,c.[DateDetail])) AS nvarchar)  [NextYearMonth]--FORMAT(DATEADD(MONTH,1,[Date]),'yyyy-MM-dd','en')
 		-- ,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'MMMM','th') [NextMonth]
@@ -782,43 +804,54 @@ from(
 			from #Estimatedcostsrequired er
 			full join #Estimatenewprojectcosts ec on  er.Detail = ec.Detail and er.Date = ec.Date
 		union all		
-			select * from #Material
+			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtMaterial) AmtMaterial from #Material group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all 
-			select * from #Subcontract
+			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtSubcontract) AmtSubcontract from #Subcontract group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all 
-			select * from #SalaryRate
+			select [ค่าใช้จ่าย]
+					,Sort
+					,[GroupType]
+					,[Detail]
+					,Date
+					,SUM([AmtSalaryRate])* Isnull(@SalaryRate,1) [AmtSalaryRate] from #SalaryRate group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all 
-			select * from #OnSiteDepreciation
+			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtOnSiteDepreciation) from #OnSiteDepreciation group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all 
-			select * from #FareRate
+			select [ค่าใช้จ่าย]
+					,Sort
+					,[GroupType]	
+					,[Detail]
+					,Date
+					,SUM([AmtFareRate]) * Isnull(@FareRate,1) [AmtFareRate] from #FareRate group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all 
-			select * from #AdvertisingExpensesVat
+			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtAdvertisingExpensesVat) AmtAdvertisingExpensesVat from #AdvertisingExpensesVat group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all 
 			select mv.ค่าใช้จ่าย,mv.Sort,mv.GroupType,mv.Detail
 			,mv.Date
-			,isnull(mv.AmtManageVat,0) 
-				- (isnull(sr.AmtSalaryRate,0) 
+			,isnull(mv.AmtManageVat,0)  + (isnull(fr.AmtFareRate,0) * (1-ISNULL(@FareRate,0)))
+				/*- (isnull(sr.AmtSalaryRate,0) 
 				+ isnull(fr.AmtFareRate,0) 
-				+ isnull(od.AmtOnSiteDepreciation,0) 
+				+ isnull(od.AmtOnSiteDepreciation,0)
 				+ isnull(mov.AmtManagementWithOutVat,0) 
-				+ isnull(ae.AmtAdvertisingExpensesVat,0)) [AmtManageVat]
-			from #SalaryRate sr
-			left join #FareRate fr on sr.Date = fr.Date
-			left join #OnSiteDepreciation od on sr.Date = od.Date
-			left join #ManagementWithOutVat mov on sr.Date = mov.Date
-			left join #ManageVat mv on sr.Date = mv.Date
-			left join #AdvertisingExpensesVat ae on sr.Date = ae.Date
+				+ isnull(ae.AmtAdvertisingExpensesVat,0)*/ [AmtManageVat]
+			from (SELECT [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtManageVat) AmtManageVat FROM #ManageVat GROUP BY [ค่าใช้จ่าย],Sort,GroupType,Detail,Date) mv
+			left join (select [ค่าใช้จ่าย],Sort,[GroupType]	,[Detail],Date,SUM([AmtFareRate])[AmtFareRate] from #FareRate GROUP BY [ค่าใช้จ่าย],Sort,[GroupType],[Detail],Date) fr on mv.Date = fr.Date
+
+			-- left join #OnSiteDepreciation od on sr.Date = od.Date
+			-- left join #ManagementWithOutVat mov on sr.Date = mov.Date
+			-- left join #ManageVat mv on sr.Date = mv.Date
+			-- left join #AdvertisingExpensesVat ae on sr.Date = ae.Date
 		union all 
-			select * from #ManagementWithOutVat
+			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtManagementWithOutVat)* (1-ISNULL(@SalaryRate,0)) AmtManagementWithOutVat from #ManagementWithOutVat group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all
-			select * from #Accouctchart4Vat
+			select [รายได้],Sort,GroupType,Detail,Date,SUM(AmtMaterial) AmtMaterial from #Accouctchart4Profit group by [รายได้],Sort,GroupType,Detail,Date
 		union all
-			select * from #Accouctchart4NoVat
+			select [รายได้],Sort,GroupType,Detail,Date,SUM(AmtMaterial) AmtMaterial from #Accouctchart4Vat group by [รายได้],Sort,GroupType,Detail,Date
 
 	) a		
 Group by a.รายได้,a.GroupType,a.Detail,a.Sort,a.[Date],a.Amount
 ) a
--- SELECT * FROM #CombineTable
+
 /******************** Temp #Variant ********************/
   IF OBJECT_ID(N'tempdb..#Variant', N'U') IS NOT NULL
     BEGIN
@@ -840,6 +873,219 @@ FROM (
 ) c 
 GROUP BY  c.Detail, c.NextYearMonth , c.NextMonth
 -- SELECT * FROM #Variant
+
+/******************** Temp #VAT ********************/
+IF OBJECT_ID('tempDB..#VAT', 'U') IS NOT NULL
+BEGIN
+	DROP TABLE #VAT
+END;
+/* เพิ่ม query จากรายงาน Vat Sell Report รวมกับ Vat Buy Report เพื่อเอามาเเทนช่อง Actual ตารางล่าง */
+SELECT vat.Detail,vat.yearMonth,vat.[Month],SUM(vat.TaxAmount) [TaxAmount]
+INTO #VAT
+FROM (
+	/* VAT Buy */
+		SELECT	
+		'2.01 VAT BUY' [Detail],
+		-- (t.Date) [TaxInvoiceDate] ,  ------------ ค.ศ.
+		FORMAT(t.SendTaxDate, 'yyyy-MM','en') [yearMonth],
+		FORMAT(t.SendTaxDate, 'MMMM','th') [Month],
+
+		CASE WHEN ISNULL(t.AvgTaxRate,-1) = -1
+			 THEN t.TaxBase * (CASE WHEN t.SetDocType = 'CreditNoteAP' THEN -1 WHEN t.SetDocTypeId = 149 AND ac.isDebit = 0 THEN -1 ELSE 1 END )
+			 ELSE t.NormalTaxBase * (CASE WHEN t.SetDocType = 'CreditNoteAP' THEN -1 WHEN t.SetDocTypeId = 149 AND ac.isDebit = 0 THEN -1 ELSE 1 END )
+		END	 [TaxBase] ,
+		CASE WHEN ISNULL(t.AvgTaxRate,-1) = -1
+			 THEN ROUND(t.TaxAmount, 2) * (CASE WHEN t.SetDocType = 'CreditNoteAP' THEN -1 WHEN t.SetDocTypeId = 149 AND ac.isDebit = 0 THEN -1 WHEN t.SetDocTypeId = 97 AND t.TaxBase < 0 THEN -1 ELSE 1 END)
+			 ELSE ROUND(t.NormalTaxAmount, 2) * (CASE WHEN t.SetDocType = 'CreditNoteAP' THEN -1 WHEN t.SetDocTypeId = 149 AND ac.isDebit = 0 THEN -1 ELSE 1 END)
+		END	 [TaxAmount] ,
+        CASE WHEN ISNULL(t.AvgTaxRate,-1) = -1
+			 THEN (t.TaxBase + ROUND(t.TaxAmount, 2)) * (CASE WHEN t.SetDocType = 'CreditNoteAP' THEN -1 WHEN t.SetDocTypeId = 149 AND ac.isDebit = 0 THEN -1 ELSE 1 END) 
+			 ELSE (t.NormalTaxBase + ROUND(t.NormalTaxAmount, 2)) * (CASE WHEN t.SetDocType = 'CreditNoteAP' THEN -1 WHEN t.SetDocTypeId = 149 AND ac.isDebit = 0 THEN -1 ELSE 1 END) 
+		END	 [TotalAmount] 
+		--  ,CASE WHEN ISNULL(t.AvgTaxRate,-1) = -1
+		-- 	 THEN t.TaxRate 
+		-- 	 ELSE t.AvgTaxRate
+		-- END	 [TaxRate] 
+
+
+		FROM	dbo.TaxItems t
+			outer apply	(	
+							SELECT  iv.InvoiceId,iv.Id ,
+								CASE WHEN iv.Description = '' THEN iv.ItemMetaName ELSE iv.Description END [Description]
+							FROM    dbo.InvoiceLines iv
+							WHERE   iv.LineNumber = 1 
+							and
+							(iv.InvoiceId = t.SetDocId AND t.SetDocTypeId = 37)
+						) iv /*ON iv.InvoiceId = t.SetDocId AND t.SetDocTypeId = 37*/
+			outer apply	(	
+							SELECT  GeneralAccount,AdjustInvoiceId
+							FROM    dbo.AdjustInvoiceLines CNAP
+							inner join dbo.AdjustInvoices AJ39 on CNAP.AdjustInvoiceId = AJ39.Id
+							WHERE 
+							/*
+							CNAP.AdjustInvoiceId IN ( SELECT Id FROM dbo.AdjustInvoices WHERE  DocTypeId = 39 )
+							AND 
+							*/
+							CNAP.SystemCategoryId = 111 
+							and 
+							(CNAP.AdjustInvoiceId = t.SetDocId AND t.SetDocTypeId IN ( 39, 40 ))
+						) CNAP /*ON CNAP.AdjustInvoiceId = t.SetDocId AND t.SetDocTypeId IN ( 39, 40 )*/
+			outer apply	(	
+							SELECT	j.MadeByDocCode,j.Code JVCode
+									,MIN(jl.AccountCode) AccountCode
+									,MIN(convert(nvarchar(2000),jl.AccountName)) AccountName 
+							FROM	dbo.JournalVouchers j
+									inner JOIN dbo.JVLines jl ON jl.JournalVoucherId = j.Id AND jl.isDebit = 0 and jl.GeneralAccount = 192
+							WHERE	
+							/*
+							j.Id IN  (SELECT JournalVoucherId FROM dbo.JVLines WHERE GeneralAccount = 192)
+							AND 
+							*/
+							/*j.MadeByDocCode = t.SetDocCode*/
+							(t.SetDocTypeId = j.MadeByTypeId and t.SetDocId = j.MadeByDocId)
+							GROUP BY j.MadeByDocCode,j.Code
+						)jj /*ON jj.MadeByDocCode = t.SetDocCode*/
+			LEFT JOIN dbo.AdjustInvoices ai	ON ai.id = t.SetDocId AND t.SetDocTypeId IN ( 39, 40 )
+			LEFT JOIN dbo.AcctElementSets ac ON ac.TaxItemGuId = t.guid And t.SetDocTypeId = 149
+			OUTER APPLY (
+				SELECT s.Id [SetId],sr.Zero [Zero] FROM dbo.AcctElementSets s
+				INNER JOIN dbo.AcctElementSets_RemainAcctElement sr ON s.Id	= sr.Id
+				WHERE s.TaxItemId = t.Id 
+				AND s.GeneralAccount = 192
+				GROUP BY s.Id,sr.Zero
+			) r
+			outer apply (
+						select sum(1) cnt from AcctElementSets s  with(forceseek)
+						where s.TaxItemId = t.Id 
+							and s.ReadyToUse = 1
+							and isnull(t.TaxAmount, 0) != 0
+			) s
+			outer apply (
+						select sum(1) cnt from JournalVouchers jv with(forceseek)
+						where jv.MadeByTypeId = t.SetDocTypeId 
+							and jv.MadeByDocId = t.SetDocId 
+							and jv.DocStatus in (4, 5)
+							and isnull(t.TaxAmount, 0) = 0
+			) jv
+			WHERE	t.TaxMetaCode = 'TH-01'
+					AND ((NULLIF(@StartDate,'1900-01-01') IS NULL AND NULLIF(@EndDate,'1900-01-01') IS NULL)
+							OR (CONVERT(NVARCHAR(10),t.SendTaxDate,120) BETWEEN @StartDate AND @EndDate) 
+								)
+					-- AND ((t.ExtOrgId = @ProjectId) OR @ProjectId IS NULL)
+					
+					
+					AND t.Status <> -1
+					
+					
+					-- AND ((NULLIF(@FromSendTaxDate,'1900-01-01') IS NULL) OR t.Status = 9)
+					AND ((t.OrgId IN (SELECT Id FROM #temporg)) OR @ProjectId IS NULL)
+					AND 
+					(
+							exists (select 1 from dbo.ProhibitedTaxItems pht 
+							LEFT JOIN dbo.ProhibitedTaxes p ON pht.ProhibitedTaxId = p.Id
+							WHERE p.DocStatus <> -1 AND  pht.GeneralAccount = 192 AND pht.TaxItemId = t.Id AND r.Zero = 0) 
+							OR  
+							(not exists (select 1 from dbo.ProhibitedTaxItems pht 
+							LEFT JOIN dbo.ProhibitedTaxes p ON pht.ProhibitedTaxId = p.Id
+							WHERE p.DocStatus <> -1 AND pht.GeneralAccount = 192 AND pht.TaxItemId = t.Id))
+					)
+
+
+		UNION ALL
+
+		/* Vat Sell */
+		SELECT    
+
+							'VAT SELL' [Detail],
+							-- ti.Date [TaxInvoiceDate] ,
+							FORMAT(ti.Date, 'yyyy-MM','en') [yearMonth],
+							FORMAT(ti.Date, 'MMMM','th') [Month],
+
+							CASE WHEN ti.DocStatus = '-1' THEN 0 
+									WHEN ti.Code = 'ExemptVat' THEN (ABS(ti.ExemptVatDocAmount))
+									ELSE (CASE s.isDebit WHEN 1 THEN (ABS(ti.TaxBase) *-1)  ELSE ti.TaxBase END ) END [TaxBase] ,
+							CASE ti.DocStatus WHEN -1 THEN 0 ELSE (CASE s.isDebit WHEN 1 THEN (ABS(ti.TaxAmount) *-1) ELSE ti.TaxAmount END ) END [TaxAmount] ,
+							CASE ti.DocStatus WHEN -1 THEN 0 ELSE (CASE s.isDebit WHEN 1 THEN ((ABS(ti.TaxBase) + ABS(ti.TaxAmount))* -1) ELSE ti.TaxBase + ti.TaxAmount END) END [TotalAmount] 
+							
+							-- ,case when ti.SystemCategoryId = 207
+							-- 	 THEN -1
+							-- 	 ELSE ti.TaxRate--CONCAT(FORMAT(ti.TaxRate,'0.00'),'%') 
+							-- END TaxRate
+
+				FROM      dbo.TaxItems ti with(nolock)
+				
+							LEFT JOIN dbo.AcctElementSets s with(nolock) ON ti.id = s.TaxItemId AND s.GeneralAccount IN ( 192, 292 )
+							outer apply (
+									SELECT doc.id pivID,dbo.GROUP_CONCAT_D(doc.Code,' ,') pivCode
+									,doc.LocationCode PivLocationCode,doc.LocationId PivLocationID
+									,doc.LocationName PivLocationName,doc.Remarks,jv.Code JvCode 
+									,CONCAT(sp1.SitePath,doc.id,'')SitePathProductInvoiceAR
+									FROM dbo.ProductInvoiceARs doc  with(nolock,forceseek)
+									LEFT JOIN dbo.JournalVouchers jv with(nolock) ON jv.MadeByTypeId = 438  AND jv.MadeByDocId = doc.Id
+									LEFT JOIN dbo.SitePathList() sp1 ON sp1.DocTypeId = jv.MadeByTypeId
+									where
+									doc.id = ti.SetDocId and ti.SetDocTypeId = 438
+									GROUP BY doc.id ,doc.LocationCode ,doc.LocationId 
+											,doc.LocationName ,doc.Remarks,jv.Code  
+											,CONCAT(sp1.SitePath,doc.id,'')
+							) piv
+							OUTER APPLY ( SELECT DISTINCT exts.DocId, exts.DocTypeId,IIF(exts.ExtOrgId = 0, exts.WorkerName, exts.ExtOrgName) ExtOrgName
+										FROM dbo.AcctElementSets exts
+										WHERE IIF(ISNULL(exts.ExtOrgId,0) = 0, ISNULL(exts.WorkerId,0), ISNULL(exts.ExtOrgId,0)) != 0
+										AND ti.SetDocId = exts.DocId
+										AND ti.SetDocTypeId = exts.DocTypeId
+							) ext
+							outer apply (SELECT doc.id ivID,dbo.GROUP_CONCAT_D(doc.Code,' ,') ivCode
+											,doc.LocationCode IvLocationCode,doc.LocationId IvLocationID
+											,doc.LocationName IvLocationName,doc.Remarks,jv.Code JvCode 
+											,CONCAT(sp1.SitePath,doc.id,'')SitePathInvoiceAR
+									FROM dbo.InvoiceARs doc  with(nolock,forceseek)
+									LEFT JOIN dbo.JournalVouchers jv with(nolock) ON jv.MadeByTypeId = 38  AND jv.MadeByDocId = doc.Id
+									LEFT JOIN dbo.SitePathList() sp1 ON sp1.DocTypeId = jv.MadeByTypeId
+									where
+									doc.id = ti.SetDocId and ti.SetDocTypeId = 38
+											GROUP BY doc.id ,doc.LocationCode ,doc.LocationId 
+														,doc.LocationName ,doc.Remarks,jv.Code  
+														,CONCAT(sp1.SitePath,doc.id,'')
+											) ivr /*ON ivr.ivID = ti.SetDocId */
+
+							outer apply ( SELECT t.Id taxitemid,Jvt.code JVCode,Jvt.date JVDate,t.SendTaxDate ,t.SetDocTypeId,jvt.MadeByTypeId,jvt.id
+
+										FROM taxitems t  with(nolock,forceseek)
+										LEFT JOIN dbo.JournalVouchers jvt with(nolock)  ON jvt.MadeByDocCode = t.setdoccode 
+						
+										WHERE t.SystemCategoryId IN (146,151) AND jvt.DocStatus <> -1 AND jvt.MadeByTypeId = 52 /*ReceveVoucher*/
+										and
+										t.id = ti.id AND ti.SetDocTypeId = 151
+									)jv /*on Jv.taxitemid = ti.id AND ti.SetDocTypeId = 151*/
+		
+			outer apply ( SELECT t.Id taxitemid,Jvt.code JVCode,Jvt.date JVDate,t.SendTaxDate ,t.SetDocTypeId,Jvt.MadeByTypeId,jvt.id
+
+										FROM taxitems t  with(nolock,forceseek)
+										LEFT JOIN dbo.JournalVouchers jvt with(nolock)  ON jvt.MadeByDocCode = t.setdoccode 
+						
+										WHERE t.SystemCategoryId IN (123,146,151) AND jvt.DocStatus <> -1 AND jvt.MadeByTypeId NOT IN (39,52) /*not ReceveVoucher AND CreditNoteAP*/
+										and
+										t.Id = ti.id AND ti.SetDocTypeId <> 151
+									)jv2 /*on Jv2.taxitemid = ti.id AND ti.SetDocTypeId <> 151*/
+
+							LEFT JOIN dbo.ExtOrganizations eo with(nolock) ON eo.id = ti.ExtOrgId
+							LEFT JOIN dbo.ReceiveVoucherLines rvl with(nolock) ON ti.Id = rvl.TaxItemId AND ti.TaxAmount = 0  AND ti.TaxRate = 0
+							LEFT JOIN dbo.ReceiveVouchers rv with(nolock) ON rv.Id = rvl.ReceiveVoucherId
+
+					WHERE       ti.TaxRate = 7
+									AND ti.TaxMetaCode = 'TH-03'
+									AND ti.Status IN (1,9,-1)
+									AND ((ti.OrgId IN (SELECT Id FROM #temporg)) OR @ProjectId IS NULL)
+									AND isnull(rv.Docstatus,0) <> -1
+									AND(	(CONVERT(NVARCHAR(10),ti.[Date], 120)BETWEEN @startDate AND  @endDate)
+						OR (NULLIF(@startDate,'1900-01-01') IS NULL AND NULLIF(@endDate,'1900-01-01') IS NULL)
+					)
+) vat
+GROUP BY vat.Detail,vat.[Month],vat.yearMonth
+ORDER BY vat.yearMonth ASC
+option(recompile)
+
 /******************** Temp #VATprice ********************/
   IF OBJECT_ID(N'tempdb..#VATprice', N'U') IS NOT NULL
     BEGIN
@@ -866,9 +1112,18 @@ FROM (
 		a.[yearMonth],
 		a.[Month],
 		a.[Total budget] [STotal Budget],
-		a.Actual [SActual]
+		/* a.Actual */0 [SActual]
 	FROM #CombineTable a
 	WHERE a.Detail IN ( '1.02 Vatขาย', '2.01 ค่าของมี Vat', '2.03 ค่าของโครงการใหม่ มี Vat', '2.05 ค่าแรงมี Vat', '2.07 ค่าแรงโครงการใหม่ มี Vat', '2.11 ค่าเดินทาง+น้ำมัน ปันส่วน Vat', '2.12 ค่าโฆษณา Vat', '2.13 บริหาร Vat')
+	UNION ALL
+		/* Union all กับ query VAT sell + Vat buy */
+		SELECT 'ภาษีมูลค่าเพิ่ม' [No.]
+		,b.Detail
+		,b.yearMonth
+		,b.[Month]
+		,0 [STotal Budget]
+		,b.TaxAmount [SActual]
+		FROM #VAT b
 	) a
 		-- GROUP BY a.[No.], a.Detail, a.yearMonth, a.[Month], a.[STotal Budget], a.SActual
 
@@ -933,6 +1188,7 @@ FROM (
 	FROM #CombineTable c
 	GROUP BY c.[No.], c.Detail, c.[type],c.SortType--, c.yearMonth, c.DateDetail
 ) c
+
 
 
 /******************** Temp #NetProfit********************/
@@ -1005,8 +1261,8 @@ FROM (
 -- select * from #AdvertisingExpensesVat
 -- select * from #Subcontract
 -- select * from #Material
+-- select * from #Accouctchart4Profit
 -- select * from #Accouctchart4Vat
--- select * from #Accouctchart4NoVat
 /********************CORE ********************************************/
 SELECT  a.[No.],
 		a.[Total],
@@ -1034,16 +1290,16 @@ FROM (SELECT a.[No.],
 		v.Detail [var_detail],
 		a.yearMonth [Date],
 		a.[Month],
-		NULL [RD (%)],
-		NULL [MTP (%)],
-		NULL [Diff (MTP - RD)],
-		a.[ประมาณการรายได้],
-		IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL) [ผลต่าง+-], --เอาอันนี้รวมกับใน total budget
-		a.[ประมาณการต้นทุนที่ต้องใช้],
-		a.[ประมาณการต้นทุนโครงการใหม่],
-		a.[Total budget],
-		a.Actual,
-		a.Diff
+		0.00 [RD (%)],
+		0.00 [MTP (%)],
+		0.00 [Diff (MTP - RD)],
+		ISNULL(a.[ประมาณการรายได้],0) [ประมาณการรายได้],
+		ISNULL(IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL),0) [ผลต่าง+-], --เอาอันนี้รวมกับใน total budget
+		ISNULL(a.[ประมาณการต้นทุนที่ต้องใช้],0) [ประมาณการต้นทุนที่ต้องใช้],
+		ISNULL(a.[ประมาณการต้นทุนโครงการใหม่],0) [ประมาณการต้นทุนโครงการใหม่],
+		ISNULL(a.[Total budget],0) [Total budget],
+		ISNULL(a.Actual,0) [Actual],
+		ISNULL(a.Diff,0) [Diff]
 FROM #CombineTable a 
 LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AND v.NextMonth = a.[Month]) a
 UNION ALL 
@@ -1059,12 +1315,12 @@ SELECT t.[No.]
 		,t.MTP [MTP (%)]
 		,t.[Diff (MTP - RD)] [Diff (MTP - RD)]
 		,t.[ประมาณการรายได้]
-		,NULL [ผลต่าง+-]
-		,t.[ประมาณการต้นทุนที่ต้องใช้] 
-		,t.[ประมาณการต้นทุนโครงการใหม่]
-		,t.[Total budget]
-		,t.Actual
-		,t.Diff
+		,0.00 [ผลต่าง+-]
+		,ISNULL(t.[ประมาณการต้นทุนที่ต้องใช้],0) [ประมาณการต้นทุนที่ต้องใช้]
+		,ISNULL(t.[ประมาณการต้นทุนโครงการใหม่],0) [ประมาณการต้นทุนโครงการใหม่]
+		,ISNULL(t.[Total budget],0) [Total budget]
+		,ISNULL(t.Actual,0) Actual
+		,ISNULL(t.Diff,0) Diff
 FROM #TotalCol t
 UNION ALL 
 SELECT a.[No.],
@@ -1078,13 +1334,13 @@ SELECT a.[No.],
 		a.SumRD [RD (%)],
 		a.SumMTP [MTP (%)],
 		a.[Sum MTP - RD] [Diff (MTP - RD)],
-		NULL [ประมาณการรายได้],
-		NULL [ผลต่าง+-],
-		NULL [ประมาณการต้นทุนที่ต้องใช้],
-		NULL [ประมาณการต้นทุนโครงการใหม่],
-		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL) [Total budget],
-		IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL) [Actual],
-		NULL Diff		
+		0.00 [ประมาณการรายได้],
+		0.00 [ผลต่าง+-],
+		0.00 [ประมาณการต้นทุนที่ต้องใช้],
+		0.00 [ประมาณการต้นทุนโครงการใหม่],
+		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL),0) [Total budget],
+		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL),0) [Actual],
+		0.00 Diff		
 FROM #NetProfit a
 
 
@@ -1119,7 +1375,7 @@ WITH SellVat AS (
 		,va.Actual [Actual]
 	FROM #VATprice va
 	WHERE va.VATDetail IN ('VAT ซื้อ', 'Vat ซื้อ โครงการใหม่')
-), PreVat AS (
+), PayVat AS (
 	SELECT a.[No.]
 		,a.yearMonth
 		,a.[Month]
@@ -1137,7 +1393,7 @@ WHERE a.Detail = 'VAT ขาย' OR b.Detail = 'VAT ซื้อ'
 		,va.[Month]
 		,IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07) [Total Budget]
 		,va.Actual
-		,(ISNULL(va.[Total budget],0) - ISNULL(va.Actual,0)) Diff	
+		,(ISNULL(IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07),0) - ISNULL(va.Actual,0)) Diff	
 FROM #VATprice va
 UNION ALL
 SELECT v.[No.]
@@ -1147,7 +1403,7 @@ SELECT v.[No.]
 		,v.addTotal [Total Budget]
 		,v.addActual [Actual]
 		,(ISNULL(v.addTotal,0) - ISNULL(v.addActual,0)) Diff
-FROM PreVat v
+FROM PayVat v
 )
 
 SELECT *
@@ -1189,13 +1445,13 @@ SELECT vt.[No.]
 		,vt.Detail
 		,'01' [Date]
 		,'Total' [Month]
-		,NULL [RD (%)]
-		,NULL [MTP (%)]
-		,NULL [Diff (MTP - RD)]
-		,NULL [ประมาณการรายได้]
-		,NULL [ผลต่าง+-]
-		,NULL [ประมาณการต้นทุนที่ต้องใช้]
-		,NULL [ประมาณการต้นทุนโครงการใหม่]
+		,0.00 [RD (%)]
+		,0.00 [MTP (%)]
+		,0.00 [Diff (MTP - RD)]
+		,0.00 [ประมาณการรายได้]
+		,0.00 [ผลต่าง+-]
+		,0.00 [ประมาณการต้นทุนที่ต้องใช้]
+		,0.00 [ประมาณการต้นทุนโครงการใหม่]
 		,SUM(vt.[Total Budget]) [Total Budget]
 		,SUM(vt.Actual) Actual
 		,SUM(vt.Diff) Diff
@@ -1207,17 +1463,16 @@ GROUP BY vt.[No.], vt.Detail
 ) VAT 
 ORDER BY Sort
 
--- SELECT 'ภาษีมูลค่าเพิ่ม' [No.],
--- 		'Vat ซื้อ โครงการใหม่' Detail,
--- 		a.[yearMonth],
--- 		a.[Month],
--- 		SUM(a.[Total budget]) [Total budget],
--- 		SUM(a.Actual) [Actual]
--- 	FROM #CombineTable a
--- 	WHERE a.Detail IN ( '2.03 ค่าของโครงการใหม่ มี Vat', '2.04 ค่าของโครงการใหม่ ไม่มี Vat', '2.07 ค่าแรงโครงการใหม่ มี Vat', '2.08 ค่าแรงโครงการใหม่ ไม่มี Vat')
--- 	GROUP BY a.yearMonth, a.[Month]
-
-
+select * from #SalaryRate
+select * from #FareRate
+select * from #OnSiteDepreciation
+select * from #ManagementWithOutVat
+select * from #ManageVat
+select * from #AdvertisingExpensesVat
+select * from #Subcontract
+select * from #Material
+select * from #Accouctchart4Profit
+select * from #Accouctchart4Vat
 /*Drop Temp*/
  IF OBJECT_ID(N'tempdb..#temporg', N'U') IS NOT NULL
     BEGIN
@@ -1280,14 +1535,14 @@ ORDER BY Sort
         DROP TABLE #Material;
     END;
 
+  IF OBJECT_ID(N'tempdb..#Accouctchart4Profit', N'U') IS NOT NULL
+    BEGIN
+        DROP TABLE #Accouctchart4Profit;
+    END;
+
   IF OBJECT_ID(N'tempdb..#Accouctchart4Vat', N'U') IS NOT NULL
     BEGIN
         DROP TABLE #Accouctchart4Vat;
-    END;
-
-  IF OBJECT_ID(N'tempdb..#Accouctchart4NoVat', N'U') IS NOT NULL
-    BEGIN
-        DROP TABLE #Accouctchart4NoVat;
     END;
 
 IF OBJECT_ID(N'tempdb..#CombineTable', N'U') IS NOT NULL
@@ -1298,6 +1553,11 @@ IF OBJECT_ID(N'tempdb..#CombineTable', N'U') IS NOT NULL
 IF OBJECT_ID(N'tempdb..#Variant', N'U') IS NOT NULL
 BEGIN
 	DROP TABLE #Variant;
+END;
+
+IF OBJECT_ID('tempDB..#VAT', 'U') IS NOT NULL
+BEGIN
+	DROP TABLE #VAT
 END;
 
 IF OBJECT_ID(N'tempdb..#VATprice', N'U') IS NOT NULL
