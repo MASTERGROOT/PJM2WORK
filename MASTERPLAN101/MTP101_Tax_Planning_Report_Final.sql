@@ -383,7 +383,7 @@ select	'ค่าใช้จ่าย' [ค่าใช้จ่าย]
 		,'2.14 บริหารไม่มี Vat' [Detail]
 		,a.Date,a.MadeByDocCode,a.AccountCode,a.AccountName
 		,sum(a.DeAmount) DeAmount,sum(a.CreAmount) CreAmount
-		,((sum(a.DeAmount)  - sum(a.CreAmount)) * (1-ISNULL(@SalaryRate,0))) [AmtManagementWithOutVat]
+		,((sum(a.DeAmount)  - sum(a.CreAmount))) [AmtManagementWithOutVat]
 Into #ManagementWithOutVat
 from
 	(select a.OrgId
@@ -842,7 +842,7 @@ from(
 			-- left join #ManageVat mv on sr.Date = mv.Date
 			-- left join #AdvertisingExpensesVat ae on sr.Date = ae.Date
 		union all 
-			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtManagementWithOutVat) AmtManagementWithOutVat from #ManagementWithOutVat group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
+			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtManagementWithOutVat)* (1-ISNULL(@SalaryRate,0)) AmtManagementWithOutVat from #ManagementWithOutVat group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all
 			select [รายได้],Sort,GroupType,Detail,Date,SUM(AmtMaterial) AmtMaterial from #Accouctchart4Profit group by [รายได้],Sort,GroupType,Detail,Date
 		union all
