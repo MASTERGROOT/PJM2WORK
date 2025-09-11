@@ -671,32 +671,34 @@ select	'รายได้' [รายได้]
 				else '1.02 Vatขาย'--'รายได้ผัง4ไม่มี Vat'
 			end*/'1.01 ประมาณการรายได้' [Detail]
 		,a.Date,a.DocCode,a.AccountCode,a.AccountName
-		,SUM(CASE WHEN a.isDebit = 1 THEN a.Amount ELSE 0 END) [DeAmount],SUM(CASE WHEN a.isDebit = 0 THEN a.Amount ELSE 0 END) [CreAmount]
-		,SUM(CASE WHEN a.isDebit = 0 THEN a.Amount ELSE 0 END) - SUM(CASE WHEN a.isDebit = 1 THEN a.Amount ELSE 0 END) [AmtMaterial]
+				,ISNULL(SUM(a.CreAmount),0) [CreAmount]
+		,ISNULL(SUM(a.DeAmount),0) [DeAmount]
+		,isnull(sum(a.Amount),0) [AmtMaterial]/* , a.AcctCode */
 Into #Accouctchart4Profit
 from(
-select DISTINCT s.Amount
-				,s.DocDate [Date]--FORMAT(s.DocDate ,'yyyyMM')  [Date]
+select CASE WHEN ISNULL(s.isDebit,jl.isDebit) <> ga.minusWhenDebit THEN ISNULL(s.Amount,jl.Amount) ELSE ISNULL(s.Amount,jl.Amount)*-1 END [Amount]
+				,CASE WHEN ISNULL(s.isDebit,jl.isDebit) <> ga.minusWhenDebit THEN ISNULL(s.Amount,jl.Amount) ELSE 0 END [CreAmount]
+				,CASE WHEN ISNULL(s.isDebit,jl.isDebit) <> ga.minusWhenDebit THEN 0 ELSE ISNULL(s.Amount,jl.Amount) END [DeAmount]
+				,ISNULL(s.DocDate,j.[Date]) [Date]--FORMAT(s.DocDate ,'yyyyMM')  [Date]
 				,s.OrgCode
-				,s.DocType
-				,s.DocCode,s.isDebit,s.AccountCode,s.AccountName
-from AcctElementSets s
--- INNER JOIN ChartOfAccounts coa ON coa.Id = s.AccountId
-OUTER APPLY (
-	select j.Id,jl.Id JVLineId,j.Code,j.JournalId,j.JournalCode
-    from JournalVouchers j
-    LEFT JOIN JVLines jl ON j.Id = jl.JournalVoucherId
-	where jl.Id = s.JVLineId
-) j
-where s.AccountCode LIKE '4%'/*IN (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
+				,ISNULL(s.DocType,j.MadeByType) [DocType]
+				,ISNULL(s.DocCode,j.MadeByDocCode) [DocCode],ISNULL(s.AccountCode,jl.AccountCode) [AccountCode],ISNULL(s.AccountName,jl.AccountName) [AccountName]
+FROM	    dbo.JVLines jl WITH (nolock)
+			   INNER JOIN dbo.JournalVouchers j WITH (NOLOCK) ON jl.JournalVoucherId = j.Id AND ISNULL(j.DocStatus,0) <> -1	and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี								
+			   LEFT JOIN dbo.GeneralAccountEntities ga WITH (NOLOCK) ON ga.EnumKey = jl.GeneralAccount
+			   LEFT JOIN dbo.Organizations o WITH (NOLOCK) ON IIF(ISNULL(jl.OrgId,0) IN (0,-1),j.OrgId,jl.OrgId) = o.Id
+			   LEFT JOIN dbo.AcctElementSets s WITH (NOLOCK) ON s.JVLineId = jl.Id --AND jl.MadeByDocTypeId = 149
+			   -- INNER JOIN ChartOfAccounts coa ON coa.Id = jl.AccountId
+where jl.AccountCode LIKE '4%'/* (41000101,41000201,41000300,41000301,41000400,41000401,41000501,41000600
 						,41000601,41000102,41000202,41000302,41000402,41000502,41000602,41000700
-						,41000701,41000702,41000703,41000704,41000705,41000707,41000708)*/ /* coa.AnalysisCode1 = 'ประมาณการรายได้' */
+						,41000701,41000702,41000703,41000704,41000705,41000707,41000708) *//* coa.AnalysisCode1 = 'Vatขาย' */
 		-- and s.isDebit = 0
-		AND j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
-		and (s.DocDate BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
-		and (s.OrgId in (select Id from #temporg) or @ProjectId is NULL)
-		--and i.SystemCategoryId in (123,129)
-)a group by a.Date,a.isDebit,a.DocCode,a.AccountCode,a.AccountName
+		and (CONVERT(DATE,ISNULL(NULLIF(s.DocDate,''),j.Date)) BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
+		and (ISNULL(s.OrgId,j.OrgId) in (select Id from #temporg) or @ProjectId is NULL) 
+		-- AND s.DocType IS NOT NULL
+		-- and i.SystemCategoryId not in (123,129)
+
+)a group by a.Date,a.DocCode,a.AccountCode,a.AccountName
 
 /******************** Temp #Accouctchart4Vat  1.02 Vatขาย********************/
   IF OBJECT_ID(N'tempdb..#Accouctchart4Vat', N'U') IS NOT NULL
