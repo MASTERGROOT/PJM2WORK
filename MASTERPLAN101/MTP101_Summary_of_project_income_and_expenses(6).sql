@@ -4,9 +4,9 @@
 /*รายได้แต่ละโครงการ - ผู้บริหาร*/
 /* คุณกร รวม VAT  */
 
---DECLARE @p0 DATETIME = '2025-09-03'
---DECLARE @p1 nvarchar(500) = NULL--'204'--'1931'--'1107,1152' --''--
---DECLARE @p2 BIT = 0
+DECLARE @p0 DATETIME = '2025-09-02'
+DECLARE @p1 nvarchar(500) = '216'--'1931'--'1107,1152' --''--
+DECLARE @p2 BIT = 0
 
 DECLARE @Todate DATETIME = @p0
 DECLARE @ProjectId nvarchar(500) = @p1
@@ -346,33 +346,24 @@ SELECT *
 INTO #TempCost
 FROM (
 		SELECT ccl.CommittedProjectId LocationId,ccl.RefDocId Id,ccl.RefDocCode Code,ccl.RefDocTypeId Doctype,ccl.[Date],ccl.RefDocLineId CommitLineId,bl.SystemCategoryId BudgetTypeId,bl.SystemCategory BudgetType,Doc.VatTypeId,Doc.VatType
-				,IIF(ccl.RefDocTypeId = 64,1.00,ccl.Amount/NULLIF(Doc.SubTotal,0.00)) pt,0.00 DPAmount,0.00 RTAmount,IIF(ccl.RefDocTypeId = 64,1.00,ccl.Amount/NULLIF(Doc.SubTotal,0.00))*Doc.WHT CommitWHT
-				,IIF((doc.VatTypeId = 123 AND doc.CalcVat = 1),ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0))  AS CommitAmount
-				,CASE WHEN (Doc.VatTypeId = 129 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)*100/107 
-						WHEN (Doc.VatTypeId = 123 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)
-						ELSE ISNULL(ccl.Amount,0)
-					END CommitTaxBase
-					,CASE WHEN (Doc.VatTypeId = 129 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0)*7/107
-						WHEN (Doc.VatTypeId = 123 AND Doc.CalcVat = 1) THEN ISNULL(ccl.Amount,0) * 7/100
-						ELSE 0
-					END CommitTaxAmount
+				,IIF(ccl.RefDocTypeId = 64,1.00,IIF((Doc.VatTypeId = 123 AND Doc.CalcVat = 1),ISNULL(ccl.Amount,0),ISNULL(ccl.Amount,0)*107/100)/NULLIF(Doc.SubTotal,0.00)) pt
+				,0.00 DPAmount,0.00 RTAmount,IIF(ccl.RefDocTypeId = 64,1.00,ccl.Amount/NULLIF(Doc.SubTotal,0.00))*Doc.WHT CommitWHT
+				,IIF(Doc.CalcVat = 1,ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0)) CommitAmount
+				,ISNULL(ccl.Amount,0) CommitTaxBase
+				,IIF(Doc.CalcVat = 1,ISNULL(ccl.Amount,0) * 7/100,0) CommitTaxAmount
 				,0.00 AdjustAmount,0.00 AdjustTaxBase,0.00 AdjustTaxAmount,NULL RefDocId2,CAST(NULL AS NVARCHAR(20)) RefDocCode2,NULL RefDocLineId2,0.00 InvoiceAmount,0.00 InvoiceTaxBase,0.00 InvoiceTaxAmount,0.00 InvoiceDPAmount,0.00 InvoiceRTAmount
 				,0.00 InvoiceAdjustAmount,0.00 InvoiceAdjustTaxBase,0.00 InvoiceAdjustTaxAmount
-				,IIF((DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))  AS PayAmount
-				,CASE WHEN (DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0)*100/107 
-						WHEN (DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0)
-						ELSE ISNULL(pcl.Amount,0)
-					END PayTaxBase
-					,CASE WHEN (DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0)*7/107
-						WHEN (DocPaid.VatTypeId = 123 AND DocPaid.CalcVat = 1) THEN ISNULL(pcl.Amount,0) * 7/100
-						ELSE 0
-					END AS PayTaxAmount
-				,0.00 RetentionSetAmount, IIF(pcl.RefDocTypeId = 64,1.00,pcl.Amount/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.DeductAmount DeductAmount, IIF(pcl.RefDocTypeId = 64,1.00,pcl.Amount/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
+				,IIF(DocPaid.CalcVat = 1,ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0)) AS PayAmount
+				,ISNULL(pcl.Amount,0) PayTaxBase
+				,IIF(DocPaid.CalcVat = 1,ISNULL(pcl.Amount,0) * 7/100,0) PayTaxAmount
+				,IIF(pcl.RefDocTypeId = 64,1.00,IIF((DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.RTAmount RetentionSetAmount
+				,IIF(pcl.RefDocTypeId = 64,1.00,IIF((DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.DeductAmount DeductAmount
+				,IIF(pcl.RefDocTypeId = 64,1.00,IIF((DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
 		from CommittedCostLines ccl
 		LEFT JOIN BudgetLines bl ON bl.Id = ccl.BudgetLineId
 		LEFT JOIN PaidCostLines pcl ON pcl.CommittedCostLineId = ccl.Id AND pcl.[Date] <= @Todate
 		OUTER APPLY (
-			SELECT op.Id DocId,opl.Id DocLineId,opl.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(op.WhtAmount,0) WHT,ISNULL(dd.DeductAmount,0) DeductAmount,ISNULL(st.StAmount,0) SubTotal
+			SELECT op.Id DocId,opl.Id DocLineId,opl.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(op.WhtAmount,0) WHT,ISNULL(dd.DeductAmount,0) DeductAmount,ISNULL(st.StAmount,0) SubTotal,ISNULL(rt.RTAmount,0) RTAmount
 					,opl.CalcVat,isDebit
 				from OtherPayments op
 				LEFT JOIN OtherPaymentLines opl ON opl.OtherPaymentId = op.Id
@@ -380,13 +371,15 @@ FROM (
 					) vat ON vat.OtherPaymentId = op.Id
 				LEFT JOIN ( SELECT OtherPaymentId,SUM(Amount) DeductAmount FROM OtherPaymentLines WHERE SystemCategoryId IN (176) GROUP BY OtherPaymentId
 					) dd ON dd.OtherPaymentId = op.Id
-				LEFT JOIN ( SELECT OtherPaymentId,SUM(Amount) STAmount FROM OtherPaymentLines WHERE SystemCategoryId IN (107) GROUP BY OtherPaymentId
+				LEFT JOIN ( SELECT OtherPaymentId,SUM(Amount) STAmount FROM OtherPaymentLines WHERE SystemCategoryId NOT IN (47,57,59,74,107,111,123,129,131,138,176) AND isDebit = 1 GROUP BY OtherPaymentId
 					) st ON st.OtherPaymentId = op.Id
+				LEFT JOIN ( SELECT OtherPaymentId,SUM(Amount) RTAmount FROM OtherPaymentLines WHERE GeneralAccount = 212 AND isDebit = 0 GROUP BY OtherPaymentId
+					) rt ON rt.OtherPaymentId = op.Id
 				where opl.guid = ccl.RefDocLineGuid AND ccl.RefDocTypeId = 43 --opl.Id = ccl.RefDocLineId AND ccl.RefDocTypeId = 43
 
 				UNION ALL
 
-				SELECT wel.WorkerExpenseId DocId,wel.Id DocLineId,wel.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(wht.WHT,0) WHT,0.00 DeductAmount,ISNULL(st.SubTotal,0) SubTotal
+				SELECT wel.WorkerExpenseId DocId,wel.Id DocLineId,wel.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(wht.WHT,0) WHT,0.00 DeductAmount,ISNULL(st.SubTotal,0) SubTotal, 0.00 RTAmount
 						,wel.CalcVat,1 isDebit
 				FROM workerexpenselines wel 
 				LEFT JOIN ( SELECT WorkerExpenseId,SystemCategoryId VatTypeId, SystemCategory VatType FROM WorkerExpenseLines WHERE SystemCategoryId IN (123,129,131) GROUP BY WorkerExpenseId,SystemCategoryId,SystemCategory
@@ -401,14 +394,14 @@ FROM (
 
 				UNION ALL
 
-				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,131 VatTypeId,'NoVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal
+				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,131 VatTypeId,'NoVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal, 0.00 RTAmount
 						, 1 CalcVat, isDebit
 				FROM journalvouchers jv
 				LEFT JOIN JVLines jvl ON jv.Id = jvl.JournalVoucherId
 				WHERE jvl.guid = ccl.RefDocLineGuid AND ccl.RefDocTypeId = 64 --jvl.Id = ccl.RefDocLineId AND ccl.RefDocTypeId = 64 AND jvl.IsDebit = 1
 		) Doc
 		OUTER APPLY (
-			SELECT op.Id DocId,opl.Id DocLineId,opl.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(op.WhtAmount,0) WHT,ISNULL(dd.DeductAmount,0) DeductAmount,ISNULL(st.StAmount,0) SubTotal
+			SELECT op.Id DocId,opl.Id DocLineId,opl.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(op.WhtAmount,0) WHT,ISNULL(dd.DeductAmount,0) DeductAmount,ISNULL(st.StAmount,0) SubTotal, ISNULL(rt.RTAmount,0) RTAmount
 					,opl.CalcVat,isDebit
 				from OtherPayments op
 				LEFT JOIN OtherPaymentLines opl ON opl.OtherPaymentId = op.Id
@@ -416,13 +409,15 @@ FROM (
 					) vat ON vat.OtherPaymentId = op.Id
 				LEFT JOIN ( SELECT OtherPaymentId,SUM(Amount) DeductAmount FROM OtherPaymentLines WHERE SystemCategoryId IN (176) GROUP BY OtherPaymentId
 					) dd ON dd.OtherPaymentId = op.Id
-				LEFT JOIN ( SELECT OtherPaymentId,SUM(Amount) STAmount FROM OtherPaymentLines WHERE SystemCategoryId IN (107) GROUP BY OtherPaymentId
+				LEFT JOIN ( SELECT OtherPaymentId,SUM(Amount) STAmount FROM OtherPaymentLines WHERE SystemCategoryId NOT IN (47,57,59,74,107,111,123,129,131,138,176) AND isDebit = 1 GROUP BY OtherPaymentId
 					) st ON st.OtherPaymentId = op.Id
+				LEFT JOIN ( SELECT OtherPaymentId,SUM(Amount) RTAmount FROM OtherPaymentLines WHERE GeneralAccount = 212 AND isDebit = 0 GROUP BY OtherPaymentId
+					) rt ON rt.OtherPaymentId = op.Id
 				where opl.guid = pcl.RefDocLineGuid AND ccl.RefDocTypeId = 43 --opl.Id = ccl.RefDocLineId AND ccl.RefDocTypeId = 43 
 
 				UNION ALL
 
-				SELECT wel.WorkerExpenseId DocId,wel.Id DocLineId,wel.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(wht.WHT,0) WHT,0.00 DeductAmount,ISNULL(st.SubTotal,0) SubTotal
+				SELECT wel.WorkerExpenseId DocId,wel.Id DocLineId,wel.guid,ISNULL(vat.VatTypeId,131) VatTypeId,ISNULL(vat.VatType,'NoVat') VatType,ISNULL(wht.WHT,0) WHT,0.00 DeductAmount,ISNULL(st.SubTotal,0) SubTotal ,0.00 RTAmount
 						,wel.CalcVat,1 isDebit
 				FROM workerexpenselines wel 
 				LEFT JOIN ( SELECT WorkerExpenseId,SystemCategoryId VatTypeId, SystemCategory VatType FROM WorkerExpenseLines WHERE SystemCategoryId IN (123,129,131) GROUP BY WorkerExpenseId,SystemCategoryId,SystemCategory
@@ -437,7 +432,7 @@ FROM (
 
 				UNION ALL
 
-				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,131 VatTypeId,'NoVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal
+				SELECT jvl.JournalVoucherId DocId ,jvl.Id DocLineId,jvl.guid,131 VatTypeId,'NoVat' VatType,0.00 WHT,0.00 DeductAmount,0.00 SubTotal, 0.00 RTAmount
 						, 1 CalcVat,isDebit
 				FROM journalvouchers jv
 				LEFT JOIN JVLines jvl ON jv.Id = jvl.JournalVoucherId
