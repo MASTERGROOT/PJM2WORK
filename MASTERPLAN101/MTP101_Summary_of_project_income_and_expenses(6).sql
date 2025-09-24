@@ -4,8 +4,8 @@
 /*รายได้แต่ละโครงการ - ผู้บริหาร*/
 /* คุณกร รวม VAT  */
 
-DECLARE @p0 DATETIME = '2025-09-19'
-DECLARE @p1 nvarchar(500) = '216'--'1931'--'1107,1152' --''--
+DECLARE @p0 DATETIME = '2025-09-03'
+DECLARE @p1 nvarchar(500) = NULL--'204'--'1931'--'1107,1152' --''--
 DECLARE @p2 BIT = 0
 
 DECLARE @Todate DATETIME = @p0
@@ -724,7 +724,7 @@ FROM (
 				select il.RefDocId2, il.RefDocCode2, il.RefDocLineId2
 					, SUM(il.InvoiceAmount)InvoiceAmount, SUM(il.InvoiceTaxBase)InvoiceTaxBase, SUM(il.InvoiceTaxAmount)InvoiceTaxAmount, SUM(il.InvoiceDPAmount)InvoiceDPAmount, SUM(il.InvoiceRTAmount)InvoiceRTAmount
 					, SUM(il.InvoiceAdjustAmount)InvoiceAdjustAmount, SUM(il.InvoiceAdjustTaxBase)InvoiceAdjustTaxBase, SUM(il.InvoiceAdjustTaxAmount) InvoiceAdjustTaxAmount
-					, SUM(il.Invpt*pv.PayAmount) + SUM(il.Invpt*pv.DeductAmount) - SUM(il.Invpt*pv.RetentionSetAmount) - SUM(il.Invpt*pv.WHT) NetPayAmount
+					, SUM(il.Invpt*pv.PayAmount) - SUM(il.Invpt*pv.DeductAmount) - SUM(il.Invpt*pv.RetentionSetAmount) - SUM(il.Invpt*pv.WHT) NetPayAmount
 					, SUM(il.Invpt*pv.PayAmount) PayAmount
 					, SUM(CASE WHEN (il.VatTypeId IN (123,129) AND il.CalcVat = 1) THEN il.Invpt*pv.PayAmount * 100/107
 					ELSE il.Invpt*pv.PayAmount END) PayTaxBase
@@ -748,7 +748,7 @@ FROM (
 			, AdjustAmount AdjustPOAmount, AdjustTaxBase AdjustPOTaxBase, AdjustTaxAmount AdjustPOTaxAmount
 			, RefDocId2, RefDocCode2, RefDocLineId2, InvoiceAmount, InvoiceTaxBase, InvoiceTaxAmount, InvoiceDPAmount, InvoiceRTAmount
 			, InvoiceAdjustAmount, InvoiceAdjustTaxBase, InvoiceAdjustTaxAmount
-			, PayAmount + DeductAmount - RetentionSetAmount - WHT [NetPayAmount], PayAmount, PayTaxBase, PayTaxAmount, RetentionSetAmount, DeductAmount, WHT
+			, PayAmount - DeductAmount - RetentionSetAmount - WHT [NetPayAmount], PayAmount, PayTaxBase, PayTaxAmount, RetentionSetAmount, DeductAmount, WHT
 		FROM #TempCost
 		WHERE BudgetTypeId = 99
 	) poRemain
@@ -802,7 +802,7 @@ FROM (
 				select il.RefDocId2, il.RefDocCode2, il.RefDocLineId2
 					, SUM(il.InvoiceAmount)InvoiceAmount, SUM(il.InvoiceTaxBase)InvoiceTaxBase, SUM(il.InvoiceTaxAmount)InvoiceTaxAmount, SUM(il.InvoiceDPAmount)InvoiceDPAmount, SUM(il.InvoiceRTAmount)InvoiceRTAmount
 					, SUM(il.InvoiceAdjustAmount)InvoiceAdjustAmount, SUM(il.InvoiceAdjustTaxBase)InvoiceAdjustTaxBase, SUM(il.InvoiceAdjustTaxAmount) InvoiceAdjustTaxAmount
-					, SUM(il.Invpt*pv.PayAmount) + SUM(il.Invpt*pv.DeductAmount) - SUM(il.Invpt*pv.RetentionSetAmount) - SUM(il.Invpt*pv.WHT) NetPayAmount
+					, SUM(il.Invpt*pv.PayAmount) - SUM(il.Invpt*pv.DeductAmount) - SUM(il.Invpt*pv.RetentionSetAmount) - SUM(il.Invpt*pv.WHT) NetPayAmount
 					, SUM(il.Invpt*pv.PayAmount) PayAmount
 					, SUM(CASE WHEN (il.VatTypeId IN (123,129) AND il.CalcVat = 1) THEN il.Invpt*pv.PayAmount * 100/107
 					ELSE il.Invpt*pv.PayAmount END) PayTaxBase
@@ -826,7 +826,7 @@ FROM (
 			, AdjustAmount AdjustSCAmount, AdjustTaxBase AdjustSCTaxBase, AdjustTaxAmount AdjustSCTaxAmount
 			, RefDocId2, RefDocCode2, RefDocLineId2, InvoiceAmount, InvoiceTaxBase, InvoiceTaxAmount, InvoiceDPAmount, InvoiceRTAmount
 			, InvoiceAdjustAmount, InvoiceAdjustTaxBase, InvoiceAdjustTaxAmount
-			, PayAmount + DeductAmount - RetentionSetAmount - WHT [NetPayAmount], PayAmount, PayTaxBase, PayTaxAmount, RetentionSetAmount, DeductAmount, WHT
+			, PayAmount - DeductAmount - RetentionSetAmount - WHT [NetPayAmount], PayAmount, PayTaxBase, PayTaxAmount, RetentionSetAmount, DeductAmount, WHT
 		FROM #TempCost
 		WHERE BudgetTypeId = 105
 	) scRemain
