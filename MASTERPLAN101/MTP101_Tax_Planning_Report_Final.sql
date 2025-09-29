@@ -1,9 +1,9 @@
 
--- DECLARE @p0 DATE = '2025-01-01'
--- DECLARE @p1 DATE = '2025-12-31'
--- DECLARE @p2 NVARCHAR(MAX)  = '1' 
--- DECLARE @p3 DECIMAL(10,2) = 0.51 /*0.51*/
--- DECLARE @p4 DECIMAL(10,2)  = 0.49 /*0.80*/
+DECLARE @p0 DATE = '2025-01-01'
+DECLARE @p1 DATE = '2025-12-31'
+DECLARE @p2 NVARCHAR(MAX)  = '1' 
+DECLARE @p3 DECIMAL(10,2) = 0.51 /*0.51*/
+DECLARE @p4 DECIMAL(10,2)  = 0.49 /*0.80*/
 /*มีการเขียน Script ใน Designer ว่าไม่ให้คำนวณ SubTotal ถ้า Detail เป็น 1.02 Vatขาย*/
 
 DECLARE @startDate DATE = @p0
@@ -1232,8 +1232,8 @@ FROM (
 		-- -- SUM(c.[ประมาณการรายได้]) AS Sum_ประมาณการรายได้,
         -- -- SUM(c.[ประมาณการต้นทุนที่ต้องใช้]) AS Sum_ประมาณการต้นทุนที่ต้องใช้,
         -- -- SUM(c.[ประมาณการต้นทุนโครงการใหม่]) AS Sum_ประมาณการต้นทุนโครงการใหม่,
-        SUM(c.[Total budget]) AS Sum_Total_budget,
-        SUM(c.[Actual]) AS Sum_Actual
+        SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[Total budget])) AS Sum_Total_budget,
+        SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[Actual])) AS Sum_Actual
         -- -- SUM(c.[Diff]) AS Sum_Diff
 	FROM (
 				SELECT a.[No.],
@@ -1344,6 +1344,7 @@ FROM #TotalCol t
 LEFT JOIN (
 	SELECT Detail,SUM(d) d
 	from #Variant
+	where NextYearMonth != FORMAT(@EndDate, 'yyyy-MM','en')
 	GROUP BY Detail
 ) vt ON vt.Detail = t.Detail
 UNION ALL 
