@@ -1,6 +1,6 @@
 
 -- DECLARE @p0 DATE = '2025-01-01'
--- DECLARE @p1 DATE = '2025-01-31'
+-- DECLARE @p1 DATE = '2025-12-31'
 -- DECLARE @p2 NVARCHAR(MAX)  = '1' 
 -- DECLARE @p3 DECIMAL(10,2) = 0.51 /*0.51*/
 -- DECLARE @p4 DECIMAL(10,2)  = 0.49 /*0.80*/
@@ -1134,10 +1134,10 @@ GROUP BY v.[No.], v.VATDetail, v.yearMonth, v.[Month]
 
 /******************** Temp #TotalCol ********************/
 DECLARE @profit DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้')
-DECLARE @ProductActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ')
-DECLARE @WorkerActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง')
-DECLARE @OtherActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง')
-DECLARE @ManagementActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร')
+-- DECLARE @ProductActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ')
+-- DECLARE @WorkerActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง')
+-- DECLARE @OtherActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง')
+-- DECLARE @ManagementActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร')
 
   IF OBJECT_ID(N'tempdb..#TotalCol', N'U') IS NOT NULL
     BEGIN
@@ -1168,17 +1168,33 @@ FROM (
 			,'01' [TotalDate]
 			,'Total' [TotalMonth]
 			,CASE WHEN (c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้') THEN CAST('1' AS DEC(10, 4))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN CAST('0.5' AS DEC(10, 4))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.03 ค่าแรงมี Vat') THEN CAST('0.34' AS DEC(10, 4))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.05 เงินเดือน ปันส่วน') THEN CAST('0.055' AS DEC(10, 4))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.08 ค่าโฆษณา Vat') THEN CAST('0.075' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN CAST('0.2132' AS DEC(10, 4)) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.02 ค่าของไม่มี Vat') THEN CAST('0.0936' AS DEC(10, 4)) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.03 ค่าของโครงการใหม่ มี Vat') THEN CAST('0.2132' AS DEC(10, 4)) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.05 ค่าแรงมี Vat') THEN CAST('0.008' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.06 ค่าแรงไม่มี Vat') THEN CAST('0.064' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.07 ค่าแรงโครงการใหม่ มี Vat') THEN CAST('0.008' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.09 เงินเดือน ปันส่วน') THEN CAST('0' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.10 ค่าเสื่อมราคาหน้างาน') THEN CAST('0' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.11 ค่าเดินทาง+น้ำมัน ปันส่วน Vat') THEN CAST('0.17' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.12 ค่าโฆษณา Vat') THEN CAST('0.1' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.13 บริหาร Vat') THEN CAST('0.1' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.14 บริหารไม่มี Vat') THEN CAST('0' AS DEC(10, 4))
 				ELSE NULL
 			END [RD]
 			,CASE WHEN (c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้') THEN '1'
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN (@ProductActual * 0.01 / @profit) 
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.03 ค่าแรงมี Vat') THEN (@WorkerActual * 0.01 / @profit)
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.05 เงินเดือน ปันส่วน') THEN (@OtherActual * 0.01 / @profit)
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.08 ค่าโฆษณา Vat') THEN (@ManagementActual * 0.01 / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN (SUM(c.Actual) / @profit) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.02 ค่าของไม่มี Vat') THEN (SUM(c.Actual) / @profit) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.03 ค่าของโครงการใหม่ มี Vat') THEN (SUM(c.Actual) / @profit) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.05 ค่าแรงมี Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.06 ค่าแรงไม่มี Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.07 ค่าแรงโครงการใหม่ มี Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.09 เงินเดือน ปันส่วน') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.10 ค่าเสื่อมราคาหน้างาน') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.11 ค่าเดินทาง+น้ำมัน ปันส่วน Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.12 ค่าโฆษณา Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.13 บริหาร Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.14 บริหารไม่มี Vat') THEN (SUM(c.Actual) / @profit)
 			ELSE NULL
 			END [MTP]
 			,SUM(c.[ประมาณการรายได้]) [ประมาณการรายได้]
@@ -1317,13 +1333,18 @@ SELECT t.[No.]
 		,t.MTP [MTP (%)]
 		,t.[Diff (MTP - RD)] [Diff (MTP - RD)]
 		,t.[ประมาณการรายได้]
-		,0.00 [ผลต่าง+-]
+		,ISNULL(vt.d,0) [ผลต่าง+-]
 		,ISNULL(t.[ประมาณการต้นทุนที่ต้องใช้],0) [ประมาณการต้นทุนที่ต้องใช้]
 		,ISNULL(t.[ประมาณการต้นทุนโครงการใหม่],0) [ประมาณการต้นทุนโครงการใหม่]
 		,ISNULL(t.[Total budget],0) [Total budget]
 		,ISNULL(t.Actual,0) Actual
 		,ISNULL(t.Diff,0) Diff
 FROM #TotalCol t
+LEFT JOIN (
+	SELECT Detail,SUM(d) d
+	from #Variant
+	GROUP BY Detail
+) vt ON vt.Detail = t.Detail
 UNION ALL 
 SELECT a.[No.],
 		NULL Total,
