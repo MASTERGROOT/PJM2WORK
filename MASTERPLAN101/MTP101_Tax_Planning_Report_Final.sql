@@ -4,7 +4,7 @@
 -- DECLARE @p2 NVARCHAR(MAX)  = '1' 
 -- DECLARE @p3 DECIMAL(10,2) = 0.51 /*0.51*/
 -- DECLARE @p4 DECIMAL(10,2)  = 0.49 /*0.80*/
-
+/*มีการเขียน Script ใน Designer ว่าไม่ให้คำนวณ SubTotal ถ้า Detail เป็น 1.02 Vatขาย*/
 
 DECLARE @startDate DATE = @p0
 DECLARE @endDate DATE = @p1
@@ -1113,6 +1113,7 @@ FROM (
 		a.Detail,
 		a.[yearMonth],
 		a.[Month],
+		-- CASE WHEN a.type =
 		a.[Total budget] [STotal Budget],
 		/* a.Actual */0 [SActual]
 	FROM #CombineTable a
