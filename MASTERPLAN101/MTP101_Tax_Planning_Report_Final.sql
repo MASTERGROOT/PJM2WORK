@@ -1229,12 +1229,13 @@ FROM (
 		1 - IIF(c.[No.] = 'ค่าใช้จ่าย', SUM(c.RD), NULL) [SumRD],
 		1 - IIF(c.[No.] = 'ค่าใช้จ่าย', SUM(c.MTP), NULL) [SumMTP],
 		IIF(c.[No.] = 'ค่าใช้จ่าย',SUM(c.[Diff (MTP - RD)]),NULL) [Sum MTP - RD],
+		SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[ผลต่าง+-])) [ผลต่าง+-],
 		-- -- SUM(c.[ประมาณการรายได้]) AS Sum_ประมาณการรายได้,
         -- -- SUM(c.[ประมาณการต้นทุนที่ต้องใช้]) AS Sum_ประมาณการต้นทุนที่ต้องใช้,
         -- -- SUM(c.[ประมาณการต้นทุนโครงการใหม่]) AS Sum_ประมาณการต้นทุนโครงการใหม่,
         SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[Total budget])) AS Sum_Total_budget,
-        SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[Actual])) AS Sum_Actual
-        -- -- SUM(c.[Diff]) AS Sum_Diff
+        SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[Actual])) AS Sum_Actual,
+        SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[Diff])) AS Sum_Diff
 	FROM (
 				SELECT a.[No.],
 				a.[type] [Total],
@@ -1245,10 +1246,12 @@ FROM (
 				NULL [RD],
 				NULL [MTP],
 				NULL [Diff (MTP - RD)],
+				ISNULL(IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL),0) [ผลต่าง+-],
 				a.[Total budget],
 				a.Actual,
 				a.Diff
 		FROM #CombineTable a
+		LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AND v.NextMonth = a.[Month]
 		UNION ALL 
 		SELECT t.[No.]
 				,t.[type] [Total]
@@ -1259,14 +1262,40 @@ FROM (
 				,t.RD
 				,t.MTP
 				,t.[Diff (MTP - RD)]
+				,ISNULL(vt.d,0) [ผลต่าง+-]
 				,t.[Total budget]
 				,t.Actual
 				,t.Diff
 		FROM #TotalCol t
+		LEFT JOIN (
+					SELECT Detail,SUM(d) d
+					from #Variant
+					where NextYearMonth <= FORMAT(@EndDate, 'yyyy-MM','en')
+					GROUP BY Detail
+				) vt ON vt.Detail = t.Detail
 	) c
 	GROUP BY c.[No.],c.[Date], c.Month
 ) c
 -- SELECT * FROM #NetProfit
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#NetVarient', 'U') IS NOT NULL
+DROP TABLE #NetVarient
+-- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
+SELECT *
+INTO #NetVarient
+FROM (
+	SELECT 
+		c.GroupType
+		-- ,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'yyyy-MM-dd','en') [NextDate]
+		,FORMAT(DATEADD(MONTH,1,CAST(c.[Date] + '-01' AS DATE)), 'yyyy-MM','en') [NextYearMonth]--FORMAT(DATEADD(MONTH,1,[Date]),'yyyy-MM-dd','en')
+		,FORMAT(DATEADD(MONTH,1,CAST(c.[Date] + '-01' AS DATE)),'MMMM','th') [NextMonth]
+		,SUM(c.[Sum_Total_budget]) tb
+		,SUM(c.Sum_Actual) a
+		,SUM(c.Sum_Diff) d
+	FROM #NetProfit c
+	WHERE c.[Date] <> '01'
+	GROUP BY c.GroupType,c.[Date]
+) a
 /*********************************************************************/
 /********************Test Temp****************************************/
 -- select * from #Revenue
@@ -1344,7 +1373,7 @@ FROM #TotalCol t
 LEFT JOIN (
 	SELECT Detail,SUM(d) d
 	from #Variant
-	where NextYearMonth != FORMAT(@EndDate, 'yyyy-MM','en')
+	where NextYearMonth <= FORMAT(@EndDate, 'yyyy-MM','en')
 	GROUP BY Detail
 ) vt ON vt.Detail = t.Detail
 UNION ALL 
@@ -1360,13 +1389,25 @@ SELECT a.[No.],
 		a.SumMTP [MTP (%)],
 		a.[Sum MTP - RD] [Diff (MTP - RD)],
 		0.00 [ประมาณการรายได้],
-		0.00 [ผลต่าง+-],
+		ISNULL(IIF(a.GroupType = 'รวมรายได้', b.d,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', b.d,0),0) [ผลต่าง+-],
 		0.00 [ประมาณการต้นทุนที่ต้องใช้],
 		0.00 [ประมาณการต้นทุนโครงการใหม่],
 		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL),0) [Total budget],
 		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL),0) [Actual],
-		0.00 Diff		
+		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Diff,0) - IIF(a.GroupType = 'รวมรายได้', a.Sum_Diff,0)),NULL),0) Diff		
 FROM #NetProfit a
+LEFT JOIN (SELECT GroupType
+		,NextYearMonth
+		,NextMonth
+		,d
+FROM #NetVarient
+UNION ALL
+SELECT GroupType
+		,'01' NextYearMonth
+		,'Total' NextMonth
+		,SUM(d) d
+FROM #NetVarient WHERE NextYearMonth <= FORMAT(@EndDate, 'yyyy-MM','en')
+GROUP BY GroupType) b ON a.GroupType = b.GroupType and a.[Date] = b.[NextYearMonth] AND a.[Month] = b.[NextMonth]
 
 
 /************************************************************************************************************************************************************************/
@@ -1408,9 +1449,17 @@ WITH SellVat AS (
 		,ISNULL(a.[Total Budget],0) - ISNULL(b.[Total Budget],0) [addTotal]
 		,ISNULL(a.Actual,0) - ISNULL(b.Actual,0) [addActual]
 FROM SellVat a
-INNER JOIN BuyVat b
+INNER JOIN (
+	SELECT [No.]
+		,yearMonth
+		,[Month]
+		,SUM([Total Budget]) [Total Budget]
+		,SUM(Actual) Actual
+	FROM BuyVat
+	GROUP BY [No.],yearMonth,[Month]
+) b
 ON a.yearMonth = b.yearMonth
-WHERE a.Detail = 'VAT ขาย' OR b.Detail = 'VAT ซื้อ'
+-- WHERE a.Detail = 'VAT ขาย' OR b.Detail IN ('VAT ซื้อ','Vat ซื้อ โครงการใหม่')
 ), VatTotal AS (
 	SELECT va.[No.]
 		,va.VATDetail [Detail]
@@ -1599,3 +1648,6 @@ IF OBJECT_ID(N'tempdb..#NetProfit', N'U') IS NOT NULL
     BEGIN
         DROP TABLE #NetProfit;
     END;
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#NetVarient', 'U') IS NOT NULL
+DROP TABLE #NetVarient
