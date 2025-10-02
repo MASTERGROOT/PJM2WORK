@@ -1279,7 +1279,9 @@ FROM (
 -- SELECT * FROM #NetProfit
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#NetVarient', 'U') IS NOT NULL
-DROP TABLE #NetVarient
+    BEGIN
+		DROP TABLE #NetVarient
+    END;
 -- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
 SELECT *
 INTO #NetVarient
@@ -1422,6 +1424,12 @@ select  CONCAT('Date : ', FORMAT(@startDate, 'dd/MM/yyyy'), ' To ', FORMAT(@endD
 /*3-Company*/
 select * from fn_CompanyInfoTable(@ProjectId);
 
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#CombineTable2', 'U') IS NOT NULL
+	BEGIN
+		DROP TABLE #CombineTable2
+    END;
+
 /*VAT*/
 WITH SellVat AS (
 	SELECT va.[No.]
@@ -1467,7 +1475,7 @@ ON a.yearMonth = b.yearMonth
 		,va.[Month]
 		,IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07) [Total Budget]
 		,va.Actual
-		,(ISNULL(IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07),0) - ISNULL(va.Actual,0)) Diff	
+		,(ISNULL(va.Actual,0) - ISNULL(IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07),0)) Diff	
 FROM #VATprice va
 UNION ALL
 SELECT v.[No.]
@@ -1476,11 +1484,13 @@ SELECT v.[No.]
 		,v.[Month]
 		,v.addTotal [Total Budget]
 		,v.addActual [Actual]
-		,(ISNULL(v.addTotal,0) - ISNULL(v.addActual,0)) Diff
+		,(ISNULL(v.addActual,0) - ISNULL(v.addTotal,0)) Diff
 FROM PayVat v
 )
 
+-- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
 SELECT *
+INTO #CombineTable2
 FROM (
 	SELECT vt.[No.]
 		,NULL Total
@@ -1534,8 +1544,54 @@ SELECT vt.[No.]
 		-- ,IIF(vt.Detail = 'VAT ขาย', SUM(vt.Diff),SUM(vt.Diff) * 0.07) [Diff]
 FROM VatTotal vt
 GROUP BY vt.[No.], vt.Detail
-) VAT 
-ORDER BY Sort
+) v
+
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#VarientCombineTable2', 'U') IS NOT NULL
+BEGIN
+	DROP TABLE #VarientCombineTable2
+END;
+-- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
+SELECT *
+INTO #VarientCombineTable2
+FROM (
+	SELECT [No.]
+		,Detail
+		,FORMAT(DATEADD(MONTH,1,CAST([Date] + '-01' AS DATE)), 'yyyy-MM','en') [NextYearMonth]
+		,FORMAT(DATEADD(MONTH,1,CAST([Date] + '-01' AS DATE)),'MMMM','th') [NextMonth]
+		,Diff
+	FROM #CombineTable2
+	WHERE Date <> '01'
+	UNION ALL
+	SELECT [No.]
+		,Detail
+		,'01' [NextYearMonth]
+		,'Total' [NextMonth]
+		,SUM(Diff) Diff
+	from #CombineTable2
+	WHERE Date <> '01' AND FORMAT(DATEADD(MONTH,1,CAST([Date] + '-01' AS DATE)), 'yyyy-MM','en') <= FORMAT(@EndDate, 'yyyy-MM','en')
+	group by [No.],Detail
+) var
+/******************** VAT ********************************************/
+SELECT ct2.[No.]
+		,ct2.Total
+		,ct2.GroupType
+		,ct2.Sort
+		,ct2.Detail
+		,ct2.[Date]
+		,ct2.[Month]
+		,ct2.[RD (%)]
+		,ct2.[MTP (%)]
+		,ct2.[Diff (MTP - RD)]
+		,ct2.[ประมาณการรายได้]
+		,ISNULL(vct2.Diff,0) [ผลต่าง+-]
+		,ct2.[ประมาณการต้นทุนที่ต้องใช้]
+		,ct2.[ประมาณการต้นทุนโครงการใหม่]
+		,ct2.[Total Budget]
+		,ct2.Actual
+		,ct2.Diff
+FROM #CombineTable2 ct2
+LEFT JOIN #VarientCombineTable2 vct2 ON ct2.[No.] = vct2.[No.] AND ct2.Detail = vct2.Detail AND ct2.[Date] = vct2.[NextYearMonth] AND ct2.[Month] = vct2.[NextMonth]
 
 select * from #SalaryRate
 select * from #FareRate
@@ -1650,4 +1706,16 @@ IF OBJECT_ID(N'tempdb..#NetProfit', N'U') IS NOT NULL
     END;
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#NetVarient', 'U') IS NOT NULL
-DROP TABLE #NetVarient
+    BEGIN
+		DROP TABLE #NetVarient
+    END;
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#CombineTable2', 'U') IS NOT NULL
+	BEGIN
+		DROP TABLE #CombineTable2
+    END;
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#VarientCombineTable2', 'U') IS NOT NULL
+BEGIN
+	DROP TABLE #VarientCombineTable2
+END;
