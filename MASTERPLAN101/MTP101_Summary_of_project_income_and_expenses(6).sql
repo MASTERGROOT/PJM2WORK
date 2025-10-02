@@ -5,7 +5,7 @@
 /* คุณกร รวม VAT  */
 
 DECLARE @p0 DATETIME = '2025-09-03'
-DECLARE @p1 nvarchar(500) = NULL--'204'--'1931'--'1107,1152' --''--
+DECLARE @p1 nvarchar(500) = '204'--'204'--'1931'--'1107,1152' --''--
 DECLARE @p2 BIT = 0
 
 DECLARE @Todate DATETIME = @p0
@@ -1273,9 +1273,17 @@ select @Todate [As Of Date]
 /************************************************************************************************************************************************************************/
 
 /*3-Company*/
-select *
-from fn_CompanyInfoTable(@ProjectId)
+select * from fn_CompanyInfoTable(@ProjectId)
 
+SELECT * from #TempPo
+SELECT * from #TempSC
+SELECT * from #TempInvoice 
+SELECT * from #TempPV
+SELECT * from #TempCost
+SELECT * from #PoRemain
+SELECT * from #SCRemain
+SELECT * from #TempInterim
+SELECT * FROM #TempProjectInfo
 
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#TempPo', 'U') IS NOT NULL
@@ -1299,3 +1307,11 @@ DROP TABLE #PoRemain
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#SCRemain', 'U') IS NOT NULL
 DROP TABLE #SCRemain
+IF OBJECT_ID(N'tempdb..#TempInterim') IS NOT NULL
+BEGIN
+	DROP TABLE #TempInterim;
+END;
+IF OBJECT_ID(N'tempdb..#TempProjectInfo') IS NOT NULL
+BEGIN
+	DROP TABLE #TempProjectInfo;
+END;
