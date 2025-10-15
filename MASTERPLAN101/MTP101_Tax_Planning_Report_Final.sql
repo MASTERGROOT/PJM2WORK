@@ -808,7 +808,7 @@ from(
 		union all		
 			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtMaterial) AmtMaterial from #Material group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all 
-			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,SUM(AmtSubcontract) AmtSubcontract from #Subcontract group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
+			select [ค่าใช้จ่าย],Sort,GroupType,Detail,Date,ISNULL(SUM(AmtSubcontract),0) AmtSubcontract from #Subcontract group by [ค่าใช้จ่าย],Sort,GroupType,Detail,Date
 		union all 
 			select [ค่าใช้จ่าย]
 					,Sort
@@ -1153,6 +1153,7 @@ SELECT c.[No.]
 		,c.RD
 		,c.MTP
 		,ISNULL(c.MTP - c.RD, NULL) [Diff (MTP - RD)]
+		,c.[ผลต่าง+-]
 		,c.[ประมาณการรายได้]
 		,c.[ประมาณการต้นทุนที่ต้องใช้]
 		,c.[ประมาณการต้นทุนโครงการใหม่]
@@ -1199,12 +1200,29 @@ FROM (
 			ELSE NULL
 			END [MTP]
 			,SUM(c.[ประมาณการรายได้]) [ประมาณการรายได้]
+			,SUM(c.[ผลต่าง+-]) [ผลต่าง+-]
 			,SUM(c.[ประมาณการต้นทุนที่ต้องใช้]) [ประมาณการต้นทุนที่ต้องใช้]
 			,SUM(c.[ประมาณการต้นทุนโครงการใหม่]) [ประมาณการต้นทุนโครงการใหม่]
 			,SUM(c.[Total budget]) [Total budget]
 			,SUM(c.Actual) [Actual]
 			,SUM(c.Diff) [Diff]
-	FROM #CombineTable c
+	FROM (SELECT a.[No.],
+				a.[type],
+				a.SortType,
+				a.GroupType,
+				a.Detail,
+				v.Detail [var_detail],
+				a.yearMonth [Date],
+				a.[Month],
+				ISNULL(a.[ประมาณการรายได้],0) [ประมาณการรายได้],
+				ISNULL(IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL),0) [ผลต่าง+-], --เอาอันนี้รวมกับใน total budget
+				ISNULL(a.[ประมาณการต้นทุนที่ต้องใช้],0) [ประมาณการต้นทุนที่ต้องใช้],
+				ISNULL(a.[ประมาณการต้นทุนโครงการใหม่],0) [ประมาณการต้นทุนโครงการใหม่],
+				ISNULL(a.[Total budget],0) [Total budget],
+				ISNULL(a.Actual,0) [Actual],
+				ISNULL(a.Diff,0) [Diff]
+		FROM #CombineTable a 
+		LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AND v.NextMonth = a.[Month]) c
 	GROUP BY c.[No.], c.Detail, c.[type],c.SortType--, c.yearMonth, c.DateDetail
 ) c
 
@@ -1262,42 +1280,15 @@ FROM (
 				,t.RD
 				,t.MTP
 				,t.[Diff (MTP - RD)]
-				,ISNULL(vt.d,0) [ผลต่าง+-]
+				,t.[ผลต่าง+-]
 				,t.[Total budget]
 				,t.Actual
 				,t.Diff
 		FROM #TotalCol t
-		LEFT JOIN (
-					SELECT Detail,SUM(d) d
-					from #Variant
-					where NextYearMonth <= FORMAT(@EndDate, 'yyyy-MM','en')
-					GROUP BY Detail
-				) vt ON vt.Detail = t.Detail
 	) c
 	GROUP BY c.[No.],c.[Date], c.Month
 ) c
 -- SELECT * FROM #NetProfit
--- Drop the table if it already exists
-IF OBJECT_ID('tempDB..#NetVarient', 'U') IS NOT NULL
-    BEGIN
-		DROP TABLE #NetVarient
-    END;
--- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
-SELECT *
-INTO #NetVarient
-FROM (
-	SELECT 
-		c.GroupType
-		-- ,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'yyyy-MM-dd','en') [NextDate]
-		,FORMAT(DATEADD(MONTH,1,CAST(c.[Date] + '-01' AS DATE)), 'yyyy-MM','en') [NextYearMonth]--FORMAT(DATEADD(MONTH,1,[Date]),'yyyy-MM-dd','en')
-		,FORMAT(DATEADD(MONTH,1,CAST(c.[Date] + '-01' AS DATE)),'MMMM','th') [NextMonth]
-		,SUM(c.[Sum_Total_budget]) tb
-		,SUM(c.Sum_Actual) a
-		,SUM(c.Sum_Diff) d
-	FROM #NetProfit c
-	WHERE c.[Date] <> '01'
-	GROUP BY c.GroupType,c.[Date]
-) a
 /*********************************************************************/
 /********************Test Temp****************************************/
 -- select * from #Revenue
@@ -1365,19 +1356,13 @@ SELECT t.[No.]
 		,t.MTP [MTP (%)]
 		,t.[Diff (MTP - RD)] [Diff (MTP - RD)]
 		,t.[ประมาณการรายได้]
-		,ISNULL(vt.d,0) [ผลต่าง+-]
+		,ISNULL(t.[ผลต่าง+-],0) [ผลต่าง+-]
 		,ISNULL(t.[ประมาณการต้นทุนที่ต้องใช้],0) [ประมาณการต้นทุนที่ต้องใช้]
 		,ISNULL(t.[ประมาณการต้นทุนโครงการใหม่],0) [ประมาณการต้นทุนโครงการใหม่]
-		,ISNULL(t.[Total budget],0) [Total budget]
+		,ISNULL(t.[Total budget],0) + ISNULL(t.[ผลต่าง+-],0) [Total budget]
 		,ISNULL(t.Actual,0) Actual
 		,ISNULL(t.Diff,0) Diff
 FROM #TotalCol t
-LEFT JOIN (
-	SELECT Detail,SUM(d) d
-	from #Variant
-	where NextYearMonth <= FORMAT(@EndDate, 'yyyy-MM','en')
-	GROUP BY Detail
-) vt ON vt.Detail = t.Detail
 UNION ALL 
 SELECT a.[No.],
 		NULL Total,
@@ -1391,25 +1376,13 @@ SELECT a.[No.],
 		a.SumMTP [MTP (%)],
 		a.[Sum MTP - RD] [Diff (MTP - RD)],
 		0.00 [ประมาณการรายได้],
-		ISNULL(IIF(a.GroupType = 'รวมรายได้', b.d,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', b.d,0),0) [ผลต่าง+-],
+		ISNULL(IIF(a.GroupType = 'รวมรายได้', a.[ผลต่าง+-],0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.[ผลต่าง+-],0),0) [ผลต่าง+-],
 		0.00 [ประมาณการต้นทุนที่ต้องใช้],
 		0.00 [ประมาณการต้นทุนโครงการใหม่],
-		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL),0) [Total budget],
+		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL),0) + ISNULL(IIF(a.GroupType = 'รวมรายได้', a.[ผลต่าง+-],0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.[ผลต่าง+-],0),0) [Total budget],
 		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL),0) [Actual],
 		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Diff,0) - IIF(a.GroupType = 'รวมรายได้', a.Sum_Diff,0)),NULL),0) Diff		
 FROM #NetProfit a
-LEFT JOIN (SELECT GroupType
-		,NextYearMonth
-		,NextMonth
-		,d
-FROM #NetVarient
-UNION ALL
-SELECT GroupType
-		,'01' NextYearMonth
-		,'Total' NextMonth
-		,SUM(d) d
-FROM #NetVarient WHERE NextYearMonth <= FORMAT(@EndDate, 'yyyy-MM','en')
-GROUP BY GroupType) b ON a.GroupType = b.GroupType and a.[Date] = b.[NextYearMonth] AND a.[Month] = b.[NextMonth]
 
 
 /************************************************************************************************************************************************************************/
@@ -1703,11 +1676,6 @@ IF OBJECT_ID(N'tempdb..#TotalCol', N'U') IS NOT NULL
 IF OBJECT_ID(N'tempdb..#NetProfit', N'U') IS NOT NULL
     BEGIN
         DROP TABLE #NetProfit;
-    END;
--- Drop the table if it already exists
-IF OBJECT_ID('tempDB..#NetVarient', 'U') IS NOT NULL
-    BEGIN
-		DROP TABLE #NetVarient
     END;
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#CombineTable2', 'U') IS NOT NULL
