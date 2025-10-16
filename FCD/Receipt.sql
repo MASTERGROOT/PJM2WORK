@@ -8,7 +8,7 @@
 */
 
 
-DECLARE @p0 NUMERIC(18) = 234
+DECLARE @p0 NUMERIC(18) = 300
 DECLARE @p1 NUMERIC(18) = 44 /*44 : OtherReceives | 51 : Receipt | 151 : TaxInvoice&Receive*/
 
 DECLARE @DocId NUMERIC(18) = @p0
@@ -139,7 +139,7 @@ SELECT
         ,ISNULL(rl.RetentionAmount,0)*ISNULL(r.DocCurrencyRate,0) RetentionAmount
         --,ISNULL(gt.Amount*ro.DocCurrencyRate,0)
         ,ISNULL(rr.ReceiptAmount,0)*ISNULL(r.DocCurrencyRate,0) GrandTotal 
-		,ro.Code RefDocCode
+		,/* ro.Code */tror.RefDocCode RefDocCode
 		,'ใบเสร็จ' HeaderTH
 		,'RECEIPT' HeaderEN
 		,ro.DocCurrency
@@ -170,11 +170,19 @@ FROM	dbo.OtherReceives ro WITH (NOLOCK)
 							   GROUP BY Con.ExtOrganizationId
 							   ) Cp ON Ex.Id = Cp.ExtOrganizationId		
 			LEFT JOIN dbo.TaxItems t WITH (NOLOCK) ON t.SetDocId = ro.Id AND t.SetDocTypeId = 44 AND t.SystemCategoryId = 151	
-			LEFT JOIN dbo.TaxItemLines tx WITH (NOLOCK) ON t.id = tx.TaxItemId AND tx.SetDocTypeId = 44 AND tx.SystemCategoryId IN (151)		
+			-- LEFT JOIN dbo.TaxItemLines tx WITH (NOLOCK) ON t.id = tx.TaxItemId AND tx.SetDocTypeId = 44 AND tx.SystemCategoryId IN (151)	ถ้าเเยก Vat ทำให้บรรทัดเบิ้ล
 			LEFT JOIN dbo.OtherReceiveLines gt WITH (NOLOCK) ON gt.SystemCategoryId = 111 AND gt.OtherReceiveId = ro.Id
 			LEFT JOIN dbo.OtherReceiveLines ol WITH (NOLOCK) ON ol.SystemCategoryId IN (123,129,131,199) AND ol.OtherReceiveId = ro.Id
 			LEFT JOIN dbo.OtherReceiveLines st WITH (NOLOCK) ON st.SystemCategoryId IN (107) AND st.OtherReceiveId = ro.Id
 			LEFT JOIN dbo.SubDocTypes se WITH (NOLOCK) ON se.Id = ro.SubDocTypeId
+			LEFT JOIN (
+			SELECT tror.OtherReceiveId,STRING_AGG(tror.RefDocId,',') RefDocId, STRING_AGG(tror.RefDocCode,',') RefDocCode
+					FROM (
+									select ol.OtherReceiveId, ol.RefDocId,ol.RefDocCode
+									FROM OtherReceiveLines ol WHERE SystemCategoryId = @TypeId AND ol.OtherReceiveId = @docid 
+									GROUP BY ol.OtherReceiveId, ol.RefDocId,ol.RefDocCode
+										) tror GROUP BY tror.OtherReceiveId
+							) tror ON tror.OtherReceiveId =t.SetDocId 
 			LEFT JOIN (	
 						SELECT	tl.TaxItemId,SUM(IIF(tl.SystemCategoryId = 49,tl.Amount,0))RetentionAmount
 										,SUM(IIF(tl.SystemCategoryId IN (123,129),tl.TaxAmount,0)) VatAmount
