@@ -4,7 +4,7 @@
 /*รายได้แต่ละโครงการ - ผู้บริหาร*/
 /* คุณกร รวม VAT  */
 
-DECLARE @p0 DATETIME = '2025-09-03'
+DECLARE @p0 DATETIME = '2025-09-30'
 DECLARE @p1 nvarchar(500) = '204'--'204'--'1931'--'1107,1152' --''--
 DECLARE @p2 BIT = 0
 
@@ -316,7 +316,7 @@ DROP TABLE #TempPV
 SELECT *
 INTO #TempPV
 FROM (
-		SELECT pl.PaymentId, pl.DocId, pl.DocCode, pl.DocTypeId, pl.DocType--,bl.SystemCategoryId BudgetTypeId,bl.SystemCategory BudgetType
+		SELECT pl.PaymentId,p.Code, pl.DocId, pl.DocCode, pl.DocTypeId, pl.DocType--,bl.SystemCategoryId BudgetTypeId,bl.SystemCategory BudgetType
 				, IIF(acset.DocTypeId IN (39,40),pvcn.RefDocId,acset.IvId) IvId
 				, IIF(acset.DocTypeId IN (39,40),pvcn.RefDocCode,acset.IvCode) IvCode
 				, IIF(acset.DocTypeId IN (39,40),pvcn.RefDocTypeId,acset.DocTypeId) AcsetDocTypeId
@@ -1277,8 +1277,22 @@ select * from fn_CompanyInfoTable(@ProjectId)
 
 SELECT * from #TempPo
 SELECT * from #TempSC
+
 SELECT * from #TempInvoice 
-SELECT * from #TempPV
+WHERE RefDocLineId2 IN (select PolineId from #TempPo) AND RefDocTypeId2 = 22
+UNION ALL
+SELECT * from #TempInvoice 
+WHERE RefDocLineId2 IN (select SCLineId from #TempSC) AND RefDocTypeId2 = 105
+
+SELECT * from #TempPV 
+WHERE IvId IN (
+	SELECT Id from #TempInvoice 
+	WHERE RefDocLineId2 IN (select PolineId from #TempPo) AND RefDocTypeId2 = 22
+	UNION ALL
+	SELECT Id from #TempInvoice 
+	WHERE RefDocLineId2 IN (select SCLineId from #TempSC) AND RefDocTypeId2 = 105
+)
+
 SELECT * from #TempCost
 SELECT * from #PoRemain
 SELECT * from #SCRemain
