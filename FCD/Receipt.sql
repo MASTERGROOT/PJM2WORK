@@ -8,8 +8,8 @@
 */
 
 
-DECLARE @p0 NUMERIC(18) = 300
-DECLARE @p1 NUMERIC(18) = 44 /*44 : OtherReceives | 51 : Receipt | 151 : TaxInvoice&Receive*/
+DECLARE @p0 NUMERIC(18) = 11
+DECLARE @p1 NUMERIC(18) = 52 /*44 : OtherReceives | 51 : Receipt | 151 : TaxInvoice&Receive*/
 
 DECLARE @DocId NUMERIC(18) = @p0
 DECLARE @TypeId NUMERIC(18) = @p1
@@ -19,6 +19,7 @@ DECLARE @DocOrgid INT = (case when @TypeId = 44 then (select Locationid from dbo
 						   when @TypeId = 51 then (select Locationid from dbo.Receipts where id = @docid)
 						   when @TypeId = 151 then (select orgid from dbo.Taxitems where id = @docid)	
 						   when @TypeId = 438 then (select LocationId from dbo.ProductInvoiceARs where id = @docid)	
+						   when @TypeId = 52 then (select OrgId from dbo.ReceiveVouchers where id = @docid)	
 					  end
 					 )
 
@@ -35,12 +36,343 @@ DECLARE @DocOrgid INT = (case when @TypeId = 44 then (select Locationid from dbo
 -- 					WHERE til.SystemCategoryId = 38 AND til.ReceiptId= @DocId
 -- 					) x
 -- 					GROUP BY x.ReceiptId
+-- select * from Receipts where Id = 137
+-- select * from receiptlines where ReceiptId = 137
+-- select * from ReceiveVouchers where id = 10
+-- select * from ReceiveVoucherLines where ReceiveVoucherId = 10
+-- select * from taxitems where Id = 4784
+-- select * from taxitemlines where TaxItemId = 4784
 
 
 /*Receipt*/
 
-SELECT	r.Id,r.Code,FORMAT(r.Date,'dd/MM/yyyy') [Date],r.TaxItemId,r.TaxItemCode
-        ,r.DocTypeId,r.DocType,r.Remarks,r.LocationId,r.LocationCode,r.LocationName
+-- SELECT	r.Id,r.Code,FORMAT(r.Date,'dd/MM/yyyy') [Date],r.TaxItemId,r.TaxItemCode
+--         ,r.DocTypeId,r.DocType,r.Remarks,r.LocationId,r.LocationCode,r.LocationName
+-- 		,Ex.Id ExtOrgId,Ex.Code ExtOrgCode,Ex.Name ExtOrgName
+-- 		,Ex.Address ExtOrgAddress,ISNULL(cp.tel,Ex.Tel)  ExtOrgTel,Ex.Fax ExtOrgFax,Ex.TaxId ExtOrgTaxId
+--         ,CASE WHEN ISNULL(Ex.BranchName,'') = '' THEN Ex.BranchCode ELSE Ex.BranchName END ExtOrgBranch
+--         ,cp.ConName ExtOrgContact
+-- 		,ISNULL(rl.ReceiptAmount,0) SubTotal
+-- 		,ISNULL(IIF(rl.TaxBase = 0,rl.ReceiptAmount,rl.TaxBase),0) TaxBase
+-- 		,ISNULL(rl.VatAmount,0) VatAmount
+-- 		,ISNULL(rl.RetentionAmount,0) RetentionAmount
+-- 		,FORMAT(ISNULL(con.RetentionRate,0),'N0')+'%' RetentionRate
+-- 		,((IIF(rl.TaxBase = 0,rl.ReceiptAmount,(rl.TaxBase+rl.VatAmount)) - ISNULL(rl.RetentionAmount,0))) GrandTotal
+-- 		,con.IvCode RefDocCode
+-- 		,'ใบเสร็จ' HeaderTH
+-- 		,'RECEIPT' HeaderEN
+-- 		,r.DocCurrency, r.DocCurrencyRate
+-- 		,IIF(CONCAT(FORMAT(ISNULL(rl.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(rl.TaxRate,0),'N0'),'%')) TaxRate
+-- 		,'0.00' DepositAmount
+-- 		,'0.00'  DiscountAmount
+-- 		,con.ContractNO ContractNO
+-- 		,CONCAT(FORMAT(clwhtset.WHT,'#.#'),'%') WHT
+-- 		,clwhtset.WHTAmount WHTAmount
+--      /*คูณ DocCurrencyRate ข้างในแล้ว*/    
+-- FROM	dbo.Receipts r WITH (NOLOCK)
+-- 		LEFT JOIN dbo.ExtOrganizations ex WITH (NOLOCK) ON ex.Id = r.ExtOrgId
+-- 		LEFT JOIN (SELECT MAX(Con.Name) ConName
+-- 									,MAX(con.Tel) Tel
+-- 									,MAX(con.Mail) Email
+-- 									  ,Con.ExtOrganizationId
+-- 							   FROM dbo.ContactPersons Con WITH (NOLOCK)
+-- 							   GROUP BY Con.ExtOrganizationId
+-- 							   ) Cp ON Ex.Id = Cp.ExtOrganizationId	
+-- 		LEFT JOIN (	SELECT	el.ReceiptId
+-- 		                    ,SUM(ISNULL(el.RemainAmount,0)*re.DocCurrencyRate)ReceiptAmount
+-- 							,SUM(ISNULL(el.TaxAmount*re.DocCurrencyRate,0))VatAmount
+-- 							,SUM(ISNULL(el.RetentionSetDocAmount*re.DocCurrencyRate,0))RetentionAmount 
+-- 							,SUM(ISNULL(el.TaxBase*re.DocCurrencyRate,0)) TaxBase
+-- 							,MAX(ISNULL(el.TaxRate,0)) TaxRate
+-- 								FROM		dbo.ReceiptLines el WITH (NOLOCK)
+-- 												INNER JOIN dbo.Receipts re ON re.Id = el.ReceiptId 
+-- 								WHERE		ISNULL(el.SystemCategoryId,0) <> 111 
+-- 												AND el.ReceiptId = @DocId AND @TypeId = 51
+-- 												GROUP BY el.ReceiptId 
+-- 												) rl ON rl.ReceiptId = r.Id
+-- 	    LEFT JOIN dbo.SubDocTypes se WITH (NOLOCK) ON se.Id = r.SubDocTypeId
+-- 	--	LEFT JOIN (SELECT til.ReceiptId,dbo.GROUP_CONCAT_D(til.RefIVCode,' ,') IvCode,dbo.GROUP_CONCAT_D(( itp.ContractNO),' ,') ContractNO ,dbo.GROUP_CONCAT_D(ipp.code,' ,') InterimCode
+-- 				--	FROM dbo.ReceiptLines til 
+-- 					--LEFT JOIN InterimPaymentLines itp ON itp.id = til.InterimPaymentLineId
+-- 				--	LEFT JOIN InterimPayments ipp ON ipp.id =itp.InterimPaymentId 
+-- 					--WHERE til.SystemCategoryId = 38 AND til.ReceiptId= @DocId
+-- 					--GROUP BY til.ReceiptId
+-- 				--	)con ON con.ReceiptId = r.id
+--         LEFT JOIN (
+--           			SELECT dbo.GROUP_CONCAT_D((x.IvCode),' ,')  IvCode,x.ReceiptId ,dbo.GROUP_CONCAT_D(( x.ContractNO),' ,') ContractNO ,dbo.GROUP_CONCAT_D(x.InterimCode,' ,') InterimCode,MAX(x.RetentionRate) RetentionRate
+-- 					FROM
+-- 					(
+
+-- 					SELECT DISTINCT(ipp.id) Interimpaymentid,til.RefIVCode IvCode,til.ReceiptId ,itp.ContractNO ContractNO ,ipp.code InterimCode,ipp.RetentionRate RetentionRate
+-- 					FROM dbo.ReceiptLines til 
+-- 					LEFT JOIN (select InvoiceARId,InterimPaymentLineId from InvoiceARLines where SystemCategoryId IN (128,210) OR SystemCategory = 'Deposit') Inv ON inv.InvoiceARId =til.RefIVId
+-- 					LEFT JOIN InterimPaymentLines itp ON itp.id = inv.InterimPaymentLineId 
+-- 					LEFT JOIN InterimPayments ipp ON ipp.id =itp.InterimPaymentId 
+-- 					WHERE til.SystemCategoryId = 38 AND til.ReceiptId= @DocId
+-- 					) x
+-- 					GROUP BY x.ReceiptId
+-- 					)con ON con.ReceiptId = r.id
+-- 				LEFT JOIN (
+-- 						SELECT ReceiptId,SUM(TaxBase) TotalTaxBase, SUM(whtAmount) WHTAmount,SUM(whtAmount)*100/SUM(TaxBase) WHT
+-- 						FROM(
+-- 							SELECT rcl.ReceiptId,rcl.TaxBase
+-- 							,CASE WHEN IIF(clwht.DataValues= '',0,clwht.DataValues) != 0
+-- 								THEN rcl.TaxBase * IIF(clwht.DataValues= '',0,clwht.DataValues)/100
+-- 								ELSE CAST(IIF(clamtwht.DataValues= '',0,clamtwht.DataValues) AS DECIMAL(18,2))
+-- 							END whtAmount
+-- 						from ReceiptLines rcl
+-- 						LEFT JOIN TaxItemLines til ON til.TaxItemId = (select ti.Id from Taxitems ti where ti.guid IN (rcl.TaxItemGuId))
+-- 						LEFT JOIN CustomNoteLines clwht ON til.SetDocGuid = clwht.DocGuid AND clwht.KeyName = 'WHT Rate'
+-- 						LEFT JOIN CustomNoteLines clamtwht ON til.SetDocGuid = clamtwht.DocGuid AND clamtwht.KeyName = 'WHT Amount'
+-- 						where rcl.ReceiptId = @DocId  AND til.SetDocTypeId IN (438,38)
+-- 						) wht GROUP BY ReceiptId
+-- 				)clwhtset ON clwhtset.ReceiptId = r.Id
+
+-- WHERE	r.Id = @DocId AND @TypeId = 51
+
+-- UNION ALL
+
+
+-- /* Other Receives */
+
+-- SELECT	
+-- 		r.Id,r.Code,FORMAT(r.Date,'dd/MM/yyyy') [Date], t.Id TaxItemId, t.Code TaxItemCode
+-- 		,r.DocTypeId,r.DocType,ro.Remarks,r.LocationId,r.LocationCode,r.LocationName
+-- 		,Ex.Id ExtOrgId,Ex.Code ExtOrgCode,Ex.Name ExtOrgName
+-- 		,Ex.Address ExtOrgAddress,ISNULL(cp.tel,Ex.Tel) ExtOrgTel,Ex.Fax ExtOrgFax,Ex.TaxId ExtOrgTaxId
+--         ,CASE WHEN ISNULL(Ex.BranchName,'') = '' THEN Ex.BranchCode ELSE Ex.BranchName END ExtOrgBranch
+--         ,cp.ConName ExtOrgContact
+-- 		,ISNULL(t.TaxBase,0)*ISNULL(r.DocCurrencyRate,0) SubTotal
+-- 		,ISNULL(t.TaxBase,0)*ISNULL(r.DocCurrencyRate,0) TaxBase
+-- 		,ISNULL(t.TaxAmount,0)*ISNULL(r.DocCurrencyRate,0) VatAmount
+--         ,ISNULL(rl.RetentionAmount,0)*ISNULL(r.DocCurrencyRate,0) RetentionAmount
+-- 		,'0%' RetentionRate
+--         --,ISNULL(gt.Amount*ro.DocCurrencyRate,0)
+--         ,ISNULL(rr.ReceiptAmount,0)*ISNULL(r.DocCurrencyRate,0) GrandTotal 
+-- 		,/* ro.Code */tror.RefDocCode RefDocCode
+-- 		,'ใบเสร็จ' HeaderTH
+-- 		,'RECEIPT' HeaderEN
+-- 		,ro.DocCurrency
+-- 		,ro.DocCurrencyRate
+-- 		--,IIF(CONCAT(FORMAT(ISNULL(tx.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(tx.TaxRate,0),'N0'),'%')) TaxRate
+--         ,IIF(CONCAT(FORMAT(ISNULL(t.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(t.TaxRate,0),'N0'),'%')) TaxRate
+-- 		,'0.00' DepositAmount
+-- 		,'0.00'  DiscountAmount
+--          ,NULL ContractNO
+-- 		 ,CASE WHEN EXISTS (select 1 FROM OtherReceiveLines where OtherReceiveId = @DocId AND SystemCategoryId = 36)
+-- 							THEN IIF(ISNULL(orwht.WHTRate,0) = 0,'0.00%',CONCAT(FORMAT(orwht.WHTRate,'#.#'),'%'))
+-- 						ELSE IIF(ISNULL(IIF(clwht.DataValues= '',0,clwht.DataValues),0) = 0,'0.00%',CONCAT(FORMAT(IIF(clwht.DataValues= '',0,clwht.DataValues),'#.#'),'%')) 
+-- 			END WHT
+-- 		,CASE WHEN EXISTS (select 1 FROM OtherReceiveLines where OtherReceiveId = @DocId AND SystemCategoryId = 36)
+-- 			THEN ISNULL(orwht.WhtAmount,0)
+-- 		ELSE ISNULL(IIF(ISNULL(IIF(clawht.DataValues= '',0,clawht.DataValues),0) = 0,CAST(t.TaxBase as money )*IIF(clwht.DataValues= '',0,clwht.DataValues)/100,IIF(clawht.DataValues= '',0,clawht.DataValues)),0) END
+-- 		WHTAmount
+-- FROM	dbo.OtherReceives ro WITH (NOLOCK)
+-- 			LEFT JOIN dbo.Receipts r WITH (NOLOCK) ON r.TaxItemId = ro.Id AND r.DocTypeId = 44
+-- 			--LEFT JOIN ReceiptLines rr ON rr.ReceiptId = r.Id AND rr.SystemCategoryId =111
+--             LEFT JOIN (SELECT SUM(ReceiptAmount) ReceiptAmount,ReceiptId FROM ReceiptLines WHERE SystemCategoryId <> 111 GROUP BY ReceiptId )rr ON rr.ReceiptId = r.Id 
+-- 			LEFT JOIN dbo.ExtOrganizations ex WITH (NOLOCK) ON ex.Id = r.ExtOrgId
+-- 			LEFT JOIN (SELECT MAX(Con.Name) ConName
+-- 									,MAX(con.Tel) Tel
+-- 									,MAX(con.Mail) Email
+-- 									  ,Con.ExtOrganizationId
+-- 							   FROM dbo.ContactPersons Con WITH (NOLOCK)
+-- 							   GROUP BY Con.ExtOrganizationId
+-- 							   ) Cp ON Ex.Id = Cp.ExtOrganizationId		
+-- 			LEFT JOIN dbo.TaxItems t WITH (NOLOCK) ON t.SetDocId = ro.Id AND t.SetDocTypeId = 44 AND t.SystemCategoryId = 151	
+-- 			-- LEFT JOIN dbo.TaxItemLines tx WITH (NOLOCK) ON t.id = tx.TaxItemId AND tx.SetDocTypeId = 44 AND tx.SystemCategoryId IN (151)	ถ้าเเยก Vat ทำให้บรรทัดเบิ้ล
+-- 			LEFT JOIN dbo.OtherReceiveLines gt WITH (NOLOCK) ON gt.SystemCategoryId = 111 AND gt.OtherReceiveId = ro.Id
+-- 			LEFT JOIN dbo.OtherReceiveLines ol WITH (NOLOCK) ON ol.SystemCategoryId IN (123,129,131,199) AND ol.OtherReceiveId = ro.Id
+-- 			LEFT JOIN dbo.OtherReceiveLines st WITH (NOLOCK) ON st.SystemCategoryId IN (107) AND st.OtherReceiveId = ro.Id
+-- 			LEFT JOIN dbo.SubDocTypes se WITH (NOLOCK) ON se.Id = ro.SubDocTypeId
+-- 			LEFT JOIN (
+-- 			SELECT tror.OtherReceiveId,STRING_AGG(tror.RefDocId,',') RefDocId, STRING_AGG(tror.RefDocCode,',') RefDocCode
+-- 					FROM (
+-- 									select ol.OtherReceiveId, ol.RefDocId,ol.RefDocCode
+-- 									FROM OtherReceiveLines ol WHERE SystemCategoryId = @TypeId AND ol.OtherReceiveId = @docid 
+-- 									GROUP BY ol.OtherReceiveId, ol.RefDocId,ol.RefDocCode
+-- 										) tror GROUP BY tror.OtherReceiveId
+-- 							) tror ON tror.OtherReceiveId =t.SetDocId 
+-- 			LEFT JOIN (	
+-- 						SELECT	tl.TaxItemId,SUM(IIF(tl.SystemCategoryId = 49,tl.Amount,0))RetentionAmount
+-- 										,SUM(IIF(tl.SystemCategoryId IN (123,129),tl.TaxAmount,0)) VatAmount
+-- 										,SUM(IIF(tl.SystemCategoryId = 111,tl.Amount,0)) ReceiptAmount 
+-- 										,SUM(IIF(tl.SystemCategoryId = 107,tl.Amount,0)) SubTotal
+-- 										,SUM(IIF(tl.SystemCategoryId = 124,tl.Amount,0)) DiscountAmount
+-- 										,SUM(IIF(tl.SystemCategory = 'DepositReceive',tl.Amount,0)) DepositAmount
+-- 								FROM		dbo.TaxItemLines tl WITH (NOLOCK)
+-- 												INNER JOIN dbo.TaxItems ti WITH (NOLOCK) ON ti.Id = tl.TaxItemId 
+-- 								WHERE		ti.SetDocId = @DocId AND ti.SetDocTypeId = @TypeId
+-- 												GROUP BY tl.TaxItemId 
+-- 												) rl ON rl.TaxItemId = t.Id
+-- 			LEFT JOIN (
+-- 					SELECT otl.OtherReceiveId,til.TaxItemId,til.TaxRate [WHTRate],SUM(til.TaxAmount) [WhtAmount]
+-- 					from OtherReceiveLines otl 
+-- 					LEFT JOIN taxitems ti ON otl.TaxItemGuid = ti.guid
+-- 					LEFT JOIN taxitemlines til ON ti.Id = til.TaxItemId
+-- 					WHERE otl.SystemCategoryId = 36 AND otl.OtherReceiveId = @docid
+-- 					GROUP BY otl.OtherReceiveId,til.TaxRate,til.TaxItemId
+-- 			) orwht ON orwht.OtherReceiveId = ro.Id
+-- 			LEFT JOIN CustomNoteLines clwht ON clwht.DocGuid = ro.guid AND clwht.KeyName = 'WHT Rate'
+-- 			LEFT JOIN CustomNoteLines clawht ON clawht.DocGuid = ro.guid AND clawht.KeyName = 'WHT Amount'
+-- WHERE	ro.Id = @DocId AND @TypeId = 44
+
+-- UNION ALL
+
+-- /* TaxInvoiceAndReceipts */
+
+-- SELECT	
+-- 		r.Id,r.Code,FORMAT(r.Date,'dd/MM/yyyy') [Date], t.Id TaxItemId, t.Code TaxItemCode
+-- 		,r.DocTypeId,r.DocType,t.Remarks,r.LocationId,r.LocationCode,r.LocationName
+-- 		,Ex.Id ExtOrgId,Ex.Code ExtOrgCode,Ex.Name ExtOrgName
+-- 		,Ex.Address ExtOrgAddress,ISNULL(cp.tel,Ex.Tel) ExtOrgTel,Ex.Fax ExtOrgFax,Ex.TaxId ExtOrgTaxId
+--         ,CASE WHEN ISNULL(Ex.BranchName,'') = '' THEN Ex.BranchCode ELSE Ex.BranchName END ExtOrgBranch
+--         ,cp.ConName ExtOrgContact
+-- 		,ISNULL(rl.SubTotal,0) SubTotal
+-- 		,ISNULL((rl.ReceiptAmount+ rl.RetentionAmount-rl.VatAmount),0) TaxBase
+-- 		,ISNULL(rl.VatAmount,0) VatAmount,ISNULL(rl.RetentionAmount,0) RetentionAmount
+-- 		,FORMAT(ISNULL(con.RetentionRate,0),'N0')+'%' RetentionRate
+-- 		,ISNULL(rl.ReceiptAmount,0) GrandTotal
+-- 		,con.IvCode RefDocCode
+-- 		,'ใบกำกับภาษี & ใบเสร็จ' HeaderTH
+-- 		,'TAX INVOICE & RECEIPT' HeaderEN  
+-- 		,t.DocCurrency
+-- 		,t.DocCurrencyRate
+-- 		,IIF(CONCAT(FORMAT(ISNULL(tx.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(tx.TaxRate,0),'N0'),'%')) TaxRate
+-- 		,rl.DepositAmount
+-- 		,rl.DiscountAmount
+-- 		,con.ContractNO
+-- 		,CONCAT(FORMAT(clwhtset.WHT,'#.#'),'%') WHT
+-- 		,clwhtset.WHTAmount WHTAmount
+-- 		 /*คูณ DocCurrencyRate ข้างในแล้ว*/ 
+-- FROM	dbo.TaxItems t WITH (NOLOCK)
+-- 		LEFT JOIN dbo.Receipts r WITH (NOLOCK) ON r.TaxItemId = t.Id AND r.DocTypeId = 151
+-- 		LEFT JOIN dbo.ExtOrganizations ex WITH (NOLOCK) ON ex.Id = r.ExtOrgId
+-- 		LEFT JOIN (SELECT MAX(Con.Name) ConName
+-- 									,MAX(con.Tel) Tel
+-- 									,MAX(con.Mail) Email
+-- 									  ,Con.ExtOrganizationId
+-- 							   FROM dbo.ContactPersons Con WITH (NOLOCK)
+-- 							   GROUP BY Con.ExtOrganizationId
+-- 							   ) Cp ON Ex.Id = Cp.ExtOrganizationId	
+-- 		LEFT JOIN TaxItemLines tx ON tx.TaxItemId =t.id AND tx.SystemCategoryId IN (123,129)
+-- 		LEFT JOIN (	SELECT	tl.TaxItemId,SUM(IIF(tl.SystemCategoryId = 49,tl.Amount,0)*ti.DocCurrencyRate)RetentionAmount
+-- 										,SUM(IIF(tl.SystemCategoryId IN (123,129),tl.TaxAmount,0)*ti.DocCurrencyRate) VatAmount
+-- 										,SUM(IIF(tl.SystemCategoryId = 111,tl.Amount,0)*ti.DocCurrencyRate) ReceiptAmount 
+-- 										,SUM(IIF(tl.SystemCategoryId = 107,tl.Amount,0)*ti.DocCurrencyRate) SubTotal
+-- 										,SUM(IIF(tl.SystemCategoryId = 124,tl.Amount,0)*ti.DocCurrencyRate) DiscountAmount
+-- 										,SUM(IIF(tl.SystemCategory = 'DepositReceive',tl.Amount,0)*ti.DocCurrencyRate) DepositAmount
+-- 								FROM		dbo.TaxItemLines tl WITH (NOLOCK)
+-- 												INNER JOIN dbo.TaxItems ti WITH (NOLOCK) ON ti.Id = tl.TaxItemId 
+-- 								WHERE		tl.TaxItemId = @DocId AND @TypeId = 151
+-- 												GROUP BY tl.TaxItemId 
+-- 												) rl ON rl.TaxItemId = t.Id
+-- 		LEFT JOIN dbo.SubDocTypes se WITH (NOLOCK) ON se.Id = t.SubDocTypeId
+		
+-- 		LEFT JOIN (SELECT til.TaxItemId,dbo.GROUP_CONCAT_D(til.SetDocCode,' ,') IvCode,dbo.GROUP_CONCAT_D( til.ContractNO,' ,') ContractNO ,dbo.GROUP_CONCAT_D(ipp.code,' ,') InterimCode,MAX(ipp.RetentionRate) RetentionRate
+-- 					FROM dbo.TaxItemLines til 
+-- 					LEFT JOIN InterimPaymentLines itp ON itp.id = til.InterimPaymentLineId
+-- 					LEFT JOIN InterimPayments ipp ON ipp.id =itp.InterimPaymentId 
+-- 					WHERE til.SetDocTypeid = 38 AND taxitemid= @DocId 
+-- 					GROUP BY TaxItemId
+-- 					)con ON con.TaxItemId = t.id
+-- 		LEFT JOIN (
+-- 				SELECT TaxItemId,SUM(TaxBase) TotalTaxBase, SUM(whtAmount) WHTAmount,SUM(whtAmount)/SUM(TaxBase) WHT
+-- 			FROM(
+-- 				SELECT til.TaxItemId,til.TaxBase
+-- 				,CASE WHEN IIF(clwht.DataValues= '',0,clwht.DataValues) != 0
+-- 					THEN til.TaxBase * IIF(clwht.DataValues= '',0,clwht.DataValues)
+-- 					ELSE CAST(IIF(clamtwht.DataValues= '',0,clamtwht.DataValues) AS DECIMAL(18,2))
+-- 				END whtAmount
+-- 			from taxitemlines til
+-- 			LEFT JOIN CustomNoteLines clwht ON til.SetDocGuid = clwht.DocGuid AND clwht.KeyName = 'WHT Rate'
+-- 			LEFT JOIN CustomNoteLines clamtwht ON til.SetDocGuid = clamtwht.DocGuid AND clamtwht.KeyName = 'WHT Amount'
+-- 			where til.TaxitemId = @DocId  AND til.SetDocTypeId IN (438,38)
+-- 			) wht GROUP BY TaxItemId
+-- 			) clwhtset ON clwhtset.TaxItemId = t.Id
+-- WHERE	t.Id = @DocId AND @TypeId = 151
+
+
+-- UNION ALL
+
+
+-- /* Product Invoice */
+
+-- SELECT	
+-- 		r.Id,r.Code,FORMAT(r.Date,'dd/MM/yyyy') [Date], t.Id TaxItemId, t.Code TaxItemCode
+-- 		,r.DocTypeId,r.DocType,ro.Remarks,r.LocationId,r.LocationCode,r.LocationName
+-- 		,Ex.Id ExtOrgId,Ex.Code ExtOrgCode,Ex.Name ExtOrgName
+-- 		,Ex.Address ExtOrgAddress,ISNULL(cp.tel,Ex.Tel) ExtOrgTel,Ex.Fax ExtOrgFax,Ex.TaxId ExtOrgTaxId
+--         ,CASE WHEN ISNULL(Ex.BranchName,'') = '' THEN Ex.BranchCode ELSE Ex.BranchName END ExtOrgBranch
+--         ,cp.ConName ExtOrgContact
+-- 		,ISNULL(rr.ReceiptAmount,0) SubTotal
+-- 		,ISNULL(txx.TaxBase,0) TaxBase
+-- 		,ISNULL(txx.TaxAmount,0) VatAmount
+--         ,0.00 RetentionAmount
+-- 		,'0%' RetentionRate
+--         --,ISNULL(gt.Amount*ro.DocCurrencyRate,0)
+--         ,ISNULL(rr.ReceiptAmount,0) GrandTotal 
+-- 		,ro.Code RefDocCode
+-- 		,'ใบเสร็จ' HeaderTH
+-- 		,'RECEIPT' HeaderEN
+-- 		,ro.DocCurrency
+-- 		,ro.DocCurrencyRate
+-- 		,IIF(CONCAT(FORMAT(ISNULL(txx.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(txx.TaxRate,0),'N0'),'%')) TaxRate
+--         --,NULL TaxRate
+-- 		,ISNULL(dp.Amount,0) DepositAmount
+-- 		,ISNULL(ds.Amount,0)  DiscountAmount
+--          ,NULL ContractNO
+-- 		,CASE WHEN EXISTS (select 1 FROM OtherReceiveLines where OtherReceiveId = @DocId AND SystemCategoryId = 36)
+-- 							THEN IIF(ISNULL(orwht.WHTRate,0) = 0,'0.00%',CONCAT(FORMAT(orwht.WHTRate,'#.#'),'%'))
+-- 						ELSE IIF(ISNULL(IIF(clwht.DataValues= '',0,clwht.DataValues),0) = 0,'0.00%',CONCAT(FORMAT(IIF(clwht.DataValues= '',0,clwht.DataValues),'#.#'),'%')) 
+-- 			END WHT
+-- 		,CASE WHEN EXISTS (select 1 FROM OtherReceiveLines where OtherReceiveId = @DocId AND SystemCategoryId = 36)
+-- 			THEN ISNULL(orwht.WhtAmount,0)
+-- 		ELSE ISNULL(IIF(ISNULL(IIF(clawht.DataValues= '',0,clawht.DataValues),0) = 0,CAST(t.TaxBase as money )*IIF(clwht.DataValues= '',0,clwht.DataValues)/100,IIF(clawht.DataValues= '',0,clawht.DataValues)),0) END
+-- 		WHTAmount
+-- FROM	dbo.ProductInvoiceARs ro WITH (NOLOCK)
+-- 			LEFT JOIN dbo.Receipts r WITH (NOLOCK) ON r.TaxItemId = ro.Id AND r.DocTypeId = 438
+-- 			--LEFT JOIN ReceiptLines rr ON rr.ReceiptId = r.Id AND rr.SystemCategoryId =111
+--             LEFT JOIN (SELECT SUM(ReceiptAmount) ReceiptAmount,ReceiptId FROM ReceiptLines WHERE SystemCategoryId <> 111 GROUP BY ReceiptId )rr ON rr.ReceiptId = r.Id 
+-- 			LEFT JOIN dbo.ExtOrganizations ex WITH (NOLOCK) ON ex.Id = r.ExtOrgId
+-- 			LEFT JOIN (SELECT MAX(Con.Name) ConName
+-- 									,MAX(con.Tel) Tel
+-- 									,MAX(con.Mail) Email
+-- 									  ,Con.ExtOrganizationId
+-- 							   FROM dbo.ContactPersons Con WITH (NOLOCK)
+-- 							   GROUP BY Con.ExtOrganizationId
+-- 							   ) Cp ON Ex.Id = Cp.ExtOrganizationId		
+-- 			LEFT JOIN dbo.TaxItems t WITH (NOLOCK) ON t.SetDocId = ro.Id AND t.SetDocTypeId = 438 AND t.SystemCategoryId = 151	
+-- 			LEFT JOIN dbo.TaxItemLines tx WITH (NOLOCK) ON t.id = tx.TaxItemId AND tx.SetDocTypeId = 438 AND tx.SystemCategoryId IN (151)		
+-- 			LEFT JOIN dbo.ProductInvoiceARLines gt WITH (NOLOCK) ON gt.SystemCategoryId = 111 AND gt.ProductInvoiceARId = ro.Id
+-- 			LEFT JOIN dbo.ProductInvoiceARLines ol WITH (NOLOCK) ON ol.SystemCategoryId IN (123,129,131,199) AND ol.ProductInvoiceARId = ro.Id
+-- 			LEFT JOIN dbo.ProductInvoiceARLines st WITH (NOLOCK) ON st.SystemCategoryId IN (107) AND st.ProductInvoiceARId = ro.Id
+-- 			LEFT JOIN dbo.ProductInvoiceARLines dp WITH (NOLOCK) ON dp.SystemCategory = 'DepositReceive' AND dp.ProductInvoiceARId = ro.Id
+-- 			LEFT JOIN dbo.ProductInvoiceARLines ds WITH (NOLOCK) ON ds.SystemCategoryId IN (124) AND ds.ProductInvoiceARId = ro.Id
+-- 			LEFT JOIN dbo.ProductInvoiceARLines txx WITH (NOLOCK) ON txx.SystemCategoryId IN (123,129) AND txx.ProductInvoiceARId = ro.Id
+-- 			LEFT JOIN dbo.SubDocTypes se WITH (NOLOCK) ON se.Id = ro.SubDocTypeId
+-- 			LEFT JOIN (
+-- 					SELECT otl.ProductInvoiceARId,til.TaxItemId,til.TaxRate [WHTRate],SUM(til.TaxAmount) [WhtAmount]
+-- 					from ProductInvoiceARLines otl 
+-- 					LEFT JOIN taxitems ti ON otl.TaxItemGuid = ti.guid
+-- 					LEFT JOIN taxitemlines til ON ti.Id = til.TaxItemId
+-- 					WHERE otl.SystemCategoryId = 36 AND otl.ProductInvoiceARId = @docid
+-- 					GROUP BY otl.ProductInvoiceARId,til.TaxRate,til.TaxItemId
+-- 			) orwht ON orwht.ProductInvoiceARId = ro.Id
+-- 			LEFT JOIN CustomNoteLines clwht ON clwht.DocGuid = ro.guid AND clwht.KeyName = 'WHT Rate'
+-- 			LEFT JOIN CustomNoteLines clawht ON clawht.DocGuid = ro.guid AND clawht.KeyName = 'WHT Amount'
+-- WHERE	ro.Id = @DocId AND @TypeId = 438
+
+-- UNION ALL 
+SELECT * from InvoiceARLines where InvoiceARId = 22
+SELECT DISTINCT(ipp.id) Interimpaymentid,til.RefARCodeList IvCode,til.ReceiptId ,itp.ContractNO ContractNO ,ipp.code InterimCode,ipp.RetentionRate RetentionRate
+					FROM dbo.ReceiveVoucherLines til 
+					LEFT JOIN (select InvoiceARId,InterimPaymentLineId from InvoiceARLines where SystemCategoryId IN (128,210) OR SystemCategory = 'Deposit') Inv ON inv.InvoiceARId =til.RefIVId
+					LEFT JOIN InterimPaymentLines itp ON itp.id = inv.InterimPaymentLineId 
+					LEFT JOIN InterimPayments ipp ON ipp.id =itp.InterimPaymentId 
+					WHERE til.SystemCategoryId = 38 /* AND til.ReceiptId= @DocId */
+SELECT	rv.Id,rv.Code,FORMAT(rv.Date,'dd/MM/yyyy') [Date],rvl.DocId TaxItemId, rvl.ReceiptCode TaxItemCode
+        ,rvl.DocTypeId,rvl.DocType DocType,rv.Remarks,r.LocationId,r.LocationCode,r.LocationName
 		,Ex.Id ExtOrgId,Ex.Code ExtOrgCode,Ex.Name ExtOrgName
 		,Ex.Address ExtOrgAddress,ISNULL(cp.tel,Ex.Tel)  ExtOrgTel,Ex.Fax ExtOrgFax,Ex.TaxId ExtOrgTaxId
         ,CASE WHEN ISNULL(Ex.BranchName,'') = '' THEN Ex.BranchCode ELSE Ex.BranchName END ExtOrgBranch
@@ -49,19 +381,22 @@ SELECT	r.Id,r.Code,FORMAT(r.Date,'dd/MM/yyyy') [Date],r.TaxItemId,r.TaxItemCode
 		,ISNULL(IIF(rl.TaxBase = 0,rl.ReceiptAmount,rl.TaxBase),0) TaxBase
 		,ISNULL(rl.VatAmount,0) VatAmount
 		,ISNULL(rl.RetentionAmount,0) RetentionAmount
+		,FORMAT(ISNULL(con.RetentionRate,0),'N0')+'%' RetentionRate
 		,((IIF(rl.TaxBase = 0,rl.ReceiptAmount,(rl.TaxBase+rl.VatAmount)) - ISNULL(rl.RetentionAmount,0))) GrandTotal
-		,NULL RefDocCode
+		,rvl.RefARCodeList RefDocCode
 		,'ใบเสร็จ' HeaderTH
 		,'RECEIPT' HeaderEN
 		,r.DocCurrency, r.DocCurrencyRate
-		,NULL TaxRate
+		,IIF(CONCAT(FORMAT(ISNULL(rl.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(rl.TaxRate,0),'N0'),'%')) TaxRate
 		,'0.00' DepositAmount
 		,'0.00'  DiscountAmount
-		,con.ContractNO ContractNO
+		,COALESCE(con.ContractNO,JSON_VALUE(JSON_QUERY(rvl.ReceiptLineListStr,'$[0]'),'$.ContractNO')) ContractNO
 		,CONCAT(FORMAT(clwhtset.WHT,'#.#'),'%') WHT
 		,clwhtset.WHTAmount WHTAmount
      /*คูณ DocCurrencyRate ข้างในแล้ว*/    
-FROM	dbo.Receipts r WITH (NOLOCK)
+FROM	ReceiveVouchers rv WITH (NOLOCK)
+		LEFT JOIN dbo.ReceiveVoucherLines rvl WITH (NOLOCK) ON rv.Id = rvl.ReceiveVoucherId AND rvl.SystemCategoryId = 51
+		LEFT JOIN dbo.Receipts r WITH (NOLOCK) ON r.Id = rvl.docid
 		LEFT JOIN dbo.ExtOrganizations ex WITH (NOLOCK) ON ex.Id = r.ExtOrgId
 		LEFT JOIN (SELECT MAX(Con.Name) ConName
 									,MAX(con.Tel) Tel
@@ -75,10 +410,10 @@ FROM	dbo.Receipts r WITH (NOLOCK)
 							,SUM(ISNULL(el.TaxAmount*re.DocCurrencyRate,0))VatAmount
 							,SUM(ISNULL(el.RetentionSetDocAmount*re.DocCurrencyRate,0))RetentionAmount 
 							,SUM(ISNULL(el.TaxBase*re.DocCurrencyRate,0)) TaxBase
+							,MAX(ISNULL(el.TaxRate,0)) TaxRate
 								FROM		dbo.ReceiptLines el WITH (NOLOCK)
 												INNER JOIN dbo.Receipts re ON re.Id = el.ReceiptId 
 								WHERE		ISNULL(el.SystemCategoryId,0) <> 111 
-												AND el.ReceiptId = @DocId AND @TypeId = 51
 												GROUP BY el.ReceiptId 
 												) rl ON rl.ReceiptId = r.Id
 	    LEFT JOIN dbo.SubDocTypes se WITH (NOLOCK) ON se.Id = r.SubDocTypeId
@@ -90,266 +425,42 @@ FROM	dbo.Receipts r WITH (NOLOCK)
 					--GROUP BY til.ReceiptId
 				--	)con ON con.ReceiptId = r.id
         LEFT JOIN (
-          			SELECT dbo.GROUP_CONCAT_D((x.IvCode),' ,')  IvCode,x.ReceiptId ,dbo.GROUP_CONCAT_D(( x.ContractNO),' ,') ContractNO ,dbo.GROUP_CONCAT_D(x.InterimCode,' ,') InterimCode
+          			SELECT x.ReceiptId, dbo.GROUP_CONCAT_D((x.IvCode),' ,')  IvCode ,dbo.GROUP_CONCAT_D(( x.ContractNO),' ,') ContractNO ,dbo.GROUP_CONCAT_D(x.InterimCode,' ,') InterimCode,MAX(x.RetentionRate) RetentionRate
 					FROM
 					(
 
-					SELECT DISTINCT(ipp.id) Interimpaymentid,til.RefIVCode IvCode,til.ReceiptId ,itp.ContractNO ContractNO ,ipp.code InterimCode
+					SELECT DISTINCT(ipp.id) Interimpaymentid,til.RefIVCode IvCode,til.ReceiptId ,itp.ContractNO ContractNO ,ipp.code InterimCode,ipp.RetentionRate RetentionRate
 					FROM dbo.ReceiptLines til 
 					LEFT JOIN (select InvoiceARId,InterimPaymentLineId from InvoiceARLines where SystemCategoryId IN (128,210) OR SystemCategory = 'Deposit') Inv ON inv.InvoiceARId =til.RefIVId
 					LEFT JOIN InterimPaymentLines itp ON itp.id = inv.InterimPaymentLineId 
 					LEFT JOIN InterimPayments ipp ON ipp.id =itp.InterimPaymentId 
-					WHERE til.SystemCategoryId = 38 AND til.ReceiptId= @DocId
+					WHERE til.SystemCategoryId = 38 /* AND til.ReceiptId= @DocId */
 					) x
 					GROUP BY x.ReceiptId
 					)con ON con.ReceiptId = r.id
 				LEFT JOIN (
 						SELECT ReceiptId,SUM(TaxBase) TotalTaxBase, SUM(whtAmount) WHTAmount,SUM(whtAmount)*100/SUM(TaxBase) WHT
 						FROM(
-							SELECT rcl.ReceiptId,rcl.TaxBase
+							SELECT rcl.ReceiptId,ial.TaxBase
 							,CASE WHEN IIF(clwht.DataValues= '',0,clwht.DataValues) != 0
-								THEN rcl.TaxBase * IIF(clwht.DataValues= '',0,clwht.DataValues)/100
+								THEN ial.TaxBase * IIF(clwht.DataValues= '',0,clwht.DataValues)/100
 								ELSE CAST(IIF(clamtwht.DataValues= '',0,clamtwht.DataValues) AS DECIMAL(18,2))
 							END whtAmount
-						from ReceiptLines rcl
-						LEFT JOIN TaxItemLines til ON til.TaxItemId = (select ti.Id from Taxitems ti where ti.guid IN (rcl.TaxItemGuId))
-						LEFT JOIN CustomNoteLines clwht ON til.SetDocGuid = clwht.DocGuid AND clwht.KeyName = 'WHT Rate'
-						LEFT JOIN CustomNoteLines clamtwht ON til.SetDocGuid = clamtwht.DocGuid AND clamtwht.KeyName = 'WHT Amount'
-						where rcl.ReceiptId = @DocId  AND til.SetDocTypeId IN (438,38)
+						from ReceiveVoucherLines rcl
+						LEFT JOIN InvoiceARs ia ON ia.Code = rcl.RefARCodeList
+						LEFT JOIN (
+							SELECT ial.InvoiceARId,SUM(iSNULL(NULLIF(ial.taxbase,0),ial.Amount)) TaxBase
+							FROM dbo.InvoiceARLines ial
+							WHERE ial.SystemCategoryId IN (128,55) AND ial.SystemCategory NOT LIKE 'DepositReceive'
+							GROUP BY ial.InvoiceARId
+						) ial ON ial.InvoiceARId = ia.Id
+						LEFT JOIN CustomNoteLines clwht ON ia.guid = clwht.DocGuid AND clwht.KeyName = 'WHT Rate'
+						LEFT JOIN CustomNoteLines clamtwht ON ia.guid = clamtwht.DocGuid AND clamtwht.KeyName = 'WHT Amount'
+						where rcl.SystemCategoryId = 51 AND rcl.RefARCodeList IS NOT NULL and rcl.ReceiveVoucherId = 11
 						) wht GROUP BY ReceiptId
 				)clwhtset ON clwhtset.ReceiptId = r.Id
 
-WHERE	r.Id = @DocId AND @TypeId = 51
-
-UNION ALL
-
-
-/* Other Receives */
-
-SELECT	
-		r.Id,r.Code,FORMAT(r.Date,'dd/MM/yyyy') [Date], t.Id TaxItemId, t.Code TaxItemCode
-		,r.DocTypeId,r.DocType,ro.Remarks,r.LocationId,r.LocationCode,r.LocationName
-		,Ex.Id ExtOrgId,Ex.Code ExtOrgCode,Ex.Name ExtOrgName
-		,Ex.Address ExtOrgAddress,ISNULL(cp.tel,Ex.Tel) ExtOrgTel,Ex.Fax ExtOrgFax,Ex.TaxId ExtOrgTaxId
-        ,CASE WHEN ISNULL(Ex.BranchName,'') = '' THEN Ex.BranchCode ELSE Ex.BranchName END ExtOrgBranch
-        ,cp.ConName ExtOrgContact
-		,ISNULL(t.TaxBase,0)*ISNULL(r.DocCurrencyRate,0) SubTotal
-		,ISNULL(t.TaxBase,0)*ISNULL(r.DocCurrencyRate,0) TaxBase
-		,ISNULL(t.TaxAmount,0)*ISNULL(r.DocCurrencyRate,0) VatAmount
-        ,ISNULL(rl.RetentionAmount,0)*ISNULL(r.DocCurrencyRate,0) RetentionAmount
-        --,ISNULL(gt.Amount*ro.DocCurrencyRate,0)
-        ,ISNULL(rr.ReceiptAmount,0)*ISNULL(r.DocCurrencyRate,0) GrandTotal 
-		,/* ro.Code */tror.RefDocCode RefDocCode
-		,'ใบเสร็จ' HeaderTH
-		,'RECEIPT' HeaderEN
-		,ro.DocCurrency
-		,ro.DocCurrencyRate
-		--,IIF(CONCAT(FORMAT(ISNULL(tx.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(tx.TaxRate,0),'N0'),'%')) TaxRate
-        ,IIF(CONCAT(FORMAT(ISNULL(t.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(t.TaxRate,0),'N0'),'%')) TaxRate
-		,'0.00' DepositAmount
-		,'0.00'  DiscountAmount
-         ,NULL ContractNO
-		 ,CASE WHEN EXISTS (select 1 FROM OtherReceiveLines where OtherReceiveId = @DocId AND SystemCategoryId = 36)
-							THEN IIF(ISNULL(orwht.WHTRate,0) = 0,'0.00%',CONCAT(FORMAT(orwht.WHTRate,'#.#'),'%'))
-						ELSE IIF(ISNULL(IIF(clwht.DataValues= '',0,clwht.DataValues),0) = 0,'0.00%',CONCAT(FORMAT(IIF(clwht.DataValues= '',0,clwht.DataValues),'#.#'),'%')) 
-			END WHT
-		,CASE WHEN EXISTS (select 1 FROM OtherReceiveLines where OtherReceiveId = @DocId AND SystemCategoryId = 36)
-			THEN ISNULL(orwht.WhtAmount,0)
-		ELSE ISNULL(IIF(ISNULL(IIF(clawht.DataValues= '',0,clawht.DataValues),0) = 0,CAST(t.TaxBase as money )*IIF(clwht.DataValues= '',0,clwht.DataValues)/100,IIF(clawht.DataValues= '',0,clawht.DataValues)),0) END
-		WHTAmount
-FROM	dbo.OtherReceives ro WITH (NOLOCK)
-			LEFT JOIN dbo.Receipts r WITH (NOLOCK) ON r.TaxItemId = ro.Id AND r.DocTypeId = 44
-			--LEFT JOIN ReceiptLines rr ON rr.ReceiptId = r.Id AND rr.SystemCategoryId =111
-            LEFT JOIN (SELECT SUM(ReceiptAmount) ReceiptAmount,ReceiptId FROM ReceiptLines WHERE SystemCategoryId <> 111 GROUP BY ReceiptId )rr ON rr.ReceiptId = r.Id 
-			LEFT JOIN dbo.ExtOrganizations ex WITH (NOLOCK) ON ex.Id = r.ExtOrgId
-			LEFT JOIN (SELECT MAX(Con.Name) ConName
-									,MAX(con.Tel) Tel
-									,MAX(con.Mail) Email
-									  ,Con.ExtOrganizationId
-							   FROM dbo.ContactPersons Con WITH (NOLOCK)
-							   GROUP BY Con.ExtOrganizationId
-							   ) Cp ON Ex.Id = Cp.ExtOrganizationId		
-			LEFT JOIN dbo.TaxItems t WITH (NOLOCK) ON t.SetDocId = ro.Id AND t.SetDocTypeId = 44 AND t.SystemCategoryId = 151	
-			-- LEFT JOIN dbo.TaxItemLines tx WITH (NOLOCK) ON t.id = tx.TaxItemId AND tx.SetDocTypeId = 44 AND tx.SystemCategoryId IN (151)	ถ้าเเยก Vat ทำให้บรรทัดเบิ้ล
-			LEFT JOIN dbo.OtherReceiveLines gt WITH (NOLOCK) ON gt.SystemCategoryId = 111 AND gt.OtherReceiveId = ro.Id
-			LEFT JOIN dbo.OtherReceiveLines ol WITH (NOLOCK) ON ol.SystemCategoryId IN (123,129,131,199) AND ol.OtherReceiveId = ro.Id
-			LEFT JOIN dbo.OtherReceiveLines st WITH (NOLOCK) ON st.SystemCategoryId IN (107) AND st.OtherReceiveId = ro.Id
-			LEFT JOIN dbo.SubDocTypes se WITH (NOLOCK) ON se.Id = ro.SubDocTypeId
-			LEFT JOIN (
-			SELECT tror.OtherReceiveId,STRING_AGG(tror.RefDocId,',') RefDocId, STRING_AGG(tror.RefDocCode,',') RefDocCode
-					FROM (
-									select ol.OtherReceiveId, ol.RefDocId,ol.RefDocCode
-									FROM OtherReceiveLines ol WHERE SystemCategoryId = @TypeId AND ol.OtherReceiveId = @docid 
-									GROUP BY ol.OtherReceiveId, ol.RefDocId,ol.RefDocCode
-										) tror GROUP BY tror.OtherReceiveId
-							) tror ON tror.OtherReceiveId =t.SetDocId 
-			LEFT JOIN (	
-						SELECT	tl.TaxItemId,SUM(IIF(tl.SystemCategoryId = 49,tl.Amount,0))RetentionAmount
-										,SUM(IIF(tl.SystemCategoryId IN (123,129),tl.TaxAmount,0)) VatAmount
-										,SUM(IIF(tl.SystemCategoryId = 111,tl.Amount,0)) ReceiptAmount 
-										,SUM(IIF(tl.SystemCategoryId = 107,tl.Amount,0)) SubTotal
-										,SUM(IIF(tl.SystemCategoryId = 124,tl.Amount,0)) DiscountAmount
-										,SUM(IIF(tl.SystemCategory = 'DepositReceive',tl.Amount,0)) DepositAmount
-								FROM		dbo.TaxItemLines tl WITH (NOLOCK)
-												INNER JOIN dbo.TaxItems ti WITH (NOLOCK) ON ti.Id = tl.TaxItemId 
-								WHERE		ti.SetDocId = @DocId AND ti.SetDocTypeId = @TypeId
-												GROUP BY tl.TaxItemId 
-												) rl ON rl.TaxItemId = t.Id
-			LEFT JOIN (
-					SELECT otl.OtherReceiveId,til.TaxItemId,til.TaxRate [WHTRate],SUM(til.TaxAmount) [WhtAmount]
-					from OtherReceiveLines otl 
-					LEFT JOIN taxitems ti ON otl.TaxItemGuid = ti.guid
-					LEFT JOIN taxitemlines til ON ti.Id = til.TaxItemId
-					WHERE otl.SystemCategoryId = 36 AND otl.OtherReceiveId = @docid
-					GROUP BY otl.OtherReceiveId,til.TaxRate,til.TaxItemId
-			) orwht ON orwht.OtherReceiveId = ro.Id
-			LEFT JOIN CustomNoteLines clwht ON clwht.DocGuid = ro.guid AND clwht.KeyName = 'WHT Rate'
-			LEFT JOIN CustomNoteLines clawht ON clawht.DocGuid = ro.guid AND clawht.KeyName = 'WHT Amount'
-WHERE	ro.Id = @DocId AND @TypeId = 44
-
-UNION ALL
-
-/* TaxInvoiceAndReceipts */
-
-SELECT	
-		r.Id,r.Code,FORMAT(r.Date,'dd/MM/yyyy') [Date], t.Id TaxItemId, t.Code TaxItemCode
-		,r.DocTypeId,r.DocType,t.Remarks,r.LocationId,r.LocationCode,r.LocationName
-		,Ex.Id ExtOrgId,Ex.Code ExtOrgCode,Ex.Name ExtOrgName
-		,Ex.Address ExtOrgAddress,ISNULL(cp.tel,Ex.Tel) ExtOrgTel,Ex.Fax ExtOrgFax,Ex.TaxId ExtOrgTaxId
-        ,CASE WHEN ISNULL(Ex.BranchName,'') = '' THEN Ex.BranchCode ELSE Ex.BranchName END ExtOrgBranch
-        ,cp.ConName ExtOrgContact
-		,ISNULL(rl.SubTotal,0) SubTotal
-		,ISNULL((rl.ReceiptAmount+ rl.RetentionAmount-rl.VatAmount),0) TaxBase
-		,ISNULL(rl.VatAmount,0) VatAmount,ISNULL(rl.RetentionAmount,0) RetentionAmount,ISNULL(rl.ReceiptAmount,0) GrandTotal
-		,NULL RefDocCode
-		,'ใบกำกับภาษี & ใบเสร็จ' HeaderTH
-		,'TAX INVOICE & RECEIPT' HeaderEN  
-		,t.DocCurrency
-		,t.DocCurrencyRate
-		,IIF(CONCAT(FORMAT(ISNULL(tx.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(tx.TaxRate,0),'N0'),'%')) TaxRate
-		,rl.DepositAmount
-		,rl.DiscountAmount
-		,con.ContractNO
-		,CONCAT(FORMAT(clwhtset.WHT,'#.#'),'%') WHT
-		,clwhtset.WHTAmount WHTAmount
-		 /*คูณ DocCurrencyRate ข้างในแล้ว*/ 
-FROM	dbo.TaxItems t WITH (NOLOCK)
-		LEFT JOIN dbo.Receipts r WITH (NOLOCK) ON r.TaxItemId = t.Id AND r.DocTypeId = 151
-		LEFT JOIN dbo.ExtOrganizations ex WITH (NOLOCK) ON ex.Id = r.ExtOrgId
-		LEFT JOIN (SELECT MAX(Con.Name) ConName
-									,MAX(con.Tel) Tel
-									,MAX(con.Mail) Email
-									  ,Con.ExtOrganizationId
-							   FROM dbo.ContactPersons Con WITH (NOLOCK)
-							   GROUP BY Con.ExtOrganizationId
-							   ) Cp ON Ex.Id = Cp.ExtOrganizationId	
-		LEFT JOIN TaxItemLines tx ON tx.TaxItemId =t.id AND tx.SystemCategoryId IN (123,129)
-		LEFT JOIN (	SELECT	tl.TaxItemId,SUM(IIF(tl.SystemCategoryId = 49,tl.Amount,0)*ti.DocCurrencyRate)RetentionAmount
-										,SUM(IIF(tl.SystemCategoryId IN (123,129),tl.TaxAmount,0)*ti.DocCurrencyRate) VatAmount
-										,SUM(IIF(tl.SystemCategoryId = 111,tl.Amount,0)*ti.DocCurrencyRate) ReceiptAmount 
-										,SUM(IIF(tl.SystemCategoryId = 107,tl.Amount,0)*ti.DocCurrencyRate) SubTotal
-										,SUM(IIF(tl.SystemCategoryId = 124,tl.Amount,0)*ti.DocCurrencyRate) DiscountAmount
-										,SUM(IIF(tl.SystemCategory = 'DepositReceive',tl.Amount,0)*ti.DocCurrencyRate) DepositAmount
-								FROM		dbo.TaxItemLines tl WITH (NOLOCK)
-												INNER JOIN dbo.TaxItems ti WITH (NOLOCK) ON ti.Id = tl.TaxItemId 
-								WHERE		tl.TaxItemId = @DocId AND @TypeId = 151
-												GROUP BY tl.TaxItemId 
-												) rl ON rl.TaxItemId = t.Id
-		LEFT JOIN dbo.SubDocTypes se WITH (NOLOCK) ON se.Id = t.SubDocTypeId
-		
-		LEFT JOIN (SELECT til.TaxItemId,dbo.GROUP_CONCAT_D(til.SetDocCode,' ,') IvCode,dbo.GROUP_CONCAT_D( til.ContractNO,' ,') ContractNO ,dbo.GROUP_CONCAT_D(ipp.code,' ,') InterimCode
-					FROM dbo.TaxItemLines til 
-					LEFT JOIN InterimPaymentLines itp ON itp.id = til.InterimPaymentLineId
-					LEFT JOIN InterimPayments ipp ON ipp.id =itp.InterimPaymentId 
-					WHERE til.SetDocTypeid = 38 AND taxitemid= @DocId 
-					GROUP BY TaxItemId
-					)con ON con.TaxItemId = t.id
-		LEFT JOIN (
-				SELECT TaxItemId,SUM(TaxBase) TotalTaxBase, SUM(whtAmount) WHTAmount,SUM(whtAmount)*100/SUM(TaxBase) WHT
-			FROM(
-				SELECT til.TaxItemId,til.TaxBase
-				,CASE WHEN IIF(clwht.DataValues= '',0,clwht.DataValues) != 0
-					THEN til.TaxBase * IIF(clwht.DataValues= '',0,clwht.DataValues)
-					ELSE CAST(IIF(clamtwht.DataValues= '',0,clamtwht.DataValues) AS DECIMAL(18,2))
-				END whtAmount
-			from taxitemlines til
-			LEFT JOIN CustomNoteLines clwht ON til.SetDocGuid = clwht.DocGuid AND clwht.KeyName = 'WHT Rate'
-			LEFT JOIN CustomNoteLines clamtwht ON til.SetDocGuid = clamtwht.DocGuid AND clamtwht.KeyName = 'WHT Amount'
-			where til.TaxitemId = @DocId  AND til.SetDocTypeId IN (438,38)
-			) wht GROUP BY TaxItemId
-			) clwhtset ON clwhtset.TaxItemId = t.Id
-WHERE	t.Id = @DocId AND @TypeId = 151
-
-
-UNION ALL
-
-
-/* Product Invoice */
-
-SELECT	
-		r.Id,r.Code,FORMAT(r.Date,'dd/MM/yyyy') [Date], t.Id TaxItemId, t.Code TaxItemCode
-		,r.DocTypeId,r.DocType,ro.Remarks,r.LocationId,r.LocationCode,r.LocationName
-		,Ex.Id ExtOrgId,Ex.Code ExtOrgCode,Ex.Name ExtOrgName
-		,Ex.Address ExtOrgAddress,ISNULL(cp.tel,Ex.Tel) ExtOrgTel,Ex.Fax ExtOrgFax,Ex.TaxId ExtOrgTaxId
-        ,CASE WHEN ISNULL(Ex.BranchName,'') = '' THEN Ex.BranchCode ELSE Ex.BranchName END ExtOrgBranch
-        ,cp.ConName ExtOrgContact
-		,ISNULL(rr.ReceiptAmount,0) SubTotal
-		,ISNULL(txx.TaxBase,0) TaxBase
-		,ISNULL(txx.TaxAmount,0) VatAmount
-        ,0.00 RetentionAmount
-        --,ISNULL(gt.Amount*ro.DocCurrencyRate,0)
-        ,ISNULL(rr.ReceiptAmount,0) GrandTotal 
-		,ro.Code RefDocCode
-		,'ใบเสร็จ' HeaderTH
-		,'RECEIPT' HeaderEN
-		,ro.DocCurrency
-		,ro.DocCurrencyRate
-		,IIF(CONCAT(FORMAT(ISNULL(txx.TaxRate,0),'N0'),'%') LIKE '0.00%','0%',CONCAT(FORMAT(ISNULL(txx.TaxRate,0),'N0'),'%')) TaxRate
-        --,NULL TaxRate
-		,ISNULL(dp.Amount,0) DepositAmount
-		,ISNULL(ds.Amount,0)  DiscountAmount
-         ,NULL ContractNO
-		,CASE WHEN EXISTS (select 1 FROM OtherReceiveLines where OtherReceiveId = @DocId AND SystemCategoryId = 36)
-							THEN IIF(ISNULL(orwht.WHTRate,0) = 0,'0.00%',CONCAT(FORMAT(orwht.WHTRate,'#.#'),'%'))
-						ELSE IIF(ISNULL(IIF(clwht.DataValues= '',0,clwht.DataValues),0) = 0,'0.00%',CONCAT(FORMAT(IIF(clwht.DataValues= '',0,clwht.DataValues),'#.#'),'%')) 
-			END WHT
-		,CASE WHEN EXISTS (select 1 FROM OtherReceiveLines where OtherReceiveId = @DocId AND SystemCategoryId = 36)
-			THEN ISNULL(orwht.WhtAmount,0)
-		ELSE ISNULL(IIF(ISNULL(IIF(clawht.DataValues= '',0,clawht.DataValues),0) = 0,CAST(t.TaxBase as money )*IIF(clwht.DataValues= '',0,clwht.DataValues)/100,IIF(clawht.DataValues= '',0,clawht.DataValues)),0) END
-		WHTAmount
-FROM	dbo.ProductInvoiceARs ro WITH (NOLOCK)
-			LEFT JOIN dbo.Receipts r WITH (NOLOCK) ON r.TaxItemId = ro.Id AND r.DocTypeId = 438
-			--LEFT JOIN ReceiptLines rr ON rr.ReceiptId = r.Id AND rr.SystemCategoryId =111
-            LEFT JOIN (SELECT SUM(ReceiptAmount) ReceiptAmount,ReceiptId FROM ReceiptLines WHERE SystemCategoryId <> 111 GROUP BY ReceiptId )rr ON rr.ReceiptId = r.Id 
-			LEFT JOIN dbo.ExtOrganizations ex WITH (NOLOCK) ON ex.Id = r.ExtOrgId
-			LEFT JOIN (SELECT MAX(Con.Name) ConName
-									,MAX(con.Tel) Tel
-									,MAX(con.Mail) Email
-									  ,Con.ExtOrganizationId
-							   FROM dbo.ContactPersons Con WITH (NOLOCK)
-							   GROUP BY Con.ExtOrganizationId
-							   ) Cp ON Ex.Id = Cp.ExtOrganizationId		
-			LEFT JOIN dbo.TaxItems t WITH (NOLOCK) ON t.SetDocId = ro.Id AND t.SetDocTypeId = 438 AND t.SystemCategoryId = 151	
-			LEFT JOIN dbo.TaxItemLines tx WITH (NOLOCK) ON t.id = tx.TaxItemId AND tx.SetDocTypeId = 438 AND tx.SystemCategoryId IN (151)		
-			LEFT JOIN dbo.ProductInvoiceARLines gt WITH (NOLOCK) ON gt.SystemCategoryId = 111 AND gt.ProductInvoiceARId = ro.Id
-			LEFT JOIN dbo.ProductInvoiceARLines ol WITH (NOLOCK) ON ol.SystemCategoryId IN (123,129,131,199) AND ol.ProductInvoiceARId = ro.Id
-			LEFT JOIN dbo.ProductInvoiceARLines st WITH (NOLOCK) ON st.SystemCategoryId IN (107) AND st.ProductInvoiceARId = ro.Id
-			LEFT JOIN dbo.ProductInvoiceARLines dp WITH (NOLOCK) ON dp.SystemCategory = 'DepositReceive' AND dp.ProductInvoiceARId = ro.Id
-			LEFT JOIN dbo.ProductInvoiceARLines ds WITH (NOLOCK) ON ds.SystemCategoryId IN (124) AND ds.ProductInvoiceARId = ro.Id
-			LEFT JOIN dbo.ProductInvoiceARLines txx WITH (NOLOCK) ON txx.SystemCategoryId IN (123,129) AND txx.ProductInvoiceARId = ro.Id
-			LEFT JOIN dbo.SubDocTypes se WITH (NOLOCK) ON se.Id = ro.SubDocTypeId
-			LEFT JOIN (
-					SELECT otl.ProductInvoiceARId,til.TaxItemId,til.TaxRate [WHTRate],SUM(til.TaxAmount) [WhtAmount]
-					from ProductInvoiceARLines otl 
-					LEFT JOIN taxitems ti ON otl.TaxItemGuid = ti.guid
-					LEFT JOIN taxitemlines til ON ti.Id = til.TaxItemId
-					WHERE otl.SystemCategoryId = 36 AND otl.ProductInvoiceARId = @docid
-					GROUP BY otl.ProductInvoiceARId,til.TaxRate,til.TaxItemId
-			) orwht ON orwht.ProductInvoiceARId = ro.Id
-			LEFT JOIN CustomNoteLines clwht ON clwht.DocGuid = ro.guid AND clwht.KeyName = 'WHT Rate'
-			LEFT JOIN CustomNoteLines clawht ON clawht.DocGuid = ro.guid AND clawht.KeyName = 'WHT Amount'
-WHERE	ro.Id = @DocId AND @TypeId = 438
-
+WHERE	rv.Id = @DocId AND @TypeId = 52
 
 --/*2-Line*/
 ------------------------------------------------------------------------------------------------------------------------------------------------------:)
@@ -452,13 +563,32 @@ FROM		dbo.ProductInvoiceARs ro WITH (NOLOCK)
 				LEFT JOIN dbo.Receipts r WITH (NOLOCK) ON r.TaxItemId = ro.Id AND r.DocTypeId = 438
 				LEFT JOIN dbo.ReceiptLines rl WITH (NOLOCK) ON rl.ReceiptId = r.Id AND rl.SystemCategoryId <> 111
 WHERE		ro.Id = @DocId AND @TypeId = 438
+
+UNION ALL
+
+SELECT	ROW_NUMBER() OVER(ORDER BY rl.LineNumber ) LineNumber
+		,rl.LineNumber Line_No,rl.Description,ro.Code RefIVCode
+		,1 Qty
+		,'Unit' DocUnitName
+		,ISNULL(rl.ReceiptAmount * r.DocCurrencyRate,0) UnitPrice
+		,ISNULL(rl.ReceiptAmount * r.DocCurrencyRate,0) ReceiptAmount
+		,NULL Discount
+		,r.DocCurrencyRate
+FROM		dbo.ReceiveVouchers ro WITH (NOLOCK)
+				LEFT JOIN dbo.ReceiveVoucherLines rvl WITH (NOLOCK) ON rvl.ReceiveVoucherId = ro.Id and rvl.SystemCategoryId = 51
+				LEFT JOIN dbo.Receipts r WITH (NOLOCK) ON r.Id = rvl.DocId
+				LEFT JOIN dbo.ReceiptLines rl WITH (NOLOCK) ON rl.ReceiptId = r.Id AND rl.SystemCategoryId <> 111
+WHERE		ro.Id = @DocId AND @TypeId = 52
  ) x
  ORDER BY x.Line_No
+
+
+SELECT * from ReceiveVoucherLines where ReceiveVoucherId = 11
 /*3-Other*/
 -----------------------------------------------------------------------------------------------------------------------------------------------
 SELECT @TypeId DocTypeId
 
-/*4-Payment*/
+/*4-Receive Method*/
 -----------------------------------------------------------------------------------------------------------------------------------------------
 
 SELECT   /* เพิ่ม Receive Method ถ้าดึงไปทำ RV เเล้ว 26/05/2025 By Good */
@@ -516,10 +646,10 @@ SELECT   /* เพิ่ม Receive Method ถ้าดึงไปทำ RV เ
 					From ReceiveVouchers rv
 					LEFT JOIN ReceiveVoucherLines rvl ON rvl.ReceiveVoucherId = rv.Id
 					LEFT JOIN BankAccts ba WITH (NOLOCK) ON ba.Id = rvl.BankAcctId 
-					LEFT JOIN Banks b WITH (NOLOCK) ON b.LocalBankName = ba.BankCode AND b.RegionalCode = 'TH'
+					LEFT JOIN Banks b WITH (NOLOCK) ON b.LocalBankCode = ba.BankCode AND b.RegionalCode = 'TH'
 					Where rvl.FiscalMetaId IS NOT NULL --rvl.SystemCategoryId = 51
 		) pa ON pa.ReceiveVoucherId = rvl.ReceiveVoucherId
-		Where rvl.SystemCategoryId IN (51,58) AND ((rvl.TaxItemId = @DocId AND @TypeId = 151) OR (rvl.DocId = @DocId AND @TypeID = 51))
+		Where rvl.SystemCategoryId IN (51,58) AND ((rvl.TaxItemId = @DocId AND @TypeId = 151) OR (rvl.DocId = @DocId AND @TypeId = 51))
 				
 
 /*5-Company*/
