@@ -419,10 +419,10 @@ SELECT *
 INTO #TempCost
 FROM (
 		SELECT ccl.CommittedProjectId LocationId, ccl.RefDocId Id, ccl.RefDocCode Code, ccl.RefDocTypeId Doctype, ccl.[Date], ccl.RefDocLineId CommitLineId, bl.SystemCategoryId BudgetTypeId, bl.SystemCategory BudgetType, Doc.VatTypeId, Doc.VatType
-				, IIF(ccl.RefDocTypeId = 64,1.00,IIF((Doc.VatTypeId = 123 AND Doc.CalcVat = 1),ISNULL(ccl.Amount,0),ISNULL(ccl.Amount,0)*107/100)/NULLIF(Doc.SubTotal,0.00)) pt
+				, IIF(ccl.RefDocTypeId = 64,1.00,IIF((Doc.VatTypeId = 129 AND Doc.CalcVat = 1),ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0))/NULLIF(Doc.SubTotal,0.00)) pt
 				, 0.00 DPAmount
 				, IIF(ccl.RefDocTypeId = 64,1.00,IIF((Doc.VatTypeId = 129 AND Doc.CalcVat = 1),ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0))/NULLIF(IIF(ccl.RefdoctypeId = 43,Doc.SubTotalByOrg,Doc.SubTotal),0.00))*Doc.RTAmount RTAmount
-				, IIF(ccl.RefDocTypeId = 64,1.00,IIF((Doc.VatTypeId = 123 AND Doc.CalcVat = 1),ISNULL(ccl.Amount,0),ISNULL(ccl.Amount,0)*107/100)/NULLIF(Doc.SubTotal,0.00))*Doc.WHT CommitWHT
+				, IIF(ccl.RefDocTypeId = 64,1.00,IIF((Doc.VatTypeId = 129 AND Doc.CalcVat = 1),ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0))/NULLIF(Doc.SubTotal,0.00))*Doc.WHT CommitWHT
 				, IIF(Doc.CalcVat = 1,ISNULL(ccl.Amount,0)*107/100,ISNULL(ccl.Amount,0)) CommitAmount
 				, ISNULL(ccl.Amount,0) CommitTaxBase
 				, IIF(Doc.CalcVat = 1,ISNULL(ccl.Amount,0) * 7/100,0) CommitTaxAmount
