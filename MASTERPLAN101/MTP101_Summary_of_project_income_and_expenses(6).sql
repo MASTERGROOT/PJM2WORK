@@ -431,9 +431,9 @@ FROM (
 				, IIF(DocPaid.CalcVat = 1,ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0)) AS PayAmount
 				, ISNULL(pcl.Amount,0) PayTaxBase
 				, IIF(DocPaid.CalcVat = 1,ISNULL(pcl.Amount,0) * 7/100,0) PayTaxAmount
-				, IIF(pcl.RefDocTypeId = 64,1.00,IIF((DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))/NULLIF(IIF(pcl.RefdoctypeId = 43,DocPaid.SubTotalByOrg,DocPaid.SubTotal),0.00))*DocPaid.RTAmount RetentionSetAmount
-				, IIF(pcl.RefDocTypeId = 64,1.00,IIF((DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.DeductAmount DeductAmount
-				, IIF(pcl.RefDocTypeId = 64,1.00,IIF((DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.WHT WHT
+				, ISNULL(IIF(pcl.RefDocTypeId = 64,1.00,IIF((DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))/NULLIF(IIF(pcl.RefdoctypeId = 43,DocPaid.SubTotalByOrg,DocPaid.SubTotal),0.00))*DocPaid.RTAmount,0) RetentionSetAmount
+				, ISNULL(IIF(pcl.RefDocTypeId = 64,1.00,IIF((DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.DeductAmount,0) DeductAmount
+				, ISNULL(IIF(pcl.RefDocTypeId = 64,1.00,IIF((DocPaid.VatTypeId = 129 AND DocPaid.CalcVat = 1),ISNULL(pcl.Amount,0)*107/100,ISNULL(pcl.Amount,0))/NULLIF(DocPaid.SubTotal,0.00))*DocPaid.WHT,0) WHT
 	from CommittedCostLines ccl
 		LEFT JOIN BudgetLines bl ON bl.Id = ccl.BudgetLineId
 		LEFT JOIN PaidCostLines pcl ON pcl.CommittedCostLineId = ccl.Id AND pcl.[Date] <= @Todate
