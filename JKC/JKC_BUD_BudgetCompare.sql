@@ -68,7 +68,14 @@ INSERT INTO @RefId
 
 OPTION
 (RECOMPILE);
-
+SELECT rcl.Id requestid, ccl.Id commitid
+    from CommittedCostLines ccl
+        FULL OUTER JOIN RequestCostLines rcl ON rcl.Id = ccl.RequestCostLineId
+    WHERE (rcl.RefDocId = @DocId AND rcl.RefDocTypeId = @TypeId AND @TypeId IN (24,211))
+        OR (ccl.RefDocId = @DocId AND ccl.RefDocTypeId = @TypeId AND @TypeId IN (22,105))
+        OR (EXISTS (SELECT 'filter'
+        FROM @RemainRequestDocId d
+        WHERE d.DocId = rcl.RefDocId AND d.DocTypeId = rcl.RefDocTypeId))
 
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#TempRequest', 'U') IS NOT NULL
