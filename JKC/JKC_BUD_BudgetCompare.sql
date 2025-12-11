@@ -1,4 +1,4 @@
-DECLARE @p0 INT = 192
+DECLARE @p0 INT = 366
 DECLARE @p1 INT = 24
 /* PR = 24, PO = 22, WR = 211, SC = 105 */
 
@@ -59,7 +59,7 @@ INSERT INTO @RefId
     (RequestCostLineId,CommittedCostLineId)
     SELECT rcl.Id requestid, ccl.Id commitid
     from CommittedCostLines ccl
-        LEFT JOIN RequestCostLines rcl ON rcl.Id = ccl.RequestCostLineId
+        FULL OUTER JOIN RequestCostLines rcl ON rcl.Id = ccl.RequestCostLineId
     WHERE (rcl.RefDocId = @DocId AND rcl.RefDocTypeId = @TypeId AND @TypeId IN (24,211))
         OR (ccl.RefDocId = @DocId AND ccl.RefDocTypeId = @TypeId AND @TypeId IN (22,105))
         OR (EXISTS (SELECT 'filter'
@@ -68,14 +68,7 @@ INSERT INTO @RefId
 
 OPTION
 (RECOMPILE);
-SELECT rcl.Id requestid, ccl.Id commitid
-    from CommittedCostLines ccl
-        FULL OUTER JOIN RequestCostLines rcl ON rcl.Id = ccl.RequestCostLineId
-    WHERE (rcl.RefDocId = @DocId AND rcl.RefDocTypeId = @TypeId AND @TypeId IN (24,211))
-        OR (ccl.RefDocId = @DocId AND ccl.RefDocTypeId = @TypeId AND @TypeId IN (22,105))
-        OR (EXISTS (SELECT 'filter'
-        FROM @RemainRequestDocId d
-        WHERE d.DocId = rcl.RefDocId AND d.DocTypeId = rcl.RefDocTypeId))
+
 
 -- Drop the table if it already exists
 IF OBJECT_ID('tempDB..#TempRequest', 'U') IS NOT NULL
@@ -126,7 +119,7 @@ SELECT *
         ,CASE WHEN b.UnitName IN (SELECT * FROM @LSName) THEN 1
             ELSE b.cpQty - b.cqty - b.rcqty
         END NetblQty
-        ,b.cpAmount - b.camount - b.rcqty NetblAmount
+        ,b.cpAmount - b.camount - b.rcamount NetblAmount
 INTO #TempBudgetRemain
 FROM (
     SELECT o.id OrgId 
@@ -256,7 +249,6 @@ FROM (
         WHERE o.id = @OrgId
 
 ) b
-
 
 
 /************************************************************************************************************************************************************************/
