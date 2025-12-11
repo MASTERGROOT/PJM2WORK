@@ -1158,6 +1158,7 @@ namespace XtraReportSerialization {
             this.GroupHeader1.HeightF = 20F;
             this.GroupHeader1.Name = "GroupHeader1";
             groupSortingSummary1.Enabled = true;
+            groupSortingSummary1.FieldName = "RefDocLineId";
             this.GroupHeader1.SortingSummary = groupSortingSummary1;
             // 
             // table3
