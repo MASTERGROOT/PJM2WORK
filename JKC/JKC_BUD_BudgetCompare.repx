@@ -1470,7 +1470,7 @@ namespace XtraReportSerialization {
             this.tableCell19.Borders = DevExpress.XtraPrinting.BorderSide.None;
             this.tableCell19.CanGrow = false;
             this.tableCell19.DataBindings.AddRange(new DevExpress.XtraReports.UI.XRBinding[] {
-                        new DevExpress.XtraReports.UI.XRBinding("Text", null, "1-Core.ItemMetaCode")});
+                        new DevExpress.XtraReports.UI.XRBinding("Text", null, "1-Core.LineCode")});
             this.tableCell19.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.tableCell19.FormattingRules.Add(this.Header);
             this.tableCell19.Multiline = true;
@@ -1639,8 +1639,6 @@ namespace XtraReportSerialization {
             // 
             this.tableCell3.BackColor = System.Drawing.Color.LightGray;
             this.tableCell3.Borders = DevExpress.XtraPrinting.BorderSide.None;
-            this.tableCell3.DataBindings.AddRange(new DevExpress.XtraReports.UI.XRBinding[] {
-                        new DevExpress.XtraReports.UI.XRBinding("Text", null, "1-Core.DocUnitName")});
             this.tableCell3.Font = new System.Drawing.Font("Arial Unicode MS", 8F);
             this.tableCell3.Name = "tableCell3";
             this.tableCell3.StylePriority.UseBackColor = false;
@@ -1648,9 +1646,7 @@ namespace XtraReportSerialization {
             this.tableCell3.StylePriority.UseFont = false;
             this.tableCell3.StylePriority.UseTextAlignment = false;
             summary4.Func = DevExpress.XtraReports.UI.SummaryFunc.Max;
-            summary4.Running = DevExpress.XtraReports.UI.SummaryRunning.Group;
             this.tableCell3.Summary = summary4;
-            this.tableCell3.Text = "tableCell3";
             this.tableCell3.TextAlignment = DevExpress.XtraPrinting.TextAlignment.MiddleRight;
             this.tableCell3.Weight = 0.74245640167459552D;
             // 
