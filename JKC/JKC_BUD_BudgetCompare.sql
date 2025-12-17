@@ -81,14 +81,24 @@ SELECT *
 INTO #TempRequest
 FROM (
     SELECT rcl.Id RequestId,rcl.RefDocId, rcl.RefDocCode, rcl.[Date], rcl.RefDocTypeId, rcl.RefDocLineId, rcl.RevisedBudgetId, rcl.BudgetLineId, bl.LineCode, COALESCE(bl.ItemMetaCode,bl.ItemCategoryCode) ItemMetaCode, bl.Description ItemMetaName
-            , rcl.DocQty, rcl.DocUnitName, cal.UnitPrice, rcl.Amount, rcl.Description
-    FROM RequestCostLines rcl
+            , rcl.RemainQty DocQty, rcl.DocUnitName, cal.UnitPrice, rcl.RemainAmount Amount, rcl.Description
+    FROM (
+        SELECT r1.*
+            ,r2.*
+        from RequestCostLines r1
+        LEFT JOIN (
+            SELECT bse.DocId,bse.DocCode,bse.doctype,bse.DocTypeId,bse.DocLineId,bser.RemainQty,bser.RemainAmount,bser.Zero
+            from BookedStockElementSets bse
+            INNER JOIN BookedStockElementSets_BookedStockElementSetRemain bser ON bse.Id = bser.Id
+            --WHERE DocTypeId = 24 AND DocId = 367/* DocTypeId = 24 AND Id = 2172 */
+        ) r2 ON r1.RefDocId = r2.DocId AND r1.RefDocTypeId = r2.DocTypeId AND r1.RefDocLineId = r2.DocLineId
+        WHERE r1.CommittedCostLineId IS NULL  
+    ) rcl
         LEFT JOIN CostAllocationLines cal ON rcl.CostAllocationLineId = cal.Id
         LEFT JOIN BudgetLines bl ON rcl.BudgetLineId = bl.Id
     WHERE rcl.BudgetLineId IN (SELECT BudgetLineId FROM @BudgetLineId)
         AND rcl.RevisedBudgetId = @RevisedBudgetId
-
-        
+        AND (rcl.Zero = 0 OR (rcl.RefDocId = @DocId AND rcl.RefDocTypeId = @TypeId))
 
 ) r
 
@@ -128,6 +138,7 @@ SELECT main.*
         END RemainQty
     , bud.CompleteAmount - SUM(main.Amount) OVER (PARTITION BY main.BudgetlineId ORDER BY main.BudgetLineId) RemainAmount
     ,dbo.SitePath(main.RefDocTypeId,main.RefDocId) AS DocPath
+    ,CASE WHEN main.RefDocId = @DocId and main.RefDocTypeId = @TypeId THEN 1 ELSE 0 END AS IsCurrentDoc
 FROM (
             SELECT *
         FROM #TempRequest
