@@ -1,10 +1,10 @@
 
--- DECLARE @p0 DATE = '2025-01-01'
--- DECLARE @p1 DATE = '2025-01-31'
--- DECLARE @p2 NVARCHAR(MAX)  = '1' 
--- DECLARE @p3 DECIMAL(10,2) = 0.51 /*0.51*/
--- DECLARE @p4 DECIMAL(10,2)  = 0.49 /*0.80*/
-
+DECLARE @p0 DATE = '2025-01-01'
+DECLARE @p1 DATE = '2025-12-31'
+DECLARE @p2 NVARCHAR(MAX)  = '1' 
+DECLARE @p3 DECIMAL(10,2) = 0.51 /*0.51*/
+DECLARE @p4 DECIMAL(10,2)  = 0.49 /*0.80*/
+/*มีการเขียน Script ใน Designer ว่าไม่ให้คำนวณ SubTotal ถ้า Detail เป็น 1.02 Vatขาย*/
 
 DECLARE @startDate DATE = @p0
 DECLARE @endDate DATE = @p1
@@ -41,7 +41,7 @@ select	'รายได้' [รายได้]
 		,'2' Sort
 		,'ประมาณการรายได้' [GroupType]
 		,CASE WHEN a.Description LIKE 'ประมาณการรายได้' THEN '1.01 ประมาณการรายได้' 
-            WHEN a.Description LIKE 'Vat' THEN '1.02 Vatขาย' 
+            WHEN a.Description LIKE 'Vatขาย' THEN '1.02 Vatขาย' 
             -- WHEN a.Description LIKE 'ค่าของมี Vat' THEN '2.01 ค่าของมี Vat' 
             -- WHEN a.Description LIKE 'ค่าของไม่มี Vat' THEN '2.02 ค่าของไม่มี Vat' 
             -- WHEN a.Description LIKE 'ค่าของโครงการใหม่ มี Vat' THEN '2.03 ค่าของโครงการใหม่ มี Vat' 
@@ -81,7 +81,7 @@ from
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2051)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
+					and rl.ItemMetaId in (2051,2052)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
 			UNION ALL
 			select r.LocationId
 					,r.LocationCode
@@ -154,7 +154,7 @@ from
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2052,2053,2054,2055,2056,20557,2058,2059,2060,2061,2062) /*ขึ้นตัวจริงต้องเช็คอีกที*/
+					and rl.ItemMetaId in (2053,2054,2055,2056,2057,2058,2059,2060,2061,2062) /*ขึ้นตัวจริงต้องเช็คอีกที*/
 				)a 
 		)a 
 
@@ -209,7 +209,7 @@ from
 					and (r.LocationId in (select Id from #temporg) or @ProjectId is NULL)
 					and r.DocStatus not in (-1)
 					and rl.SystemCategoryId = 99
-					and rl.ItemMetaId in (2052,2053,2054,2055,2056,20557,2058,2059,2060,2061,2062,2063,2064,2065,2066)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
+					and rl.ItemMetaId in (2053,2054,2055,2056,2057,2058,2059,2060,2061,2062,2063,2064,2065,2066)  /*ขึ้นตัวจริงต้องเช็คอีกที*/
 				)a 
 		)a 
 
@@ -511,7 +511,7 @@ from(select j.OrgId
 			from JournalVouchers j
 			left join JVLines jv on j.Id = jv.JournalVoucherId
 			-- INNER JOIN ChartOfAccounts coa ON coa.Id = jv.AccountId
-			where jv.AccountCode in ('60020002','60030002','60030003','60030007')/* coa.AnalysisCode1 = 'ค่าโฆษณา' */
+			where jv.AccountCode in ('60020002','60030002','60030003','60030007','60010007')/* coa.AnalysisCode1 = 'ค่าโฆษณา' */
 					--and j.Date Between DateAdd("m",-12,@AsOfDate) And @AsOfDate
 					and j.JournalId NOT IN (17,18) --ไม่รวม journal ปิดบัญชี
 					and (j.Date BETWEEN @startDate AND @endDate OR (@startDate IS NULL AND @endDate IS NULL) OR (@startDate = '' AND @endDate = '')  )
@@ -1113,6 +1113,7 @@ FROM (
 		a.Detail,
 		a.[yearMonth],
 		a.[Month],
+		-- CASE WHEN a.type =
 		a.[Total budget] [STotal Budget],
 		/* a.Actual */0 [SActual]
 	FROM #CombineTable a
@@ -1134,10 +1135,10 @@ GROUP BY v.[No.], v.VATDetail, v.yearMonth, v.[Month]
 
 /******************** Temp #TotalCol ********************/
 DECLARE @profit DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้')
-DECLARE @ProductActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ')
-DECLARE @WorkerActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง')
-DECLARE @OtherActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง')
-DECLARE @ManagementActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร')
+-- DECLARE @ProductActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ')
+-- DECLARE @WorkerActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง')
+-- DECLARE @OtherActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง')
+-- DECLARE @ManagementActual DEC(20, 2) = (SELECT SUM(c.Actual ) FROM #CombineTable c WHERE c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร')
 
   IF OBJECT_ID(N'tempdb..#TotalCol', N'U') IS NOT NULL
     BEGIN
@@ -1152,6 +1153,7 @@ SELECT c.[No.]
 		,c.RD
 		,c.MTP
 		,ISNULL(c.MTP - c.RD, NULL) [Diff (MTP - RD)]
+		,c.[ผลต่าง+-]
 		,c.[ประมาณการรายได้]
 		,c.[ประมาณการต้นทุนที่ต้องใช้]
 		,c.[ประมาณการต้นทุนโครงการใหม่]
@@ -1168,26 +1170,59 @@ FROM (
 			,'01' [TotalDate]
 			,'Total' [TotalMonth]
 			,CASE WHEN (c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้') THEN CAST('1' AS DEC(10, 4))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN CAST('0.5' AS DEC(10, 4))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.03 ค่าแรงมี Vat') THEN CAST('0.34' AS DEC(10, 4))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.05 เงินเดือน ปันส่วน') THEN CAST('0.055' AS DEC(10, 4))
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.08 ค่าโฆษณา Vat') THEN CAST('0.075' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN CAST('0.2132' AS DEC(10, 4)) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.02 ค่าของไม่มี Vat') THEN CAST('0.0936' AS DEC(10, 4)) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.03 ค่าของโครงการใหม่ มี Vat') THEN CAST('0.2132' AS DEC(10, 4)) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.05 ค่าแรงมี Vat') THEN CAST('0.008' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.06 ค่าแรงไม่มี Vat') THEN CAST('0.064' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.07 ค่าแรงโครงการใหม่ มี Vat') THEN CAST('0.008' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.09 เงินเดือน ปันส่วน') THEN CAST('0' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.10 ค่าเสื่อมราคาหน้างาน') THEN CAST('0' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.11 ค่าเดินทาง+น้ำมัน ปันส่วน Vat') THEN CAST('0.17' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.12 ค่าโฆษณา Vat') THEN CAST('0.1' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.13 บริหาร Vat') THEN CAST('0.1' AS DEC(10, 4))
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.14 บริหารไม่มี Vat') THEN CAST('0' AS DEC(10, 4))
 				ELSE NULL
 			END [RD]
 			,CASE WHEN (c.[No.] = 'รายได้' AND c.[type] = 'ประมาณการรายได้') THEN '1'
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN (@ProductActual * 0.01 / @profit) 
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.03 ค่าแรงมี Vat') THEN (@WorkerActual * 0.01 / @profit)
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.05 เงินเดือน ปันส่วน') THEN (@OtherActual * 0.01 / @profit)
-				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.08 ค่าโฆษณา Vat') THEN (@ManagementActual * 0.01 / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.01 ค่าของมี Vat') THEN (SUM(c.Actual) / @profit) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.02 ค่าของไม่มี Vat') THEN (SUM(c.Actual) / @profit) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าของ' AND c.Detail = '2.03 ค่าของโครงการใหม่ มี Vat') THEN (SUM(c.Actual) / @profit) 
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.05 ค่าแรงมี Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.06 ค่าแรงไม่มี Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'ค่าแรง' AND c.Detail = '2.07 ค่าแรงโครงการใหม่ มี Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.09 เงินเดือน ปันส่วน') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.10 ค่าเสื่อมราคาหน้างาน') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'เงินเดือน ค่าเสื่อมราคาหน้างาน ค่าเดินทาง' AND c.Detail = '2.11 ค่าเดินทาง+น้ำมัน ปันส่วน Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.12 ค่าโฆษณา Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.13 บริหาร Vat') THEN (SUM(c.Actual) / @profit)
+				WHEN (c.[No.] = 'ค่าใช้จ่าย' AND c.[type] = 'บริหาร' AND c.Detail = '2.14 บริหารไม่มี Vat') THEN (SUM(c.Actual) / @profit)
 			ELSE NULL
 			END [MTP]
 			,SUM(c.[ประมาณการรายได้]) [ประมาณการรายได้]
+			,SUM(c.[ผลต่าง+-]) [ผลต่าง+-]
 			,SUM(c.[ประมาณการต้นทุนที่ต้องใช้]) [ประมาณการต้นทุนที่ต้องใช้]
 			,SUM(c.[ประมาณการต้นทุนโครงการใหม่]) [ประมาณการต้นทุนโครงการใหม่]
 			,SUM(c.[Total budget]) [Total budget]
 			,SUM(c.Actual) [Actual]
 			,SUM(c.Diff) [Diff]
-	FROM #CombineTable c
+	FROM (SELECT a.[No.],
+				a.[type],
+				a.SortType,
+				a.GroupType,
+				a.Detail,
+				v.Detail [var_detail],
+				a.yearMonth [Date],
+				a.[Month],
+				ISNULL(a.[ประมาณการรายได้],0) [ประมาณการรายได้],
+				ISNULL(IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL),0) [ผลต่าง+-], --เอาอันนี้รวมกับใน total budget
+				ISNULL(a.[ประมาณการต้นทุนที่ต้องใช้],0) [ประมาณการต้นทุนที่ต้องใช้],
+				ISNULL(a.[ประมาณการต้นทุนโครงการใหม่],0) [ประมาณการต้นทุนโครงการใหม่],
+				ISNULL(a.[Total budget],0) [Total budget],
+				ISNULL(a.Actual,0) [Actual],
+				ISNULL(a.Diff,0) [Diff]
+		FROM #CombineTable a 
+		LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AND v.NextMonth = a.[Month]) c
 	GROUP BY c.[No.], c.Detail, c.[type],c.SortType--, c.yearMonth, c.DateDetail
 ) c
 
@@ -1212,12 +1247,13 @@ FROM (
 		1 - IIF(c.[No.] = 'ค่าใช้จ่าย', SUM(c.RD), NULL) [SumRD],
 		1 - IIF(c.[No.] = 'ค่าใช้จ่าย', SUM(c.MTP), NULL) [SumMTP],
 		IIF(c.[No.] = 'ค่าใช้จ่าย',SUM(c.[Diff (MTP - RD)]),NULL) [Sum MTP - RD],
+		SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[ผลต่าง+-])) [ผลต่าง+-],
 		-- -- SUM(c.[ประมาณการรายได้]) AS Sum_ประมาณการรายได้,
         -- -- SUM(c.[ประมาณการต้นทุนที่ต้องใช้]) AS Sum_ประมาณการต้นทุนที่ต้องใช้,
         -- -- SUM(c.[ประมาณการต้นทุนโครงการใหม่]) AS Sum_ประมาณการต้นทุนโครงการใหม่,
-        SUM(c.[Total budget]) AS Sum_Total_budget,
-        SUM(c.[Actual]) AS Sum_Actual
-        -- -- SUM(c.[Diff]) AS Sum_Diff
+        SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[Total budget])) AS Sum_Total_budget,
+        SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[Actual])) AS Sum_Actual,
+        SUM(IIF(c.Detail = '1.02 Vatขาย',0,c.[Diff])) AS Sum_Diff
 	FROM (
 				SELECT a.[No.],
 				a.[type] [Total],
@@ -1228,10 +1264,12 @@ FROM (
 				NULL [RD],
 				NULL [MTP],
 				NULL [Diff (MTP - RD)],
+				ISNULL(IIF(ROW_NUMBER() OVER (PARTITION BY a.Detail, a.Month ORDER BY a.yearMonth) = 1, v.d, NULL),0) [ผลต่าง+-],
 				a.[Total budget],
 				a.Actual,
 				a.Diff
 		FROM #CombineTable a
+		LEFT JOIN #Variant v ON v.Detail = a.Detail AND v.NextYearMonth = a.yearMonth AND v.NextMonth = a.[Month]
 		UNION ALL 
 		SELECT t.[No.]
 				,t.[type] [Total]
@@ -1242,6 +1280,7 @@ FROM (
 				,t.RD
 				,t.MTP
 				,t.[Diff (MTP - RD)]
+				,t.[ผลต่าง+-]
 				,t.[Total budget]
 				,t.Actual
 				,t.Diff
@@ -1250,6 +1289,27 @@ FROM (
 	GROUP BY c.[No.],c.[Date], c.Month
 ) c
 -- SELECT * FROM #NetProfit
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#NetVarient', 'U') IS NOT NULL
+    BEGIN
+		DROP TABLE #NetVarient
+    END;
+-- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
+SELECT *
+INTO #NetVarient
+FROM (
+	SELECT 
+		c.GroupType
+		-- ,FORMAT(DATEADD(MONTH,1,c.[DateDetail]),'yyyy-MM-dd','en') [NextDate]
+		,FORMAT(DATEADD(MONTH,1,CAST(c.[Date] + '-01' AS DATE)), 'yyyy-MM','en') [NextYearMonth]--FORMAT(DATEADD(MONTH,1,[Date]),'yyyy-MM-dd','en')
+		,FORMAT(DATEADD(MONTH,1,CAST(c.[Date] + '-01' AS DATE)),'MMMM','th') [NextMonth]
+		,SUM(c.[Sum_Total_budget]) tb
+		,SUM(c.Sum_Actual) a
+		,SUM(c.Sum_Diff) d
+	FROM #NetProfit c
+	WHERE c.[Date] <> '01'
+	GROUP BY c.GroupType,c.[Date]
+) a
 /*********************************************************************/
 /********************Test Temp****************************************/
 -- select * from #Revenue
@@ -1283,7 +1343,7 @@ SELECT  a.[No.],
 		a.[ประมาณการต้นทุนโครงการใหม่],
 		ISNULL(a.[Total budget],0) + ISNULL(a.[ผลต่าง+-],0) [Total budget], --เอาอันนี้รวมกับใน total budget
 		a.Actual,
-		a.Diff
+		a.Diff - ISNULL(a.[ผลต่าง+-],0) [Diff]
 FROM (SELECT a.[No.],
 		a.[type] [Total],
 		a.SortType,
@@ -1317,15 +1377,33 @@ SELECT t.[No.]
 		,t.MTP [MTP (%)]
 		,t.[Diff (MTP - RD)] [Diff (MTP - RD)]
 		,t.[ประมาณการรายได้]
-		,0.00 [ผลต่าง+-]
+		,ISNULL(t.[ผลต่าง+-],0) [ผลต่าง+-]
 		,ISNULL(t.[ประมาณการต้นทุนที่ต้องใช้],0) [ประมาณการต้นทุนที่ต้องใช้]
 		,ISNULL(t.[ประมาณการต้นทุนโครงการใหม่],0) [ประมาณการต้นทุนโครงการใหม่]
-		,ISNULL(t.[Total budget],0) [Total budget]
+		,ISNULL(t.[Total budget],0) + ISNULL(t.[ผลต่าง+-],0) [Total budget]
 		,ISNULL(t.Actual,0) Actual
-		,ISNULL(t.Diff,0) Diff
+		,ISNULL(t.Diff,0) - ISNULL(t.[ผลต่าง+-],0) Diff
 FROM #TotalCol t
 UNION ALL 
-SELECT a.[No.],
+SELECT n.[No.]
+		,n.Total
+		,n.SortType
+		,n.GroupType
+		,n.Detail
+		,n.[var_detail]
+		,n.[Date]
+		,n.[Month]
+		,n.[RD (%)]
+		,n.[MTP (%)]
+		,n.[Diff (MTP - RD)]
+		,n.[ประมาณการรายได้]
+		,ISNULL(n.[ผลต่าง+-],0) [ผลต่าง+-]
+		,ISNULL(n.[ประมาณการต้นทุนที่ต้องใช้],0) [ประมาณการต้นทุนที่ต้องใช้]
+		,ISNULL(n.[ประมาณการต้นทุนโครงการใหม่],0) [ประมาณการต้นทุนโครงการใหม่]
+		,ISNULL(n.[Total budget],0) + ISNULL(n.[ผลต่าง+-],0) [Total budget]
+		,ISNULL(n.Actual,0) Actual
+		,ISNULL(n.Diff,0) + ISNULL(n.[ผลต่าง+-],0) Diff
+FROM (SELECT a.[No.],
 		NULL Total,
         99 SortType,
 		a.GroupType,
@@ -1337,15 +1415,13 @@ SELECT a.[No.],
 		a.SumMTP [MTP (%)],
 		a.[Sum MTP - RD] [Diff (MTP - RD)],
 		0.00 [ประมาณการรายได้],
-		0.00 [ผลต่าง+-],
+		ISNULL(IIF(a.GroupType = 'รวมรายได้', a.[ผลต่าง+-],0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.[ผลต่าง+-],0),0) [ผลต่าง+-],
 		0.00 [ประมาณการต้นทุนที่ต้องใช้],
 		0.00 [ประมาณการต้นทุนโครงการใหม่],
 		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Total_budget,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Total_budget,0)),NULL),0) [Total budget],
 		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมรายได้', a.Sum_Actual,0) - IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Actual,0)),NULL),0) [Actual],
-		0.00 Diff		
-FROM #NetProfit a
-
-
+		ISNULL(IIF(a.[No.] = 'กำไรก่อนปรับปรุง', (IIF(a.GroupType = 'รวมค่าใช้จ่าย', a.Sum_Diff,0) - IIF(a.GroupType = 'รวมรายได้', a.Sum_Diff,0)),NULL),0) Diff		
+FROM #NetProfit a) n
 /************************************************************************************************************************************************************************/
 
 /*2-Filter*/
@@ -1357,6 +1433,12 @@ select  CONCAT('Date : ', FORMAT(@startDate, 'dd/MM/yyyy'), ' To ', FORMAT(@endD
 
 /*3-Company*/
 select * from fn_CompanyInfoTable(@ProjectId);
+
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#CombineTable2', 'U') IS NOT NULL
+	BEGIN
+		DROP TABLE #CombineTable2
+    END;
 
 /*VAT*/
 WITH SellVat AS (
@@ -1385,9 +1467,17 @@ WITH SellVat AS (
 		,ISNULL(a.[Total Budget],0) - ISNULL(b.[Total Budget],0) [addTotal]
 		,ISNULL(a.Actual,0) - ISNULL(b.Actual,0) [addActual]
 FROM SellVat a
-INNER JOIN BuyVat b
+INNER JOIN (
+	SELECT [No.]
+		,yearMonth
+		,[Month]
+		,SUM([Total Budget]) [Total Budget]
+		,SUM(Actual) Actual
+	FROM BuyVat
+	GROUP BY [No.],yearMonth,[Month]
+) b
 ON a.yearMonth = b.yearMonth
-WHERE a.Detail = 'VAT ขาย' OR b.Detail = 'VAT ซื้อ'
+-- WHERE a.Detail = 'VAT ขาย' OR b.Detail IN ('VAT ซื้อ','Vat ซื้อ โครงการใหม่')
 ), VatTotal AS (
 	SELECT va.[No.]
 		,va.VATDetail [Detail]
@@ -1395,7 +1485,7 @@ WHERE a.Detail = 'VAT ขาย' OR b.Detail = 'VAT ซื้อ'
 		,va.[Month]
 		,IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07) [Total Budget]
 		,va.Actual
-		,(ISNULL(IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07),0) - ISNULL(va.Actual,0)) Diff	
+		,(ISNULL(va.Actual,0) - ISNULL(IIF(va.VATDetail = 'VAT ขาย',va.[Total Budget],va.[Total Budget] * 0.07),0)) Diff	
 FROM #VATprice va
 UNION ALL
 SELECT v.[No.]
@@ -1404,11 +1494,13 @@ SELECT v.[No.]
 		,v.[Month]
 		,v.addTotal [Total Budget]
 		,v.addActual [Actual]
-		,(ISNULL(v.addTotal,0) - ISNULL(v.addActual,0)) Diff
+		,(ISNULL(v.addActual,0) - ISNULL(v.addTotal,0)) Diff
 FROM PayVat v
 )
 
+-- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
 SELECT *
+INTO #CombineTable2
 FROM (
 	SELECT vt.[No.]
 		,NULL Total
@@ -1462,8 +1554,54 @@ SELECT vt.[No.]
 		-- ,IIF(vt.Detail = 'VAT ขาย', SUM(vt.Diff),SUM(vt.Diff) * 0.07) [Diff]
 FROM VatTotal vt
 GROUP BY vt.[No.], vt.Detail
-) VAT 
-ORDER BY Sort
+) v
+
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#VarientCombineTable2', 'U') IS NOT NULL
+BEGIN
+	DROP TABLE #VarientCombineTable2
+END;
+-- Create the temporary table from a physical table called 'TableName' in schema 'dbo'
+SELECT *
+INTO #VarientCombineTable2
+FROM (
+	SELECT [No.]
+		,Detail
+		,FORMAT(DATEADD(MONTH,1,CAST([Date] + '-01' AS DATE)), 'yyyy-MM','en') [NextYearMonth]
+		,FORMAT(DATEADD(MONTH,1,CAST([Date] + '-01' AS DATE)),'MMMM','th') [NextMonth]
+		,Diff
+	FROM #CombineTable2
+	WHERE Date <> '01'
+	UNION ALL
+	SELECT [No.]
+		,Detail
+		,'01' [NextYearMonth]
+		,'Total' [NextMonth]
+		,SUM(Diff) Diff
+	from #CombineTable2
+	WHERE Date <> '01' AND FORMAT(DATEADD(MONTH,1,CAST([Date] + '-01' AS DATE)), 'yyyy-MM','en') <= FORMAT(@EndDate, 'yyyy-MM','en')
+	group by [No.],Detail
+) var
+/******************** VAT ********************************************/
+SELECT ct2.[No.]
+		,ct2.Total
+		,ct2.GroupType
+		,ct2.Sort
+		,ct2.Detail
+		,ct2.[Date]
+		,ct2.[Month]
+		,ct2.[RD (%)]
+		,ct2.[MTP (%)]
+		,ct2.[Diff (MTP - RD)]
+		,ct2.[ประมาณการรายได้]
+		,ISNULL(vct2.Diff,0) [ผลต่าง+-]
+		,ct2.[ประมาณการต้นทุนที่ต้องใช้]
+		,ct2.[ประมาณการต้นทุนโครงการใหม่]
+		,ct2.[Total Budget]
+		,ct2.Actual
+		,ct2.Diff
+FROM #CombineTable2 ct2
+LEFT JOIN #VarientCombineTable2 vct2 ON ct2.[No.] = vct2.[No.] AND ct2.Detail = vct2.Detail AND ct2.[Date] = vct2.[NextYearMonth] AND ct2.[Month] = vct2.[NextMonth]
 
 select * from #SalaryRate
 select * from #FareRate
@@ -1576,3 +1714,18 @@ IF OBJECT_ID(N'tempdb..#NetProfit', N'U') IS NOT NULL
     BEGIN
         DROP TABLE #NetProfit;
     END;
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#NetVarient', 'U') IS NOT NULL
+    BEGIN
+		DROP TABLE #NetVarient
+    END;
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#CombineTable2', 'U') IS NOT NULL
+	BEGIN
+		DROP TABLE #CombineTable2
+    END;
+-- Drop the table if it already exists
+IF OBJECT_ID('tempDB..#VarientCombineTable2', 'U') IS NOT NULL
+BEGIN
+	DROP TABLE #VarientCombineTable2
+END;
