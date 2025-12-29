@@ -128,15 +128,15 @@ FROM (
 /************************************************************************************************************************************************************************/
 
 /*1-core*/
-SELECT main.*
-    , bud.CompleteQty /* IIF(ROW_NUMBER() OVER (PARTITION BY main.BudgetLineId ORDER BY main.BudgetLineId) = 1,bud.CompleteQty,NULL) */
-    , bud.CompleteUnitPrice 
-    , bud.UnitName /* IIF(ROW_NUMBER() OVER (PARTITION BY main.BudgetLineId ORDER BY main.BudgetLineId) = 1,bud.UnitName,NULL) */
-    , bud.CompleteAmount /* IIF(ROW_NUMBER() OVER (PARTITION BY main.BudgetLineId ORDER BY main.BudgetLineId) = 1,bud.CompleteAmount,NULL) */
-    , CASE WHEN bud.UnitName IN (SELECT * FROM @LSName) THEN 1
+SELECT main.*,avgUnitprice.AvgUnitPrice
+    ,bud.CompleteQty /* IIF(ROW_NUMBER() OVER (PARTITION BY main.BudgetLineId ORDER BY main.BudgetLineId) = 1,bud.CompleteQty,NULL) */
+    ,bud.CompleteUnitPrice 
+    ,bud.UnitName /* IIF(ROW_NUMBER() OVER (PARTITION BY main.BudgetLineId ORDER BY main.BudgetLineId) = 1,bud.UnitName,NULL) */
+    ,bud.CompleteAmount /* IIF(ROW_NUMBER() OVER (PARTITION BY main.BudgetLineId ORDER BY main.BudgetLineId) = 1,bud.CompleteAmount,NULL) */
+    ,CASE WHEN bud.UnitName IN (SELECT * FROM @LSName) THEN 1
         ELSE bud.CompleteQty - SUM(DocQty) OVER (PARTITION BY main.BudgetlineId ORDER BY main.BudgetLineId)
         END RemainQty
-    , bud.CompleteAmount - SUM(main.Amount) OVER (PARTITION BY main.BudgetlineId ORDER BY main.BudgetLineId) RemainAmount
+    ,bud.CompleteAmount - SUM(main.Amount) OVER (PARTITION BY main.BudgetlineId ORDER BY main.BudgetLineId) RemainAmount
     ,dbo.SitePath(main.RefDocTypeId,main.RefDocId) AS DocPath
     ,CASE WHEN main.RefDocId = @DocId and main.RefDocTypeId = @TypeId THEN 1 ELSE 0 END AS IsCurrentDoc
 FROM (
@@ -153,6 +153,17 @@ FROM (
     FROM BudgetLines bl 
     LEFT JOIN RevisedBudgetLines rbl ON bl.Id = rbl.BudgetLineId AND rbl.RevisedBudgetId = @RevisedBudgetId
 ) bud ON main.BudgetLineId = bud.BudgetLineId 
+LEFT JOIN (
+        SELECT SUM(Amount) / SUM(DocQty) AvgUnitPrice
+        FROM
+        (
+            SELECT DocQty,Amount
+            FROM #TempRequest
+            UNION ALL
+            SELECT DocQty,Amount
+            FROM #TempCommit
+        ) x 
+) avgUnitprice ON 1=1
 ORDER BY main.RefDocId,main.RefDocLineId
 
 /* 2-Org */
