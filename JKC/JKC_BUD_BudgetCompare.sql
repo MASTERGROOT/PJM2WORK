@@ -1,4 +1,4 @@
-DECLARE @p0 INT = 366
+DECLARE @p0 INT = 374
 DECLARE @p1 INT = 24
 /* PR = 24, PO = 22, WR = 211, SC = 105 */
 
@@ -81,7 +81,7 @@ SELECT *
 INTO #TempRequest
 FROM (
     SELECT rcl.Id RequestId,rcl.RefDocId, rcl.RefDocCode, rcl.[Date], rcl.RefDocTypeId, rcl.RefDocLineId, rcl.RevisedBudgetId, rcl.BudgetLineId, bl.LineCode, COALESCE(bl.ItemMetaCode,bl.ItemCategoryCode) ItemMetaCode, bl.Description ItemMetaName
-            , rcl.RemainQty DocQty, rcl.DocUnitName, cal.UnitPrice, rcl.RemainAmount Amount, rcl.Description
+            , rcl.RemainQty DocQty, rcl.DocUnitName, IIF(rcl.RemainQty <= 0, 0, cal.UnitPrice) UnitPrice, rcl.RemainAmount Amount, rcl.Description
     FROM (
         SELECT r1.*
             ,r2.*
@@ -113,7 +113,7 @@ SELECT *
 INTO #TempCommit
 FROM (
     SELECT ccl.Id CommitId,ccl.RefDocId, ccl.RefDocCode, ccl.[Date], ccl.RefDocTypeId, ccl.RefDocLineId, ccl.CommittedRevisedBudgetId RevisedBudgetId, ccl.BudgetLineId, bl.LineCode, COALESCE(bl.ItemMetaCode,bl.ItemCategoryCode) ItemMetaCode, bl.Description ItemMetaName
-            , ccl.DocQty, ccl.DocUnitName, cal.UnitPrice, ccl.Amount, ccl.Description
+            , ccl.DocQty, ccl.DocUnitName, IIF(ccl.DocQty <= 0, 0, cal.UnitPrice) UnitPrice, ccl.Amount, ccl.Description
     FROM CommittedCostLines ccl
         INNER JOIN CostAllocationLines cal ON ccl.CostAllocationLineId = cal.Id
         LEFT JOIN BudgetLines bl ON ccl.BudgetLineId = bl.Id
@@ -128,7 +128,7 @@ FROM (
 /************************************************************************************************************************************************************************/
 
 /*1-core*/
-SELECT main.*,avgUnitprice.AvgUnitPrice
+SELECT main.*,avgup.AvgUnitPrice
     ,bud.CompleteQty /* IIF(ROW_NUMBER() OVER (PARTITION BY main.BudgetLineId ORDER BY main.BudgetLineId) = 1,bud.CompleteQty,NULL) */
     ,bud.CompleteUnitPrice 
     ,bud.UnitName /* IIF(ROW_NUMBER() OVER (PARTITION BY main.BudgetLineId ORDER BY main.BudgetLineId) = 1,bud.UnitName,NULL) */
@@ -139,6 +139,7 @@ SELECT main.*,avgUnitprice.AvgUnitPrice
     ,bud.CompleteAmount - SUM(main.Amount) OVER (PARTITION BY main.BudgetlineId ORDER BY main.BudgetLineId) RemainAmount
     ,dbo.SitePath(main.RefDocTypeId,main.RefDocId) AS DocPath
     ,CASE WHEN main.RefDocId = @DocId and main.RefDocTypeId = @TypeId THEN 1 ELSE 0 END AS IsCurrentDoc
+    ,CASE WHEN main.DocQty <= 0 THEN 1 ELSE 0 END AS IsZeroQty
 FROM (
             SELECT *
         FROM #TempRequest
@@ -154,16 +155,17 @@ FROM (
     LEFT JOIN RevisedBudgetLines rbl ON bl.Id = rbl.BudgetLineId AND rbl.RevisedBudgetId = @RevisedBudgetId
 ) bud ON main.BudgetLineId = bud.BudgetLineId 
 LEFT JOIN (
-        SELECT SUM(Amount) / SUM(DocQty) AvgUnitPrice
+        SELECT ItemMetaCode, SUM(Amount) / SUM(DocQty) AvgUnitPrice
         FROM
         (
-            SELECT DocQty,Amount
+            SELECT ItemMetaCode, DocQty,Amount
             FROM #TempRequest
             UNION ALL
-            SELECT DocQty,Amount
+            SELECT ItemMetaCode, DocQty,Amount
             FROM #TempCommit
         ) x 
-) avgUnitprice ON 1=1
+GROUP BY ItemMetaCode
+) avgup ON avgup.ItemMetaCode = main.ItemMetaCode
 ORDER BY main.RefDocId,main.RefDocLineId
 
 /* 2-Org */
