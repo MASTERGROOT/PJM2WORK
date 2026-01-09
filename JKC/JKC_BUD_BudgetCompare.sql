@@ -1,5 +1,5 @@
-DECLARE @p0 INT = 374
-DECLARE @p1 INT = 24
+DECLARE @p0 INT = 624
+DECLARE @p1 INT = 22
 /* PR = 24, PO = 22, WR = 211, SC = 105 */
 
 DECLARE @DocId INT = @p0
@@ -155,17 +155,17 @@ FROM (
     LEFT JOIN RevisedBudgetLines rbl ON bl.Id = rbl.BudgetLineId AND rbl.RevisedBudgetId = @RevisedBudgetId
 ) bud ON main.BudgetLineId = bud.BudgetLineId 
 LEFT JOIN (
-        SELECT ItemMetaCode, SUM(Amount) / SUM(DocQty) AvgUnitPrice
+        SELECT LineCode, SUM(Amount) / SUM(DocQty) AvgUnitPrice
         FROM
         (
-            SELECT ItemMetaCode, DocQty,Amount
+            SELECT LineCode, DocQty,Amount
             FROM #TempRequest
             UNION ALL
-            SELECT ItemMetaCode, DocQty,Amount
+            SELECT LineCode, DocQty,Amount
             FROM #TempCommit
         ) x 
-GROUP BY ItemMetaCode
-) avgup ON avgup.ItemMetaCode = main.ItemMetaCode
+GROUP BY LineCode
+) avgup ON avgup.LineCode = main.LineCode
 ORDER BY main.RefDocId,main.RefDocLineId
 
 /* 2-Org */
