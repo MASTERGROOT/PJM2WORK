@@ -14,9 +14,11 @@ select id,Code,Name,OrgCategory,OrgCategoryName,Parent from Organizations where 
 Select Code,UserName,Name,Position,Email,WorkerType,st.SeatTypeName
 from workers wk
 left join  UserSeats us on wk.Id = us.WorkerId
-left join SeatTypeLogs st on st.Id = us.SeatTypeId
+left join SeatTypeLogs st on st.SeatTypeId = us.SeatTypeId
 Where wk.Code not in ('GOD')
 
+UPDATE Workers SET AutoRunPattern = 'PDTN###', RunNumber = RIGHT(Code,2) WHERE Id IN (35,36,37)
+SELECT * from workers where Id IN (35,36,37)
 --- JOURNAL ---
 select Code,Name,Description,Prefix from Journals
 
@@ -83,5 +85,5 @@ select GroupName,KeyName,Label,Components,Description from CustomNoteMetas
 
 select DocType,ServiceName,Description,REPLACE(REPLACE(REPLACE(Forms,'["',''),'"]',''),'"',''),*
 from CompanyPrintingConfigs
-where CommandName like '%STDFRE_V1%'
+where CommandName like '%STDF_V1%' OR CommandName LIKE '%PDTN%'
 -- SELECT * from CompanyPrintingConfigs
