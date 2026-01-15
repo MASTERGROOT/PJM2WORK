@@ -17,8 +17,7 @@ left join  UserSeats us on wk.Id = us.WorkerId
 left join SeatTypeLogs st on st.SeatTypeId = us.SeatTypeId
 Where wk.Code not in ('GOD')
 
-UPDATE Workers SET AutoRunPattern = 'PDTN###', RunNumber = RIGHT(Code,2) WHERE Id IN (35,36,37)
-SELECT * from workers where Id IN (35,36,37)
+
 --- JOURNAL ---
 select Code,Name,Description,Prefix from Journals
 
@@ -38,7 +37,7 @@ select bankcode,AcctNumber,AcctName,CallName,AcctCode,code,BookName,Description,
 
 
 --- Material ---
-select *--a.Level,a.Code,a.Name,a.CBSCode,REPLACE(a.AccountCode,',',' / ') AccountCode
+select *,IIF([Level] = 0,'Material','Category') [C/M]--a.Level,a.Code,a.Name,a.CBSCode,REPLACE(a.AccountCode,',',' / ') AccountCode
 from
 (
 select itc.level,itc.code,itc.Name,cat.Code [ItemCategoryCode],cat.Name [ItemCategoryName],itc.CBSCode,itc.CBSName,dbo.GROUP_CONCAT(ita.AccountCode) AccountCode,itc.SystemCategoryId,itc.StockMethod,itc.StockMethodName,itc.CountUnitId,itc.CountUnitName
@@ -59,10 +58,10 @@ LEFT JOIN ItemAccounts ita ON a.Id = ita.AssetId
 GROUP BY a.Code,a.Name,a.AssetCategoryCode,a.AssetCategoryName,a.StockMethod,a.StockMethodName,a.CountUnitId,a.CountUnitName
 
 )a
-where /* SystemCategoryId = 33 AND */ ItemCategoryCode IS NOT NULL
+where SystemCategoryId = 33 --AND ItemCategoryCode IS NOT NULL
 order by Code
 
-SELECT * from ItemCategories where SystemCategoryId IN (33,100,99)
+
 --- LOA ---
 select	IIF(line_NO = 1,a.EntityName,NULL) EntityName
 		,IIF(line_NO = 1,a.Description,NULL) Description
@@ -85,5 +84,5 @@ select GroupName,KeyName,Label,Components,Description from CustomNoteMetas
 
 select DocType,ServiceName,Description,REPLACE(REPLACE(REPLACE(Forms,'["',''),'"]',''),'"',''),*
 from CompanyPrintingConfigs
-where CommandName like '%STDF_V1%' OR CommandName LIKE '%PDTN%'
+where CommandName like '%STDF_V1%' OR CommandName LIKE '%CRP%'
 -- SELECT * from CompanyPrintingConfigs
