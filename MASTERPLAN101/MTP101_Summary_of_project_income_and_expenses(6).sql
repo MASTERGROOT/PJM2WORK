@@ -5,15 +5,25 @@
 /* คุณกร รวม VAT  */
 
 DECLARE @p0 DATETIME = '2025-09-30'
-DECLARE @p1 nvarchar(500) = '204'--'204'--'1931'--'1107,1152' --''--
-DECLARE @p2 BIT = 0
+DECLARE @p1 nvarchar(500) = '37'--'204'--'1931'--'1107,1152' --''--
+DECLARE @p2 BIT = 1
+DECLARE @p3 INT = null
 
 DECLARE @Todate DATETIME = @p0
 DECLARE @ProjectId nvarchar(500) = @p1
 DECLARE @IncChild BIT = @p2
+DECLARE @Status INT = @p3
 
 /************************************************************************************************************************************************************************/
-
+SELECT o.Id,o.OrgCategory
+FROM dbo.Organizations o WITH (NOLOCK)
+WHERE	EXISTS (SELECT 1
+				FROM dbo.Organizations pj WITH (NOLOCK)
+				WHERE		pj.Id in (SELECT ncode
+									FROM dbo.fn_listCode(@ProjectId))
+									AND ((@IncChild = 1 AND o.Path LIKE pj.Path +'%') OR (@IncChild = 0 AND o.Id = pj.Id))
+									AND o.OrgCategory IN (85))
+									OR (@ProjectId IS NULL AND o.OrgCategory IN (85))
 DECLARE @OrgId TABLE (Id int)
 /*Save OrgId to Temp.*/
 INSERT INTO @Orgid
@@ -21,15 +31,12 @@ INSERT INTO @Orgid
 
 SELECT o.Id
 FROM dbo.Organizations o WITH (NOLOCK)
-WHERE		EXISTS (
-						SELECT 1
-FROM dbo.Organizations pj WITH (NOLOCK)
-WHERE		pj.Id in (SELECT ncode
-	FROM dbo.fn_listCode(@ProjectId))
-	AND ((@IncChild = 1 AND o.Path LIKE pj.Path +'%')
-	OR (@IncChild = 0 AND o.Id = pj.Id)
-												)
-			)
+WHERE	EXISTS (SELECT 1
+				FROM dbo.Organizations pj WITH (NOLOCK)
+				WHERE		pj.Id in (SELECT ncode
+									FROM dbo.fn_listCode(@ProjectId))
+									AND ((@IncChild = 1 AND o.Path LIKE pj.Path +'%') OR (@IncChild = 0 AND o.Id = pj.Id))) 
+	OR (@ProjectId IS NULL AND o.OrgCategory IN (85))
 
 OPTION
 (RECOMPILE)
@@ -128,7 +135,7 @@ FROM (
 	) po
 WHERE po.Date <= @Todate and ((EXISTS (select 'org'
 	from @OrgId ac
-	WHERE ac.Id = po.LocationId)) OR @ProjectId is NULL)
+	WHERE ac.Id = po.LocationId)) /* OR @ProjectId is NULL */)
 -- GROUP BY po.LocationId
 option(recompile);
 CREATE INDEX IX_TempPo_LocationId ON #TempPo(LocationId)
@@ -201,7 +208,7 @@ FROM (
 	) sc
 WHERE sc.[Date] <= @Todate AND ((EXISTS (select 'org'
 	from @OrgId ac
-	WHERE ac.Id = sc.LocationId)) OR @ProjectId is NULL)
+	WHERE ac.Id = sc.LocationId)) /* OR @ProjectId is NULL */)
 option(recompile);
 
 CREATE INDEX IX_TempSC_LocationId ON #TempSC(LocationId)
@@ -687,7 +694,7 @@ FROM (
 ) cost
 WHERE cost.[Date] <= @Todate AND ((EXISTS (select 'org'
 	from @OrgId ac
-	WHERE ac.Id = cost.LocationId)) OR @ProjectId is NULL)
+	WHERE ac.Id = cost.LocationId)) /* OR @ProjectId is NULL */)
 option(recompile);
 CREATE INDEX IX_TempCost_LocationId ON #TempCost(LocationId)
 CREATE INDEX IX_TempCost_CommitLineId ON #TempCost(CommitLineId)
@@ -876,7 +883,7 @@ into #TempInterim
 from dbo.InterimPayments [ip]
 where ((EXISTS (select 'org'
 	from @OrgId ac
-	WHERE ac.Id = ip.OrgId)) OR @ProjectId is NULL)
+	WHERE ac.Id = ip.OrgId)) /* OR @ProjectId is NULL */)
 	and ip.Status <> 'Canceled'
 
 /*Project Info*/
@@ -891,10 +898,11 @@ FROM #TempInterim ip
 /************************************************************************************************************************************************************************/
 
 /*1-core*/
-SELECT o.Id
+SELECT o.Id,o.FinancialStatus
 		, o.Codesum
 		, o.[Code(2)]
 		, o.[Name(3)]
+		, o.ParentId
 		, o.OriginalContractNO
 		, o.[OriginalContractAmount(4)]
 		, o.VODate
@@ -947,10 +955,11 @@ SELECT o.Id
 
 FROM(
 
-	select org.Id
+	select org.Id,orgp.FinancialStatus
 		, IIF(org.Code like '%AN-%',substring(org.Code,4,20),org.Code) [Codesum]
 		, org.Code [Code(2)] /*(2)*/
 		, org.Name [Name(3)]/*(2)*/
+		, org.Parent ParentId
 		, orgP.ContractNO [OriginalContractNO] 
 		--,ISNULL(orgP.ContractAmount,0) /*+ ISNULL(ir.IrAmount,0)*/ [OriginalContractAmount(4)] /*(4)*/
 		, ISNULL(pn.ContractAmount,0) [OriginalContractAmount(4)] /*New*/
@@ -1075,6 +1084,7 @@ FROM(
 		[% Est Gross profit Amount(25)]
 
 	from Organizations org
+		-- LEFT JOIN Organizations pa ON org.Parent = pa.Id
 		LEFT JOIN #TempProjectInfo pn On pn.OrgId = org.Id
 		left join Organizations_ProjectConstruction orgP on org.Id = orgP.id
 		left join (	select SUM(isnull(ContractAmount,0)) VOSUM,
@@ -1255,10 +1265,11 @@ FROM(
 			) ors on org.Id = ors.LocationId
 	where (exists (select 1
 		from @OrgId a
-		where org.Id = a.Id) or @ProjectId is null)
+		where org.Id = a.Id) /* or @ProjectId is null */)
 
-)o
-order by o.[Code(2)]
+)o 
+WHERE (@Status IS NOT NULL AND o.FinancialStatus = @Status) OR (@Status IS NULL)
+order by o.ParentId,o.FinancialStatus,o.[Code(2)]
 /************************************************************************************************************************************************************************/
 
 /*2-Filter*/
@@ -1269,6 +1280,7 @@ select @Todate [As Of Date]
 	WHERE Id in (SELECT ncode
 	FROM dbo.fn_listCode(@ProjectId))) Project
 		, IIF(@IncChild = 1,'Include Child','NO') IncChild
+		, @Status [Status]
 
 /************************************************************************************************************************************************************************/
 

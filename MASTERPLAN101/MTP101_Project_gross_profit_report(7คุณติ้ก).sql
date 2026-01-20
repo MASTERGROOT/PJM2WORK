@@ -4,12 +4,14 @@
 /*รายงานกำไรขั้นต้น รายโครงการ*/
 
 DECLARE @p0 DATETIME = '2025-09-02'
-DECLARE @p1 nvarchar(500) = '216'--'1931'--'1107,1152' --''--
+DECLARE @p1 nvarchar(500) = null--'1931'--'1107,1152' --''--
 DECLARE @p2 BIT = 0
+DECLARE @p3 INT = NULL
 
 DECLARE @Todate DATETIME = @p0
 DECLARE @ProjectId nvarchar(500) = @p1
 DECLARE @IncChild BIT = @p2
+DECLARE @Status INT = @p3
 
 /************************************************************************************************************************************************************************/
 
@@ -24,8 +26,8 @@ WHERE		EXISTS (
 						WHERE		pj.Id in (SELECT ncode FROM dbo.fn_listCode(@ProjectId)) 
 									AND ((@IncChild = 1 AND o.Path LIKE pj.Path +'%')
 											OR (@IncChild = 0 AND o.Id = pj.Id)
-												)
-			)
+											AND o.OrgCategory IN (85))
+			) OR (@ProjectId IS NULL AND o.OrgCategory IN (85))
 
 OPTION (RECOMPILE)
             
@@ -116,7 +118,7 @@ DROP TABLE #TempPo
 		WHERE p.DocStatus not in (-1) 
 								and pl.SystemCategoryId IN (99,100,105) 
 	) po
-	WHERE po.Date <= @Todate and ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = po.LocationId)) OR @ProjectId is NULL)
+	WHERE po.Date <= @Todate and ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = po.LocationId)) /* OR @ProjectId is NULL */)
 	-- GROUP BY po.LocationId
 	option(recompile);
 	CREATE INDEX IX_TempPo_LocationId ON #TempPo(LocationId)
@@ -180,7 +182,7 @@ DROP TABLE #TempSC
 		) vo
 		WHERE sc.DocStatus != -1 AND scl.SystemCategoryId IN (99,100,105) --AND sc.Id = 6755--1027
 	) sc
-	WHERE sc.[Date] <= @Todate AND ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = sc.LocationId)) OR @ProjectId is NULL)
+	WHERE sc.[Date] <= @Todate AND ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = sc.LocationId)) /* OR @ProjectId is NULL */)
 	option(recompile);
 
 	CREATE INDEX IX_TempSC_LocationId ON #TempSC(LocationId)
@@ -485,7 +487,7 @@ FROM (
 		) DocPaid
 		WHERE ccl.RefDocTypeId NOT IN (22,105)--(1,2,64,43,97)
 ) cost
-	WHERE cost.[Date] <= @Todate AND ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = cost.LocationId)) OR @ProjectId is NULL)
+	WHERE cost.[Date] <= @Todate AND ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = cost.LocationId)) /* OR @ProjectId is NULL */)
 	option(recompile);
 CREATE INDEX IX_TempCost_LocationId ON #TempCost(LocationId)
 CREATE INDEX IX_TempCost_CommitLineId ON #TempCost(CommitLineId)
@@ -665,7 +667,7 @@ select
 
 into #TempInterim 
 from dbo.InterimPayments [ip] 
-where ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = ip.OrgId)) OR @ProjectId is NULL)
+where ((EXISTS (select 'org' from @OrgId ac WHERE ac.Id = ip.OrgId)) /* OR @ProjectId is NULL */)
  and ip.Status <> 'Canceled'
  
 /*Project Info*/
@@ -679,9 +681,9 @@ INNER JOIN dbo.Organizations o ON ip.OrgId = o.Id
 LEFT JOIN dbo.Organizations_ProjectConstruction p ON p.Id = o.Id
 /************************************************************************************************************************************************************************/
 /*1-core*/
-SELECT o.Id
+SELECT o.Id,o.FinancialStatus
 		,o.[Code(2)]
-		,o.[Name(3)]
+		,o.[Name(3)],o.Parent
 		,o.OriginalContractNO
 		,o.[OriginalContractAmount(4)]
 		,o.VODate
@@ -737,9 +739,9 @@ SELECT o.Id
 
 FROM(
 
-	select	org.Id
+	select	org.Id,orgP.FinancialStatus
 		,org.Code [Code(2)] /*(2)*/
-		,org.Name [Name(3)]/*(2)*/
+		,org.Name [Name(3)]/*(2)*/,org.Parent
 		,orgP.ContractNO [OriginalContractNO] 
 		--,(ISNULL(orgP.ContractAmount,0) * 100 / 107) + ISNULL(ir.IrTaxBase,0) [OriginalContractAmount(4)] /*(4)*/
 		,ISNULL(pn.ContractAmount,0) [OriginalContractAmount(4)] /*New*/
@@ -1084,8 +1086,10 @@ left join (select orgP.Id,o.LocationId
 					and o.SubDocTypeId in (609)
 			group by orgP.Id,orgP.TaxType,o.LocationId
 			) ors on org.Id = ors.LocationId
-where (exists (select 1 from @OrgId a where org.Id = a.Id) or @ProjectId is null)
-)o order by o.[Code(2)]
+where (exists (select 1 from @OrgId a where org.Id = a.Id) /* or @ProjectId is null */)
+)o 
+WHERE (@Status IS NOT NULL AND o.FinancialStatus = @Status) OR (@Status IS NULL)
+order by o.Parent,o.FinancialStatus,o.[Code(2)]
 /************************************************************************************************************************************************************************/
 
 /*2-Filter*/
